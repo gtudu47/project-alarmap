@@ -1,0 +1,93 @@
+import { Application, Container, Graphics } from 'pixi.js';
+import type { World } from '@alarmap/map-model';
+import type { RendererAdapter } from './types.js';
+import { splitAntimeridian } from './geography.js';
+
+export class PlaneRenderer implements RendererAdapter {
+  private readonly app = new Application();
+  private readonly scene = new Container();
+  private host!: HTMLElement;
+  private observer?: ResizeObserver;
+  private world?: World;
+  private zoom = 1;
+  private offset = { x: 0, y: 0 };
+  private drag?: { x: number; y: number; id: number };
+  private readonly events = new AbortController();
+
+  async init(host: HTMLElement): Promise<void> {
+    this.host = host;
+    await this.app.init({ preference: 'webgl', background: '#101f2c', antialias: true, resolution: Math.min(devicePixelRatio, 2), autoDensity: true, resizeTo: host });
+    host.append(this.app.canvas);
+    this.app.stage.addChild(this.scene);
+    const options = { signal: this.events.signal };
+    this.app.canvas.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      this.drag = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      this.app.canvas.setPointerCapture(event.pointerId);
+    }, options);
+    this.app.canvas.addEventListener('pointermove', (event) => {
+      if (!this.drag || this.drag.id !== event.pointerId) return;
+      this.offset.x += event.clientX - this.drag.x;
+      this.offset.y += event.clientY - this.drag.y;
+      this.drag.x = event.clientX; this.drag.y = event.clientY; this.transform();
+    }, options);
+    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) this.app.canvas.addEventListener(event, () => { this.drag = undefined; }, options);
+    this.app.canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const bounds = this.app.canvas.getBoundingClientRect();
+      const x = event.clientX - bounds.left - host.clientWidth / 2;
+      const y = event.clientY - bounds.top - host.clientHeight / 2;
+      const next = Math.min(16, Math.max(0.5, this.zoom * Math.exp(-event.deltaY * 0.001)));
+      const ratio = next / this.zoom;
+      this.offset = { x: x - (x - this.offset.x) * ratio, y: y - (y - this.offset.y) * ratio };
+      this.zoom = next; this.transform();
+    }, { ...options, passive: false });
+    this.observer = new ResizeObserver(() => this.transform());
+    this.observer.observe(host);
+    this.transform();
+  }
+
+  setWorld(world: World): void { this.world = world; this.draw(); }
+  async exportPng(): Promise<Blob> {
+    this.app.renderer.render(this.app.stage);
+    return new Promise((resolve, reject) => this.app.canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Export PNG impossible.')), 'image/png'));
+  }
+  reset(): void { this.zoom = 1; this.offset = { x: 0, y: 0 }; this.transform(); }
+  private transform(): void {
+    const scale = Math.min(this.host.clientWidth / 400, this.host.clientHeight / 220) * this.zoom;
+    this.scene.scale.set(scale);
+    this.scene.position.set(this.host.clientWidth / 2 + this.offset.x, this.host.clientHeight / 2 + this.offset.y);
+  }
+  private draw(): void {
+    for (const child of this.scene.removeChildren()) child.destroy();
+    const grid = new Graphics();
+    grid.rect(-180, -90, 360, 180).fill('#142b3b');
+    for (let longitude = -180; longitude <= 180; longitude += 30) grid.moveTo(longitude, -90).lineTo(longitude, 90);
+    for (let latitude = -90; latitude <= 90; latitude += 30) grid.moveTo(-180, latitude).lineTo(180, latitude);
+    grid.stroke({ color: '#365261', width: 0.25 });
+    grid.moveTo(-180, 0).lineTo(180, 0).moveTo(0, -90).lineTo(0, 90).stroke({ color: '#66818a', width: 0.35 });
+    this.scene.addChild(grid);
+    if (!this.world) return;
+    for (const layer of [...this.world.layers].sort((a, b) => a.order - b.order)) {
+      if (!layer.visible) continue;
+      for (const object of this.world.objects.filter((object) => object.layerId === layer.id)) {
+        const graphics = new Graphics();
+        graphics.alpha = layer.opacity * object.style.opacity;
+        if (object.geometry.type === 'Point') {
+          const [longitude, latitude] = object.geometry.coordinates;
+          graphics.circle(longitude, -latitude, 1.8).fill(object.style.color);
+        } else if (object.geometry.type === 'LineString') {
+          for (const segment of splitAntimeridian(object.geometry.coordinates)) {
+            segment.forEach(([longitude, latitude], index) => index === 0 ? graphics.moveTo(longitude, -latitude) : graphics.lineTo(longitude, -latitude));
+            graphics.stroke({ color: object.style.color, width: 0.8 });
+          }
+        }
+        this.scene.addChild(graphics);
+      }
+    }
+  }
+  destroy(): void {
+    this.events.abort(); this.observer?.disconnect();
+    this.app.destroy(true, { children: true });
+  }
+}

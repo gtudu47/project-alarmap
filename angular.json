@@ -1,0 +1,96 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "analytics": false
+  },
+  "projects": {
+    "editor": {
+      "projectType": "application",
+      "root": "apps/editor",
+      "sourceRoot": "apps/editor/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/editor",
+            "index": "apps/editor/src/index.html",
+            "browser": "apps/editor/src/main.ts",
+            "tsConfig": "apps/editor/tsconfig.app.json",
+            "styles": [
+              "apps/ui/styles.scss"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "outputHashing": "all",
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "700kB",
+                  "maximumError": "1MB"
+                }
+              ]
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "editor:build:development",
+            "proxyConfig": "config/proxy.json"
+          }
+        }
+      }
+    },
+    "viewer": {
+      "projectType": "application",
+      "root": "apps/viewer",
+      "sourceRoot": "apps/viewer/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/viewer",
+            "index": "apps/viewer/src/index.html",
+            "browser": "apps/viewer/src/main.ts",
+            "tsConfig": "apps/viewer/tsconfig.app.json",
+            "styles": [
+              "apps/ui/styles.scss"
+            ],
+            "baseHref": "/viewer/"
+          },
+          "configurations": {
+            "production": {
+              "outputHashing": "all",
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "700kB",
+                  "maximumError": "1MB"
+                }
+              ]
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "viewer:build:development",
+            "proxyConfig": "config/proxy.json"
+          }
+        }
+      }
+    }
+  }
+}

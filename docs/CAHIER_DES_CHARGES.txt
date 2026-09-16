@@ -1,0 +1,2619 @@
+# Cahier des charges — AlarMap
+
+## 1. Objectif général
+
+**AlarMap** est un outil web de modélisation cartographique destiné principalement aux projets médiévaux-fantastiques.
+
+Il doit permettre de créer, modifier, sauvegarder, publier et intégrer des cartes interactives comprenant notamment :
+
+- continents ;
+- océans ;
+- relief ;
+- rivières ;
+- lacs ;
+- forêts ;
+- biomes ;
+- royaumes ;
+- provinces ;
+- villes ;
+- villages ;
+- forteresses ;
+- routes ;
+- routes commerciales ;
+- religions ;
+- cultures ;
+- langues ;
+- zones magiques ;
+- lieux historiques ;
+- chronologie.
+
+Les cartes devront pouvoir être consultées depuis n’importe quelle page web sans nécessiter l’installation de l’éditeur.
+
+---
+
+# 2. Architecture générale
+
+Le projet doit être construit sous forme de monorepo.
+
+Structure cible :
+
+```text
+AlarMap/
+│
+├── apps/
+│   ├── editor/
+│   ├── viewer/
+│   └── api/
+│
+├── packages/
+│   ├── map-engine/
+│   ├── map-model/
+│   ├── map-sdk/
+│   └── shared/
+│
+├── scripts/
+├── installer/
+├── updater/
+├── config/
+├── docker/
+├── docs/
+├── backups/
+│
+├── .github/
+│   └── workflows/
+│
+├── .env
+├── .env.example
+├── .gitignore
+├── LICENSE
+├── version.json
+├── docker-compose.yml
+├── package.json
+└── README.md
+```
+
+Le projet doit séparer strictement :
+
+- moteur cartographique ;
+- Editor ;
+- Viewer ;
+- API ;
+- stockage ;
+- installateur ;
+- mise à jour ;
+- SDK.
+
+---
+
+# 3. Technologies
+
+## Frontend
+
+- Angular ;
+- TypeScript strict ;
+- HTML ;
+- SCSS.
+
+## Moteur graphique
+
+- PixiJS ;
+- WebGL.
+
+Préparer l’architecture pour une future évolution vers WebGPU.
+
+## Backend
+
+- Node.js ;
+- NestJS ;
+- TypeScript.
+
+## Base de données
+
+- PostgreSQL.
+
+Prévoir éventuellement :
+
+- PostGIS.
+
+## Assets
+
+Stockage :
+
+- local en développement ;
+- MinIO ou S3-compatible en production.
+
+## Infrastructure
+
+- Docker ;
+- Docker Compose ;
+- reverse proxy Nginx ou équivalent.
+
+---
+
+# 4. GitHub
+
+Le projet sera hébergé sur GitHub.
+
+La branche stable officielle est :
+
+```text
+main
+```
+
+Branches autorisées pour le développement :
+
+```text
+dev
+feature/*
+fix/*
+release/*
+```
+
+Le système automatique de mise à jour ne doit suivre que :
+
+```text
+main
+```
+
+---
+
+# 5. Licence du projet
+
+Codex doit créer obligatoirement à la racine du dépôt :
+
+```text
+LICENSE
+```
+
+Le fichier doit utiliser la licence :
+
+**PolyForm Noncommercial License 1.0.0**
+
+Le fichier `LICENSE` doit contenir le texte suivant :
+
+```text
+PolyForm Noncommercial License 1.0.0
+
+Acceptance
+By using or distributing this software, you accept this license and agree to its terms.
+
+Copyright License
+The licensor grants you a non-exclusive, royalty-free, worldwide, non-sublicensable copyright license to use, copy, distribute, make available, and prepare derivative works of this software for noncommercial purposes only.
+
+Noncommercial Purposes
+Noncommercial purposes include any use of this software that is not for commercial advantage or monetary compensation.
+
+Patent License
+The licensor grants you a non-exclusive, royalty-free, worldwide, non-sublicensable patent license under their patent claims that are necessarily infringed by this software to make, have made, use, sell, offer for sale, import, and otherwise transfer this software for noncommercial purposes only.
+
+Notices
+You must ensure that any copy or derivative work of this software that you distribute or make available includes this license document.
+
+No Other Rights
+This license does not grant any patent license for use or distribution of this software for commercial purposes, or any copyright license to use, copy, distribute, make available, or prepare derivative works of this software for commercial purposes.
+
+Defense of Claims
+If you make a patent claim against anyone alleging that this software infringes a patent, your patent and copyright licenses for this software under this license terminate immediately.
+
+Disclaimer of Warranty
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+Le fichier :
+
+```text
+LICENSE
+```
+
+doit obligatoirement être suivi par Git.
+
+Il ne doit jamais être ajouté au `.gitignore`.
+
+---
+
+# 6. Référence de licence dans le README
+
+Le fichier :
+
+```text
+README.md
+```
+
+doit contenir une section :
+
+```text
+## License
+```
+
+précisant clairement que le projet est distribué sous :
+
+```text
+PolyForm Noncommercial License 1.0.0
+```
+
+et que l’utilisation commerciale n’est pas autorisée par la licence.
+
+Ajouter un lien relatif :
+
+```markdown
+See [LICENSE](LICENSE).
+```
+
+---
+
+# 7. Création obligatoire de `.gitignore`
+
+Codex doit créer à la racine :
+
+```text
+.gitignore
+```
+
+Le fichier doit au minimum contenir :
+
+```gitignore
+# Sécurité de la Base de Données (PostgreSQL) et API
+.env
+.env.local
+.env.production
+config/database.json
+secrets/
+
+# Fichiers de configuration IDE contenant des infos sensibles
+.vscode/
+.idea/
+```
+
+Codex doit compléter ce fichier avec les exclusions nécessaires au projet.
+
+Version recommandée :
+
+```gitignore
+# Sécurité de la Base de Données (PostgreSQL) et API
+.env
+.env.local
+.env.production
+config/database.json
+secrets/
+
+# Fichiers de configuration IDE contenant des infos sensibles
+.vscode/
+.idea/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Builds
+dist/
+build/
+out/
+coverage/
+
+# Angular
+.angular/
+.cache/
+
+# Nx
+.nx/cache/
+
+# Logs
+logs/
+*.log
+
+# Fichiers temporaires
+tmp/
+temp/
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker / données locales
+postgres-data/
+minio-data/
+redis-data/
+
+# Backups locaux
+backups/
+
+# Certificats et clés privées
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime
+*.pid
+*.seed
+```
+
+---
+
+# 8. Règle de sécurité Git
+
+Codex doit vérifier que les fichiers suivants ne sont jamais suivis par Git :
+
+```text
+.env
+.env.local
+.env.production
+config/database.json
+secrets/
+```
+
+Avant un commit ou avant de considérer le dépôt comme prêt, Codex doit pouvoir vérifier :
+
+```bash
+git status
+```
+
+Les secrets ne doivent pas apparaître dans les fichiers versionnés.
+
+---
+
+# 9. Création du fichier `.env`
+
+Codex doit créer localement :
+
+```text
+.env
+```
+
+avec le contenu initial demandé :
+
+```dotenv
+DB_HOST=localhost
+DB_USER=mon_utilisateur_postgres
+DB_PASSWORD=mon_mot_de_passe_secret_123
+DB_NAME=ma_base_de_cartes
+```
+
+Ce fichier sert de configuration locale initiale.
+
+Il ne doit jamais être poussé sur GitHub.
+
+---
+
+# 10. Adaptation automatique de `.env`
+
+L’installateur est autorisé à adapter automatiquement certaines valeurs.
+
+Par exemple, dans un environnement entièrement Docker :
+
+```text
+DB_HOST=postgres
+```
+
+peut remplacer :
+
+```text
+DB_HOST=localhost
+```
+
+si `postgres` correspond au nom du service Docker PostgreSQL.
+
+Les valeurs contenues dans `.env` doivent donc être considérées comme configuration locale de départ.
+
+---
+
+# 11. Mot de passe de production
+
+La valeur :
+
+```text
+mon_mot_de_passe_secret_123
+```
+
+doit uniquement être considérée comme valeur initiale ou exemple de développement.
+
+Lors d’une installation automatisée destinée à être réellement utilisée, l’installateur doit générer automatiquement un mot de passe PostgreSQL aléatoire fort.
+
+Il doit également générer :
+
+- JWT_SECRET ;
+- clés API internes éventuelles ;
+- secrets MinIO ;
+- autres secrets nécessaires.
+
+Aucun secret généré ne doit être envoyé dans Git.
+
+---
+
+# 12. Création de `.env.example`
+
+Codex doit créer :
+
+```text
+.env.example
+```
+
+Ce fichier doit être versionné sur GitHub.
+
+Il doit expliquer aux autres utilisateurs comment configurer AlarMap.
+
+Contenu recommandé :
+
+```dotenv
+# ============================================================
+# AlarMap - Exemple de configuration
+# ============================================================
+#
+# Copiez ce fichier sous le nom :
+#
+# .env
+#
+# puis modifiez les valeurs selon votre installation.
+#
+# Le fichier .env contient des informations sensibles.
+# Il ne doit jamais être envoyé sur GitHub.
+#
+# Exemple :
+#
+# cp .env.example .env
+#
+# Sous Windows :
+#
+# Copy-Item .env.example .env
+#
+# ============================================================
+
+
+# ------------------------------------------------------------
+# PostgreSQL
+# ------------------------------------------------------------
+
+# Adresse du serveur PostgreSQL.
+#
+# Installation locale :
+# DB_HOST=localhost
+#
+# Installation Docker :
+# DB_HOST=postgres
+#
+DB_HOST=localhost
+
+
+# Nom de l'utilisateur PostgreSQL utilisé par AlarMap.
+DB_USER=mon_utilisateur_postgres
+
+
+# Mot de passe PostgreSQL.
+#
+# IMPORTANT :
+# remplacez cette valeur par un mot de passe fort.
+#
+DB_PASSWORD=change_me
+
+
+# Nom de la base de données utilisée par AlarMap.
+DB_NAME=ma_base_de_cartes
+
+
+# ------------------------------------------------------------
+# PostgreSQL - Port
+# ------------------------------------------------------------
+
+DB_PORT=5432
+
+
+# ------------------------------------------------------------
+# API AlarMap
+# ------------------------------------------------------------
+
+API_PORT=3000
+
+
+# ------------------------------------------------------------
+# Editor
+# ------------------------------------------------------------
+
+EDITOR_PORT=4200
+
+
+# ------------------------------------------------------------
+# Viewer
+# ------------------------------------------------------------
+
+VIEWER_PORT=4201
+
+
+# ------------------------------------------------------------
+# Sécurité JWT
+# ------------------------------------------------------------
+
+# Clé utilisée pour signer les jetons JWT.
+#
+# Elle doit être longue, aléatoire et privée.
+#
+JWT_SECRET=change_me_with_a_long_random_secret
+
+
+# ------------------------------------------------------------
+# URL publique
+# ------------------------------------------------------------
+
+PUBLIC_APP_URL=http://localhost
+
+
+# ------------------------------------------------------------
+# Mise à jour automatique
+# ------------------------------------------------------------
+
+# Active ou désactive le système de mise à jour automatique.
+AUTO_UPDATE=true
+
+
+# Branche GitHub suivie par l'updater.
+#
+# La production doit utiliser main.
+#
+INSTALL_CHANNEL=main
+
+
+# ------------------------------------------------------------
+# Stockage S3 / MinIO
+# ------------------------------------------------------------
+
+S3_ENDPOINT=http://localhost:9000
+S3_BUCKET=alarmap
+S3_ACCESS_KEY=change_me
+S3_SECRET_KEY=change_me
+
+
+# ------------------------------------------------------------
+# Environnement
+# ------------------------------------------------------------
+
+NODE_ENV=production
+```
+
+---
+
+# 13. Documentation de `.env`
+
+Le README doit contenir une section expliquant :
+
+```text
+.env.example
+        ↓
+copie
+        ↓
+.env
+        ↓
+personnalisation
+```
+
+Exemple Linux :
+
+```bash
+cp .env.example .env
+```
+
+Exemple PowerShell :
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Préciser que l’installation automatique peut effectuer cette opération automatiquement.
+
+---
+
+# 14. Installation en une commande
+
+L’utilisateur doit pouvoir installer AlarMap depuis GitHub avec une seule commande.
+
+Windows :
+
+```powershell
+irm https://raw.githubusercontent.com/OWNER/AlarMap/main/install.ps1 | iex
+```
+
+Linux :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/OWNER/AlarMap/main/install.sh | bash
+```
+
+Les URLs seront remplacées par celles du dépôt définitif.
+
+---
+
+# 15. Dossier temporaire
+
+L’installation doit commencer dans un dossier temporaire.
+
+Windows :
+
+```text
+%TEMP%\alarmap-installer
+```
+
+Linux :
+
+```text
+/tmp/alarmap-installer
+```
+
+L’installateur doit :
+
+1. créer le dossier ;
+2. télécharger les fichiers ;
+3. vérifier les fichiers ;
+4. préparer l’installation ;
+5. installer ;
+6. initialiser la configuration ;
+7. lancer les services ;
+8. nettoyer les fichiers temporaires.
+
+---
+
+# 16. Dépendances
+
+La configuration cible doit nécessiter idéalement uniquement :
+
+```text
+Docker
+Docker Compose
+```
+
+Le script doit néanmoins être capable de détecter :
+
+```text
+Git
+Docker
+Docker Compose
+Node.js
+npm
+```
+
+selon la méthode d’installation retenue.
+
+---
+
+# 17. Docker Compose
+
+Les services pourront comprendre :
+
+```text
+alarmap-api
+alarmap-editor
+alarmap-viewer
+alarmap-postgres
+alarmap-minio
+```
+
+Redis pourra être ajouté ultérieurement.
+
+Les données doivent être stockées dans des volumes persistants.
+
+---
+
+# 18. Initialisation automatique
+
+Lors de la première installation :
+
+1. création de `.env` ;
+2. génération des secrets ;
+3. création des volumes ;
+4. lancement PostgreSQL ;
+5. migrations ;
+6. création du stockage ;
+7. lancement API ;
+8. lancement Editor ;
+9. lancement Viewer ;
+10. health checks.
+
+---
+
+# 19. Mise à jour automatique
+
+L’installateur doit créer une tâche locale de mise à jour.
+
+Le système doit surveiller exclusivement :
+
+```text
+main
+```
+
+Principe :
+
+```text
+GitHub main
+     ↓
+nouvelle version
+     ↓
+backup
+     ↓
+download
+     ↓
+migration
+     ↓
+restart
+     ↓
+health check
+```
+
+---
+
+# 20. Windows Task Scheduler
+
+Créer une tâche :
+
+```text
+AlarMap Auto Update
+```
+
+qui lance :
+
+```text
+update.ps1
+```
+
+Fréquence initiale :
+
+```text
+toutes les 6 heures
+```
+
+et au démarrage si cela peut être implémenté proprement.
+
+---
+
+# 21. Linux
+
+Utiliser prioritairement :
+
+```text
+systemd timer
+```
+
+avec :
+
+```text
+alarmap-update.service
+alarmap-update.timer
+```
+
+---
+
+# 22. version.json
+
+Créer :
+
+```text
+version.json
+```
+
+Exemple :
+
+```json
+{
+  "version": "0.1.0",
+  "channel": "main",
+  "schemaVersion": 1
+}
+```
+
+---
+
+# 23. Sauvegarde avant mise à jour
+
+Avant toute mise à jour :
+
+- sauvegarde PostgreSQL ;
+- sauvegarde configuration ;
+- version courante ;
+- vérification des volumes.
+
+Structure :
+
+```text
+backups/
+└── 2026-09-15_2200/
+    ├── database.sql.gz
+    ├── config/
+    └── version.json
+```
+
+Conserver par défaut :
+
+```text
+5
+```
+
+sauvegardes de mise à jour.
+
+---
+
+# 24. Rollback
+
+Si :
+
+- migration échoue ;
+- service ne démarre pas ;
+- health check échoue ;
+
+alors le système doit tenter de revenir à la version précédente.
+
+Les données utilisateur ne doivent jamais être volontairement supprimées.
+
+---
+
+# 25. Moteur cartographique
+
+Créer :
+
+```text
+packages/map-engine
+```
+
+Il doit être indépendant d’Angular.
+
+Il doit gérer :
+
+- caméra ;
+- zoom ;
+- pan ;
+- viewport ;
+- coordonnées monde/écran ;
+- rendu WebGL ;
+- sélection ;
+- objets ;
+- culling ;
+- futur LOD.
+
+---
+
+# 26. Editor
+
+L’Editor doit fournir :
+
+- Select ;
+- Pan ;
+- Polygon ;
+- Polyline ;
+- Point ;
+- Text ;
+- Delete ;
+- calques ;
+- propriétés ;
+- Undo ;
+- Redo ;
+- sauvegarde.
+
+---
+
+# 27. Viewer
+
+Le Viewer doit utiliser exactement le même :
+
+```text
+map-engine
+```
+
+que l’Editor.
+
+Aucun deuxième moteur cartographique ne doit être développé.
+
+---
+
+# 28. Intégration web
+
+Une carte publiée devra pouvoir être intégrée via :
+
+## iframe
+
+```html
+<iframe
+    src="https://maps.example.com/embed/orsoulia"
+    width="100%"
+    height="700">
+</iframe>
+```
+
+## SDK
+
+```javascript
+const map = new AlarMap({
+    container: "#map",
+    mapId: "orsoulia"
+});
+```
+
+## API
+
+```text
+/api/v1/public/
+```
+
+---
+
+# 29. Objets cartographiques
+
+Types géométriques :
+
+```text
+point
+polyline
+polygon
+label
+sprite
+region
+```
+
+Types métiers :
+
+```text
+continent
+island
+lake
+river
+mountain
+mountain_range
+forest
+swamp
+desert
+kingdom
+province
+city
+village
+fortress
+road
+trade_route
+port
+ruin
+religious_site
+magic_zone
+```
+
+---
+
+# 30. Calques
+
+Exemples :
+
+```text
+Terrain
+Océans
+Relief
+Rivières
+Forêts
+Royaumes
+Provinces
+Routes
+Villes
+Labels
+Zones magiques
+```
+
+Chaque calque doit pouvoir être :
+
+- affiché ;
+- masqué ;
+- verrouillé ;
+- renommé ;
+- réordonné ;
+- rendu transparent.
+
+---
+
+# 31. Chronologie
+
+Prévoir dès le modèle de données :
+
+```typescript
+startYear?: number;
+endYear?: number;
+```
+
+La carte pourra évoluer selon l’année sélectionnée.
+
+---
+
+# 32. Publication
+
+Statuts :
+
+```text
+draft
+private
+unlisted
+public
+```
+
+---
+
+# 33. Authentification
+
+Prévoir :
+
+- email ;
+- mot de passe ;
+- Argon2 ;
+- JWT.
+
+Plus tard :
+
+- GitHub ;
+- Google ;
+- autres OAuth.
+
+---
+
+# 34. Permissions
+
+Prévoir :
+
+```text
+owner
+editor
+viewer
+```
+
+---
+
+# 35. API
+
+Prévoir notamment :
+
+```text
+GET    /api/v1/worlds
+POST   /api/v1/worlds
+
+GET    /api/v1/worlds/:id
+PUT    /api/v1/worlds/:id
+PATCH  /api/v1/worlds/:id
+DELETE /api/v1/worlds/:id
+```
+
+Ainsi que les ressources :
+
+```text
+layers
+objects
+assets
+users
+members
+```
+
+---
+
+# 36. CI GitHub
+
+Créer :
+
+```text
+.github/workflows/ci.yml
+```
+
+Exécuter :
+
+```text
+lint
+tests
+build
+```
+
+sur :
+
+- Pull Request ;
+- push sur `main`.
+
+---
+
+# 37. Releases
+
+Prévoir :
+
+```text
+.github/workflows/release.yml
+```
+
+Utiliser :
+
+```text
+Semantic Versioning
+```
+
+Exemples :
+
+```text
+0.1.0
+0.2.0
+0.2.1
+1.0.0
+```
+
+---
+
+# 38. Gestion du quota Codex
+
+Si Codex approche de sa limite de contexte, de quota ou de capacité de travail disponible, il ne doit plus démarrer de grande fonctionnalité.
+
+Il doit passer en mode :
+
+```text
+STOP NEW FEATURE
+```
+
+Puis :
+
+1. stabiliser le code existant ;
+2. corriger les erreurs simples ;
+3. lancer les tests possibles ;
+4. mettre à jour la documentation ;
+5. mettre à jour ROADMAP ;
+6. produire une fiche de reprise.
+
+---
+
+# 39. CODEX_HANDOFF.md
+
+Créer :
+
+```text
+docs/CODEX_HANDOFF.md
+```
+
+Il doit contenir :
+
+```text
+# État du projet
+
+Version :
+Branche :
+Dernier commit examiné :
+
+# Travail terminé
+
+# Travail en cours
+
+# Fichiers principaux modifiés
+
+# Fonctionnalités fonctionnelles
+
+# Fonctionnalités incomplètes
+
+# Bugs connus
+
+# Dette technique
+
+# Tests exécutés
+
+# Tests en échec
+
+# Prochaine tâche recommandée
+
+# Commandes utiles
+
+# Points importants à ne pas casser
+
+# Décisions architecturales
+
+# Notes pour la prochaine session Codex
+```
+
+---
+
+# 40. Reprise du développement
+
+Au début d’une nouvelle session, Codex doit :
+
+1. lire `docs/CODEX_HANDOFF.md` ;
+2. lire `docs/ROADMAP.md` ;
+3. vérifier `version.json` ;
+4. vérifier la branche ;
+5. examiner l’état réel du dépôt ;
+6. reprendre au point approprié.
+
+Le dépôt reste toujours la source de vérité.
+
+---
+
+# 41. ROADMAP.md
+
+Créer :
+
+```text
+docs/ROADMAP.md
+```
+
+Utiliser :
+
+```text
+[ ] non commencé
+[-] en cours
+[x] terminé
+[!] bloqué
+```
+
+---
+
+# 42. Version 0.1 — Fondations
+
+Développer :
+
+- monorepo ;
+- Docker ;
+- PostgreSQL ;
+- installation ;
+- updater ;
+- licence ;
+- `.gitignore` ;
+- `.env.example` ;
+- Editor ;
+- Viewer ;
+- API ;
+- map-engine ;
+- caméra ;
+- zoom ;
+- pan ;
+- calques ;
+- Polygon ;
+- Polyline ;
+- Point ;
+- Text ;
+- sélection ;
+- Undo/Redo ;
+- sauvegarde ;
+- iframe ;
+- export PNG.
+
+---
+
+# 43. Version 0.2 — Monde physique
+
+Ajouter :
+
+- océans ;
+- continents ;
+- îles ;
+- lacs ;
+- rivières ;
+- montagnes ;
+- chaînes montagneuses ;
+- forêts ;
+- marais ;
+- déserts ;
+- biomes ;
+- textures ;
+- symboles.
+
+---
+
+# 44. Version 0.3 — Monde politique
+
+Ajouter :
+
+- royaumes ;
+- provinces ;
+- frontières ;
+- capitales ;
+- villes ;
+- villages ;
+- forteresses ;
+- ports ;
+- routes ;
+- routes commerciales ;
+- routes maritimes ;
+- blasons.
+
+---
+
+# 45. Version 0.4 — Chronologie
+
+Ajouter :
+
+- timeline ;
+- année ;
+- frontières historiques ;
+- apparition et disparition des États ;
+- fondations ;
+- destructions ;
+- changements de noms.
+
+---
+
+# 46. Version 0.5 — Intégration avancée
+
+Ajouter :
+
+- SDK JavaScript ;
+- événements ;
+- API publique ;
+- personnalisation Viewer ;
+- URL profondes ;
+- contrôle de la carte depuis une page externe.
+
+---
+
+# 47. Version 0.6 — Worldbuilding
+
+Ajouter :
+
+- peuples ;
+- cultures ;
+- langues ;
+- religions ;
+- population ;
+- ressources ;
+- magie ;
+- ruines ;
+- lieux religieux ;
+- créatures.
+
+---
+
+# 48. Version 0.7 — Génération procédurale
+
+Ajouter :
+
+- côtes ;
+- îles ;
+- montagnes ;
+- bassins ;
+- rivières ;
+- forêts ;
+- biomes ;
+- seed.
+
+Tout élément généré doit rester modifiable manuellement.
+
+---
+
+# 49. Version 0.8 — Cohérence géographique
+
+Analyser :
+
+- rivière remontant une pente ;
+- rivière sans embouchure ;
+- incohérence bassin ;
+- route traversant une mer ;
+- ville hors royaume ;
+- capitale incohérente ;
+- province isolée.
+
+Les alertes restent informatives.
+
+---
+
+# 50. Version 0.9 — Très grandes cartes
+
+Optimiser :
+
+- R-tree ;
+- quadtree ;
+- spatial indexing ;
+- chunking ;
+- streaming ;
+- LOD ;
+- Web Workers ;
+- cache.
+
+Objectif à terme :
+
+```text
+100 000+ objets
+```
+
+---
+
+# 51. Version 1.0 — Stable
+
+La V1 doit disposer de :
+
+- installation une commande ;
+- mise à jour automatique ;
+- rollback ;
+- sauvegarde ;
+- Editor stable ;
+- Viewer stable ;
+- API stable ;
+- iframe ;
+- SDK ;
+- chronologie ;
+- monde physique ;
+- monde politique ;
+- exports ;
+- documentation ;
+- tests.
+
+---
+
+# 52. Version 1.1 — Collaboration
+
+Ajouter :
+
+- partage ;
+- plusieurs éditeurs ;
+- commentaires ;
+- historique ;
+- versions.
+
+---
+
+# 53. Version 1.2 — Temps réel
+
+Étudier :
+
+- WebSocket ;
+- CRDT ;
+- curseurs multiples ;
+- présence ;
+- édition simultanée.
+
+---
+
+# 54. Version 1.3 — Encyclopédie
+
+Relier :
+
+```text
+royaume
+ville
+personnage
+religion
+culture
+événement
+bataille
+lieu
+```
+
+---
+
+# 55. Version 1.4 — Militaire
+
+Ajouter :
+
+- armées ;
+- fortifications ;
+- fronts ;
+- batailles ;
+- sièges ;
+- campagnes.
+
+---
+
+# 56. Version 1.5 — Économie
+
+Ajouter :
+
+- ressources ;
+- production ;
+- commerce ;
+- marchés ;
+- ports ;
+- routes commerciales.
+
+---
+
+# 57. Version 1.6 — Climat
+
+Ajouter :
+
+- température ;
+- précipitations ;
+- vents ;
+- saisons ;
+- zones climatiques.
+
+---
+
+# 58. Version 1.7 — Relief avancé
+
+Ajouter :
+
+- heightmap ;
+- altitude ;
+- pente ;
+- ombrage ;
+- relief procédural ;
+- rendu topographique.
+
+---
+
+# 59. Version 1.8 — Styles
+
+Prévoir :
+
+```text
+parchemin médiéval
+politique
+topographique
+atlas
+militaire
+minimaliste
+fantasy
+```
+
+Les données cartographiques doivent être indépendantes du style utilisé.
+
+---
+
+# 60. Version 1.9 — Plugins
+
+Créer une API permettant d’ajouter :
+
+- outils ;
+- formats ;
+- objets ;
+- panneaux ;
+- styles.
+
+---
+
+# 61. Version 2.0 — Plateforme de worldbuilding
+
+Architecture cible :
+
+```text
+Monde
+│
+├── Géographie
+├── Politique
+├── Population
+├── Cultures
+├── Religions
+├── Langues
+├── Économie
+├── Histoire
+├── Guerres
+├── Personnages
+├── Magie
+├── Bestiaire
+└── Chronologie
+```
+
+---
+
+# 62. Versions ultérieures
+
+Préparer l’architecture pour :
+
+```text
+2.1 Simulation démographique
+2.2 Simulation économique
+2.3 Simulation diplomatique
+2.4 Simulation militaire
+2.5 Génération assistée
+2.6 Application mobile
+2.7 Application desktop
+2.8 Mode hors ligne
+2.9 Synchronisation
+3.0 Simulation complète de monde
+```
+
+---
+
+# 63. Première mission de Codex
+
+Créer immédiatement :
+
+```text
+LICENSE
+.gitignore
+.env
+.env.example
+README.md
+version.json
+
+docs/
+    ROADMAP.md
+    CODEX_HANDOFF.md
+
+apps/
+    editor/
+    viewer/
+    api/
+
+packages/
+    map-engine/
+    map-model/
+    shared/
+
+installer/
+updater/
+docker/
+scripts/
+```
+
+Puis mettre en place :
+
+- monorepo ;
+- Docker ;
+- PostgreSQL ;
+- premier build ;
+- premiers tests.
+
+---
+
+# 64. Contrôle obligatoire des fichiers sensibles
+
+Avant de considérer l’initialisation comme terminée, Codex doit vérifier :
+
+```text
+LICENSE
+```
+
+est suivi par Git.
+
+Il doit vérifier :
+
+```text
+.env.example
+.gitignore
+README.md
+version.json
+```
+
+sont suivis par Git.
+
+Il doit vérifier que :
+
+```text
+.env
+```
+
+n’est **pas** suivi par Git.
+
+---
+
+# 65. Critères d’acceptation initiaux
+
+La première phase est valide lorsque :
+
+- `LICENSE` existe ;
+- `.gitignore` existe ;
+- `.env` existe localement ;
+- `.env` est ignoré ;
+- `.env.example` existe ;
+- `.env.example` est documenté ;
+- aucun secret local n’est suivi par Git ;
+- Docker démarre ;
+- PostgreSQL démarre ;
+- API démarre ;
+- Editor démarre ;
+- Viewer démarre ;
+- le moteur affiche une grille ;
+- installation automatique préparée ;
+- updater préparé ;
+- ROADMAP existe ;
+- CODEX_HANDOFF existe.
+
+---
+
+# 66. Priorité absolue
+
+Ordre de priorité :
+
+```text
+1. Sécurité du dépôt
+2. Licence
+3. Installation
+4. Modèle de données
+5. Moteur cartographique
+6. Persistance
+7. Editor
+8. Viewer
+9. Mise à jour automatique
+10. Intégration web
+11. Monde physique
+12. Monde politique
+13. Chronologie
+14. Worldbuilding
+15. Génération
+16. Simulation
+```
+
+---
+
+# 67. Règle fondamentale
+
+Tous les clients doivent reposer sur :
+
+```text
+UNE SEULE SOURCE DE DONNÉES
++
+UN SEUL MOTEUR CARTOGRAPHIQUE
+```
+
+Ce moteur doit être utilisé par :
+
+```text
+Editor
+Viewer
+iframe
+SDK
+futur desktop
+futures applications
+```
+
+---
+
+# 68. Instruction finale à Codex
+
+AlarMap doit être conçu comme un logiciel GitHub :
+
+- installable avec une seule commande ;
+- auto-configurable ;
+- auto-mis à jour depuis `main` ;
+- sauvegardé avant mise à jour ;
+- capable de rollback ;
+- documenté ;
+- sécurisé ;
+- maintenable ;
+- extensible ;
+- lisible depuis n’importe quel site web.
+
+Ne jamais inclure de secret réel dans le dépôt.
+
+Le fichier :
+
+```text
+.env
+```
+
+reste local.
+
+Le fichier :
+
+```text
+.env.example
+```
+
+constitue la documentation de configuration publique.
+
+Le fichier :
+
+```text
+LICENSE
+```
+
+doit être présent à la racine du projet et accompagner toute copie ou œuvre dérivée distribuée conformément à la licence définie ci-dessus.
+
+Si Codex approche de sa fin de quota, il doit arrêter l’ajout de nouvelles fonctionnalités et consacrer ses ressources restantes à :
+
+- stabiliser le projet ;
+- lancer les tests ;
+- mettre à jour `ROADMAP.md` ;
+- compléter `CODEX_HANDOFF.md` ;
+- documenter précisément la prochaine étape.
+
+---
+
+# 69. Filtre Religions
+
+Le Viewer et l’Editor doivent proposer un filtre ou calque thématique :
+
+```text
+Religions
+```
+
+Lorsqu’il est activé, il doit pouvoir afficher plusieurs sous-couches indépendantes :
+
+```text
+Religions
+├── Zones d’influence
+├── Lieux saints
+├── Centres religieux
+├── Routes de pèlerinage
+├── Relations interreligieuses
+└── Événements religieux historiques
+```
+
+Chaque sous-couche doit pouvoir être :
+
+- activée ;
+- désactivée ;
+- rendue transparente ;
+- affichée seule ;
+- combinée avec les autres.
+
+---
+
+# 70. Zones d’influence religieuse
+
+Chaque religion peut posséder une ou plusieurs zones d’influence géographique.
+
+Exemple :
+
+```typescript
+interface ReligionRegion {
+    id: string;
+    religionId: string;
+    geometry: GeoJSONGeometry;
+
+    influenceLevel?: number;
+    majority?: boolean;
+
+    startYear?: number;
+    endYear?: number;
+}
+```
+
+Le niveau d’influence pourra par exemple utiliser :
+
+```text
+1 = présence marginale
+2 = minoritaire
+3 = importante
+4 = majoritaire
+5 = religion dominante
+```
+
+Les zones doivent pouvoir se chevaucher.
+
+Cela permet de représenter des régions où plusieurs religions coexistent.
+
+---
+
+# 71. Objet Religion
+
+Créer un objet métier dédié :
+
+```typescript
+interface Religion {
+    id: string;
+
+    name: string;
+    slug: string;
+
+    color: string;
+
+    description?: string;
+
+    parentReligionId?: string;
+
+    religionType?: string;
+
+    foundedYear?: number;
+    extinctYear?: number;
+
+    headquartersSiteId?: string;
+
+    metadata?: Record<string, unknown>;
+}
+```
+
+Prévoir la possibilité de représenter :
+
+- religions principales ;
+- cultes ;
+- hérésies ;
+- schismes ;
+- branches religieuses ;
+- religions disparues.
+
+---
+
+# 72. Lieux saints
+
+Le filtre Religions doit permettre d’afficher les lieux saints directement sur la carte.
+
+Créer un type d’objet :
+
+```text
+holy_site
+```
+
+Exemple :
+
+```typescript
+interface HolySite {
+    id: string;
+
+    name: string;
+
+    religionIds: string[];
+
+    x: number;
+    y: number;
+
+    holySiteType:
+        | "temple"
+        | "shrine"
+        | "monastery"
+        | "cathedral"
+        | "sacred_city"
+        | "sacred_mountain"
+        | "sacred_forest"
+        | "tomb"
+        | "relic_site"
+        | "pilgrimage_site"
+        | "oracle"
+        | "other";
+
+    importance: number;
+
+    description?: string;
+
+    startYear?: number;
+    endYear?: number;
+}
+```
+
+---
+
+# 73. Importance des lieux saints
+
+Chaque lieu saint possède un niveau d’importance.
+
+Échelle recommandée :
+
+```text
+1 = local
+2 = régional
+3 = majeur
+4 = très majeur
+5 = centre spirituel fondamental
+```
+
+Le rendu cartographique doit pouvoir adapter automatiquement :
+
+- taille de l’icône ;
+- visibilité ;
+- niveau de zoom requis.
+
+Exemple :
+
+```text
+Importance 5
+→ visible à l’échelle du continent
+
+Importance 1
+→ visible uniquement avec un zoom important
+```
+
+---
+
+# 74. Lieux saints partagés
+
+Un même lieu peut être considéré comme sacré par plusieurs religions.
+
+Exemple :
+
+```json
+{
+  "name": "Mont d’Aelvar",
+  "religionIds": [
+    "religion-a",
+    "religion-b"
+  ]
+}
+```
+
+Le moteur doit donc accepter plusieurs religions pour un même lieu saint.
+
+Cela est obligatoire pour permettre :
+
+- sanctuaires partagés ;
+- villes saintes contestées ;
+- lieux de pèlerinage communs ;
+- anciens sanctuaires réutilisés par une autre religion.
+
+---
+
+# 75. Statut religieux d’un lieu saint
+
+Ajouter éventuellement :
+
+```typescript
+status:
+    | "active"
+    | "abandoned"
+    | "destroyed"
+    | "contested"
+    | "occupied"
+    | "forbidden";
+```
+
+Exemple :
+
+```text
+Temple d’Ashan
+Statut : contesté
+```
+
+---
+
+# 76. Panneau d’information d’un lieu saint
+
+Cliquer sur un lieu saint doit afficher :
+
+```text
+Nom
+Religion(s)
+Type
+Importance
+Statut
+Description
+Date de fondation
+Date de destruction éventuelle
+Royaume actuel
+Province
+Événements historiques liés
+```
+
+Prévoir également :
+
+```text
+Lire l’article
+```
+
+si une URL externe ou une page encyclopédique est associée.
+
+---
+
+# 77. Centres religieux
+
+Différencier :
+
+```text
+lieu saint
+```
+
+et :
+
+```text
+centre religieux
+```
+
+Un centre religieux représente le siège d’une organisation religieuse.
+
+Exemples :
+
+- siège d’un clergé ;
+- capitale théocratique ;
+- siège patriarcal ;
+- grand monastère ;
+- sanctuaire central ;
+- résidence du chef religieux.
+
+Créer :
+
+```text
+religious_center
+```
+
+---
+
+# 78. Routes de pèlerinage
+
+Ajouter un objet :
+
+```text
+pilgrimage_route
+```
+
+Il fonctionne comme une route cartographique classique mais possède :
+
+```typescript
+interface PilgrimageRoute {
+    id: string;
+
+    name: string;
+
+    religionIds: string[];
+
+    holySiteIds: string[];
+
+    geometry: GeoJSONLineString;
+
+    importance?: number;
+
+    startYear?: number;
+    endYear?: number;
+}
+```
+
+Le filtre Religions doit pouvoir afficher ces routes.
+
+---
+
+# 79. Relations interreligieuses
+
+Le système doit permettre de définir les relations entre deux religions.
+
+Créer un objet :
+
+```typescript
+interface InterreligiousRelation {
+    id: string;
+
+    religionAId: string;
+    religionBId: string;
+
+    relationType:
+        | "allied"
+        | "friendly"
+        | "tolerant"
+        | "neutral"
+        | "rival"
+        | "hostile"
+        | "persecuted"
+        | "religious_war"
+        | "syncretic";
+
+    relationScore?: number;
+
+    description?: string;
+
+    startYear?: number;
+    endYear?: number;
+}
+```
+
+---
+
+# 80. Échelle numérique des relations
+
+En complément du type textuel, prévoir un score facultatif :
+
+```text
++100 = alliance spirituelle complète
+ +75 = très amical
+ +50 = amical
+ +25 = tolérance importante
+   0 = neutre
+ -25 = tensions
+ -50 = rivalité
+ -75 = hostilité
+-100 = guerre religieuse totale
+```
+
+Le score doit permettre des traitements futurs sans remplacer la description narrative.
+
+---
+
+# 81. Visualisation des relations interreligieuses
+
+Lorsque :
+
+```text
+Religions → Relations interreligieuses
+```
+
+est activé, l’utilisateur doit pouvoir sélectionner une religion.
+
+Exemple :
+
+```text
+Religion sélectionnée :
+Syl’Anor
+```
+
+La carte doit alors afficher les autres religions avec une représentation de leur relation avec Syl’Anor.
+
+Exemple conceptuel :
+
+```text
+Syl’Anor
+│
+├── Religion A : alliée
+├── Religion B : tolérée
+├── Religion C : neutre
+├── Religion D : hostile
+└── Religion E : guerre religieuse
+```
+
+---
+
+# 82. Mode carte des relations
+
+Prévoir un mode dans lequel les régions religieuses sont colorées selon leur relation avec la religion sélectionnée.
+
+Exemple :
+
+```text
+Vert foncé    = alliée
+Vert clair    = amicale
+Bleu          = tolérée
+Gris          = neutre
+Orange        = rivalité
+Rouge         = hostile
+Rouge foncé   = guerre religieuse
+Violet        = syncrétisme
+```
+
+Les couleurs exactes doivent appartenir au thème cartographique et rester configurables.
+
+---
+
+# 83. Mode graphe des religions
+
+Prévoir pour une version ultérieure une vue complémentaire :
+
+```text
+Religion A ───── Religion B
+     │
+     │
+Religion C ───── Religion D
+```
+
+Cette vue devra représenter :
+
+- alliances ;
+- rivalités ;
+- schismes ;
+- filiation religieuse ;
+- syncrétismes ;
+- hostilités.
+
+Elle ne remplace pas la carte géographique.
+
+---
+
+# 84. Relations historiques
+
+Les relations doivent pouvoir évoluer avec la chronologie.
+
+Exemple :
+
+```text
+Année 400
+Religion A ↔ Religion B
+Tolérance
+
+Année 520
+Religion A ↔ Religion B
+Hostilité
+
+Année 580
+Religion A ↔ Religion B
+Guerre religieuse
+```
+
+Utiliser :
+
+```typescript
+startYear?: number;
+endYear?: number;
+```
+
+comme pour les autres objets historiques.
+
+---
+
+# 85. Conflits religieux
+
+Prévoir un objet futur :
+
+```text
+religious_conflict
+```
+
+Exemple :
+
+```typescript
+interface ReligiousConflict {
+    id: string;
+
+    name: string;
+
+    religionIds: string[];
+
+    startYear: number;
+    endYear?: number;
+
+    regions?: string[];
+
+    description?: string;
+}
+```
+
+Le filtre Religions pourra afficher :
+
+- guerres religieuses ;
+- persécutions ;
+- révoltes religieuses ;
+- croisades fictives ;
+- schismes ;
+- conflits de sanctuaires.
+
+---
+
+# 86. Tolérance politique et religieuse
+
+Un royaume pourra avoir une politique envers chaque religion.
+
+Exemple :
+
+```typescript
+interface KingdomReligionPolicy {
+    kingdomId: string;
+    religionId: string;
+
+    status:
+        | "state_religion"
+        | "official"
+        | "recognized"
+        | "tolerated"
+        | "restricted"
+        | "forbidden"
+        | "persecuted";
+}
+```
+
+Cela permettra à la carte de distinguer :
+
+```text
+relation entre religions
+```
+
+de :
+
+```text
+politique d’un État envers une religion
+```
+
+Ces deux concepts ne doivent pas être confondus.
+
+---
+
+# 87. Religion officielle d’un royaume
+
+Un royaume pourra définir :
+
+```typescript
+officialReligionIds?: string[];
+```
+
+Cela permet :
+
+- une religion d’État unique ;
+- plusieurs religions officielles ;
+- aucune religion officielle.
+
+---
+
+# 88. Filtre combiné Politique + Religions
+
+Prévoir la combinaison :
+
+```text
+Politique
++
+Religions
+```
+
+afin d’afficher par exemple :
+
+```text
+frontières des royaumes
++
+religion majoritaire
++
+religion officielle
++
+lieux saints
+```
+
+Le système de calques ne doit pas empêcher les superpositions.
+
+---
+
+# 89. Filtrage d’une seule religion
+
+L’utilisateur doit pouvoir cliquer sur une religion dans une légende.
+
+Exemple :
+
+```text
+☑ Syl’Anor
+☐ Culte des Sept Astres
+☐ Foi du Soleil
+☐ Ancienne religion naine
+```
+
+Le mode :
+
+```text
+Afficher uniquement la sélection
+```
+
+doit masquer les autres religions.
+
+---
+
+# 90. Filtrage des lieux saints
+
+Prévoir des filtres par type :
+
+```text
+☑ Villes saintes
+☑ Temples
+☑ Monastères
+☑ Sanctuaires
+☑ Montagnes sacrées
+☑ Forêts sacrées
+☑ Tombeaux
+☑ Reliques
+☑ Sites de pèlerinage
+```
+
+Et par importance :
+
+```text
+Importance minimum : 3
+```
+
+---
+
+# 91. Légende Religions
+
+Le Viewer doit générer automatiquement une légende.
+
+Exemple :
+
+```text
+RELIGIONS
+
+■ Syl’Anor
+■ Foi solaire
+■ Culte ancestral
+■ Religion naine
+
+Symboles :
+
+✦ Lieu saint majeur
+◆ Centre religieux
+● Sanctuaire
+─ Route de pèlerinage
+```
+
+La légende doit s’adapter aux éléments visibles.
+
+---
+
+# 92. Recherche religieuse
+
+La recherche globale doit permettre :
+
+```text
+Syl’Anor
+```
+
+et retourner :
+
+```text
+Religion : Syl’Anor
+Lieux saints : 8
+Centres religieux : 3
+Régions : 4
+```
+
+Cliquer sur un résultat doit permettre de centrer la carte.
+
+---
+
+# 93. Statistiques religieuses
+
+Prévoir ultérieurement un panneau de statistiques :
+
+```text
+Syl’Anor
+
+Population estimée : 3 400 000
+Royaumes présents : 5
+Religion officielle : 2 royaumes
+Lieux saints : 12
+Centres religieux : 4
+Relations alliées : 2
+Relations hostiles : 1
+```
+
+---
+
+# 94. Mode lecture publique
+
+Dans le Viewer public, le propriétaire de la carte doit pouvoir décider si les visiteurs peuvent consulter :
+
+```text
+☑ zones religieuses
+☑ lieux saints
+☑ relations interreligieuses
+☑ routes de pèlerinage
+☐ données internes
+```
+
+Certaines données religieuses peuvent donc rester privées dans l’Editor.
+
+---
+
+# 95. API publique Religions
+
+Prévoir à terme :
+
+```text
+GET /api/v1/public/worlds/:worldId/religions
+```
+
+```text
+GET /api/v1/public/worlds/:worldId/religions/:religionId
+```
+
+```text
+GET /api/v1/public/worlds/:worldId/holy-sites
+```
+
+```text
+GET /api/v1/public/worlds/:worldId/religious-relations
+```
+
+Les permissions publiques doivent être respectées.
+
+---
+
+# 96. Ajout à la roadmap
+
+Le module Religions doit être préparé dès la structure de données mais développé principalement dans :
+
+```text
+Version 0.6 — Worldbuilding
+```
+
+La V0.6 doit désormais inclure explicitement :
+
+- religions ;
+- branches religieuses ;
+- hérésies ;
+- lieux saints ;
+- centres religieux ;
+- routes de pèlerinage ;
+- religion officielle ;
+- politiques religieuses ;
+- relations interreligieuses ;
+- relations historiques ;
+- conflits religieux ;
+- affichage géographique des relations.
+
+---
+
+# 97. Évolution future du module Religions
+
+Pour les versions postérieures à la V1.0, préparer :
+
+```text
+religious_orders
+religious_characters
+religious_events
+relics
+pilgrimages
+schisms
+heresies
+councils
+religious_wars
+```
+
+Ces éléments devront pouvoir être reliés à la carte, à la chronologie et à l’encyclopédie.
+
+---
+
+# 98. Exigence de conception
+
+La religion ne doit pas être stockée uniquement comme :
+
+```text
+couleur d’une région
+```
+
+Elle constitue une entité du monde disposant de :
+
+```text
+identité
+histoire
+territoire
+lieux
+relations
+institutions
+événements
+```
+
+La carte n’est que l’un des moyens de représenter ces données.

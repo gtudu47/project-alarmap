@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@alarmap/map-model": ["./packages/map-model/src/index.ts"],
+      "@alarmap/map-engine": ["./packages/map-engine/src/index.ts"],
+      "@alarmap/map-sdk": ["./packages/map-sdk/src/index.ts"],
+      "@alarmap/shared": ["./packages/shared/src/index.ts"]
+    }
+  },
+  "angularCompilerOptions": { "strictTemplates": true, "strictInjectionParameters": true }
+}

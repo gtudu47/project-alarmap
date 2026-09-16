@@ -1,0 +1,9 @@
+{
+  "name": "@alarmap/map-sdk",
+  "version": "0.1.0-dev.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.build.json" },
+  "dependencies": { "@alarmap/map-engine": "0.1.0-dev.1", "@alarmap/map-model": "0.1.0-dev.1" }
+}

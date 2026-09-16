@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "outDir": "../../dist/viewer-types", "types": [] },
+  "files": ["src/main.ts"]
+}

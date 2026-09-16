@@ -1,0 +1,26 @@
+# Usage : docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build --wait
+services:
+  migrate:
+    environment:
+      PUBLIC_APP_URL: https://${ALARMAP_DOMAIN:?Configurer ALARMAP_DOMAIN dans .env}
+  alarmap-api:
+    environment:
+      PUBLIC_APP_URL: https://${ALARMAP_DOMAIN:?Configurer ALARMAP_DOMAIN dans .env}
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      ALARMAP_DOMAIN: ${ALARMAP_DOMAIN:?Configurer ALARMAP_DOMAIN dans .env}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      alarmap-api: { condition: service_healthy }
+      alarmap-editor: { condition: service_healthy }
+      alarmap-viewer: { condition: service_healthy }
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,26 @@
+{$ALARMAP_DOMAIN} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    handle /api/* {
+        reverse_proxy alarmap-api:3000 {
+            header_up -Forwarded
+        }
+    }
+    handle /viewer {
+        redir /viewer/ 308
+    }
+    handle_path /viewer/* {
+        reverse_proxy alarmap-viewer:80
+    }
+    handle_path /embed/* {
+        reverse_proxy alarmap-viewer:80
+    }
+    handle {
+        header Content-Security-Policy "frame-ancestors 'self'"
+        reverse_proxy alarmap-editor:80
+    }
+}

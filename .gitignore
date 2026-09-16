@@ -1,0 +1,44 @@
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+config/database.json
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dépendances, builds et caches
+node_modules/
+dist/
+build/
+out/
+coverage/
+.angular/
+.cache/
+.nx/cache/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Données persistantes et sauvegardes
+postgres-data/
+minio-data/
+redis-data/
+backups/
+data/
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*.pid
+*.seed
+
+# Éditeurs et système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

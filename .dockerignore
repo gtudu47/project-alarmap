@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/dist
+.angular
+coverage
+backups
+data
+secrets
+logs
+playwright-report
+test-results

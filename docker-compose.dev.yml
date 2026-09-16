@@ -1,0 +1,6 @@
+# Exposition locale uniquement, pour API native et tests d’intégration.
+services:
+  alarmap-postgres:
+    ports: ['127.0.0.1:5432:5432']
+  alarmap-minio:
+    ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']

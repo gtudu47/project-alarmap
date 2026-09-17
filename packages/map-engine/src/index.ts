@@ -10,7 +10,7 @@ export class MapEngine {
   private focusCoordinate?: Coordinate;
   private generation = 0;
   private disposed = false;
-  constructor(private readonly host: HTMLElement) {}
+  constructor(private readonly host: HTMLElement, private readonly onSelect: (id: string | null) => void = () => {}) {}
   loadWorld(world: World): void { if (this.world?.id !== world.id) this.focusCoordinate = undefined; this.world = worldSchema.parse(world); this.renderer?.setWorld(this.world); }
   async setView(mode: ViewMode): Promise<void> {
     if (this.disposed) throw new Error('Moteur détruit.');
@@ -18,7 +18,11 @@ export class MapEngine {
     const renderer = mode === 'plane' ? new (await import('./plane.js')).PlaneRenderer() : new (await import('./globe.js')).GlobeRenderer();
     if (generation !== this.generation) return;
     this.renderer?.destroy(); this.renderer = undefined;
-    await renderer.init(this.host);
+    await renderer.init(this.host, id => {
+      if (generation !== this.generation || this.disposed) return;
+      const object = this.world?.objects.find(object => object.id === id);
+      this.onSelect(object && this.world?.layers.some(layer => layer.id === object.layerId && layer.visible) ? object.id : null);
+    });
     if (generation !== this.generation || this.disposed) { renderer.destroy(); return; }
     this.renderer = renderer;
     if (this.world) renderer.setWorld(this.world);
@@ -37,3 +41,5 @@ export class MapEngine {
   reset(): void { this.focusCoordinate = undefined; this.renderer?.reset(); }
   destroy(): void { this.disposed = true; ++this.generation; this.renderer?.destroy(); this.renderer = undefined; }
 }
+
+export { PointHistory, type PointChange } from './history.js';

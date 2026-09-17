@@ -144,3 +144,15 @@ Visibilité indépendante des calques. Export JSON et import de sauvegarde à ve
 Ajout, modification du nom et des coordonnées, suppression confirmée depuis
 la fiche d’un point. Permissions, verrouillage de calque et révisions vérifiés
 sur PostgreSQL/PostGIS réel. Annulation et dessin des autres géométries à venir.
+
+### Annuler et rétablir les lieux
+
+Historique de session limité à 50 actions : ajout, modification et suppression.
+Les opérations inverses sont sauvegardées avec contrôle de révision et de droits.
+L’historique durable et l’annulation des autres géométries restent à développer.
+
+### Sélection directe des lieux
+
+Sélection des points visibles par clic dans la carte plane et le globe,
+ouverture de la fiche existante et distinction avec le déplacement de caméra.
+La sélection directe des lignes et polygones reste à développer.

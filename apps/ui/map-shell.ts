@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
-import { MapEngine, type ViewMode } from '@alarmap/map-engine';
+import { MapEngine, PointHistory, type PointChange, type ViewMode } from '@alarmap/map-engine';
 import { createDemoWorld, worldSchema, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
@@ -34,6 +34,10 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           }
         </section>
         @if (personal() && role !== 'viewer') {
+          <div class="history-actions" aria-label="Historique des lieux">
+            <button class="account-secondary" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
+            <button class="account-secondary" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
+          </div>
           <form class="point-form" (submit)="addPoint($event)">
             <h2>Ajouter un lieu</h2>
             <label>Nom du lieu<input name="name" required maxlength="200"></label>
@@ -44,7 +48,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
-        @if (selectedObject(); as object) { <section class="selected-place" aria-label="Lieu sélectionné"><h2>{{ object.name }}</h2><p>Lieu sélectionné depuis l’Atlas.</p>
+        @if (selectedObject(); as object) { <section class="selected-place" aria-label="Lieu sélectionné"><h2>{{ object.name }}</h2><p>Lieu sélectionné.</p>
           @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
             <form class="point-form" (submit)="updatePoint($event)">
               <label>Nom du lieu sélectionné<input name="name" [value]="object.name" required maxlength="200"></label>
@@ -105,6 +109,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
+  private readonly history = new PointHistory();
+  readonly historyState = signal({ undo: false, redo: false });
+  private refreshHistory(): void { this.historyState.set({ undo: this.history.canUndo, redo: this.history.canRedo }); }
+  private clearHistory(): void { this.history.clear(); this.refreshHistory(); }
+  private recordHistory(change: PointChange): void { this.history.record(change); this.refreshHistory(); }
+  async applyHistory(direction: 'undo' | 'redo'): Promise<void> {
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer') return;
+    const change = this.history.peek(direction); if (!change) return;
+    const target = direction === 'undo' ? change.before : change.after;
+    const pointId = (change.before ?? change.after)!.id; const worldId = this.world.id; const previousRevision = this.world.revision;
+    this.pointBusy.set(true); this.pointMessage.set('');
+    try {
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + pointId, { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
+      if (this.personal() && this.world.id === worldId && this.accounts.user()) {
+        this.world = worldSchema.parse(result.world); this.syncScene(); this.deleteConfirm.set(null);
+        if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
+        if (!target && this.selectedId() === pointId) this.selectedId.set(null);
+        this.pointMessage.set(direction === 'undo' ? 'Action annulée.' : 'Action rétablie.');
+      }
+    } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Action impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
   readonly selectedId = signal<string | null>(null);
   readonly deleteConfirm = signal<string | null>(null);
   selectedObject(): MapObject | undefined { return this.world.objects.find(object => object.id === this.selectedId()); }
@@ -125,14 +151,14 @@ export class MapShell implements AfterViewInit, OnDestroy {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
       if (this.personal() && !this.accounts.user()) {
-        this.selectedId.set(null); this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
   }
   openWorld(access: WorldAccess): void {
     if (!this.accounts.user()) return;
-    this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
+    this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
     this.syncScene(); this.engine?.reset(); this.accountOpen.set(false); this.pointMessage.set('');
   }
@@ -144,11 +170,12 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   async addPoint(event: Event): Promise<void> {
     event.preventDefault(); if (this.pointBusy()) return;
-    const form = event.target as HTMLFormElement; const fields = new FormData(form); const worldId = this.world.id;
+    const form = event.target as HTMLFormElement; const fields = new FormData(form); const worldId = this.world.id; const previousRevision = this.world.revision;
+    const existingIds = new Set(this.world.objects.map(object => object.id));
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
       const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision }) });
-      if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); form.reset(); this.pointMessage.set('Lieu enregistré.'); }
+      if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); const added = this.world.objects.filter(object => !existingIds.has(object.id)); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.pointMessage.set('Lieu enregistré.'); }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
     finally { this.pointBusy.set(false); }
   }
@@ -161,13 +188,15 @@ export class MapShell implements AfterViewInit, OnDestroy {
     await this.changePoint();
   }
   private async changePoint(update?: { name: FormDataEntryValue | null; longitude: number; latitude: number }): Promise<void> {
-    const id = this.selectedId(); const worldId = this.world.id;
+    const id = this.selectedId(); const worldId = this.world.id; const previousRevision = this.world.revision;
+    const before = this.world.objects.find(object => object.id === id);
     if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy()) return;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
       const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + id, { method: update ? 'PATCH' : 'DELETE', body: JSON.stringify({ ...update, revision: this.world.revision }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
         this.world = worldSchema.parse(result.world); this.syncScene(); this.deleteConfirm.set(null);
+        if (before && this.world.revision === previousRevision + 1) this.recordHistory({ before, after: this.world.objects.find(object => object.id === id) ?? null }); else this.clearHistory();
         if (!update) { if (this.selectedId() === id) this.selectedId.set(null); this.pointMessage.set('Lieu supprimé.'); }
         else { this.pointMessage.set('Lieu modifié.'); if (this.selectedId() === id) this.engine?.focus([update.longitude, update.latitude]); }
       }
@@ -184,7 +213,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private engine?: MapEngine;
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
-    this.engine = new MapEngine(this.host.nativeElement);
+    this.engine = new MapEngine(this.host.nativeElement, id => { this.selectedId.set(id); this.deleteConfirm.set(null); });
     this.engine.loadWorld(this.world);
     void this.checkApi();
     await this.setView('plane');

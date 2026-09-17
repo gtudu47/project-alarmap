@@ -169,3 +169,5 @@ select:focus-visible { outline: 3px solid #b5863b; outline-offset: 3px; }
 .selected-place h2 { text-transform: none; letter-spacing: 0; font-size: 15px; overflow-wrap: anywhere; }
 .selected-place p { font-size: 12px; line-height: 1.6; }
 .atlas-list .account-secondary { margin-top: 10px; }
+.history-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.history-actions button { flex: 1; font-size: 12px; }

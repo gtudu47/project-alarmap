@@ -11,10 +11,10 @@ export class PlaneRenderer implements RendererAdapter {
   private world?: World;
   private zoom = 1;
   private offset = { x: 0, y: 0 };
-  private drag?: { x: number; y: number; id: number };
+  private drag?: { x: number; y: number; startX: number; startY: number; moved: boolean; id: number };
   private readonly events = new AbortController();
 
-  async init(host: HTMLElement): Promise<void> {
+  async init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void> {
     this.host = host;
     await this.app.init({ preference: 'webgl', background: '#101f2c', antialias: true, resolution: Math.min(devicePixelRatio, 2), autoDensity: true, resizeTo: host });
     host.append(this.app.canvas);
@@ -22,14 +22,31 @@ export class PlaneRenderer implements RendererAdapter {
     const options = { signal: this.events.signal };
     this.app.canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
-      this.drag = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      this.drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, moved: false, id: event.pointerId };
       this.app.canvas.setPointerCapture(event.pointerId);
     }, options);
     this.app.canvas.addEventListener('pointermove', (event) => {
       if (!this.drag || this.drag.id !== event.pointerId) return;
+      this.drag.moved ||= Math.hypot(event.clientX - this.drag.startX, event.clientY - this.drag.startY) > 5;
       this.offset.x += event.clientX - this.drag.x;
       this.offset.y += event.clientY - this.drag.y;
       this.drag.x = event.clientX; this.drag.y = event.clientY; this.transform();
+    }, options);
+    this.app.canvas.addEventListener('pointerup', event => {
+      if (!this.drag || this.drag.id !== event.pointerId || this.drag.moved) return;
+      const bounds = this.app.canvas.getBoundingClientRect();
+      const x = event.clientX - bounds.left; const y = event.clientY - bounds.top;
+      let nearest: string | null = null; let distance = 10;
+      for (const layer of [...(this.world?.layers ?? [])].sort((a, b) => a.order - b.order)) {
+        if (!layer.visible || layer.opacity === 0) continue;
+        for (const object of this.world?.objects ?? []) {
+          if (object.layerId !== layer.id || object.geometry.type !== 'Point' || object.style.opacity === 0) continue;
+          const [longitude, latitude] = object.geometry.coordinates;
+          const delta = Math.hypot(x - (this.scene.x + longitude * this.scene.scale.x), y - (this.scene.y - latitude * this.scene.scale.y));
+          if (delta <= distance) { distance = delta; nearest = object.id; }
+        }
+      }
+      onSelect(nearest);
     }, options);
     for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) this.app.canvas.addEventListener(event, () => { this.drag = undefined; }, options);
     this.app.canvas.addEventListener('wheel', (event) => {

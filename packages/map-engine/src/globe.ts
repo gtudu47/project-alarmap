@@ -11,9 +11,10 @@ export class GlobeRenderer implements RendererAdapter {
   private controls!: OrbitControls;
   private readonly objects = new THREE.Group();
   private observer?: ResizeObserver;
+  private readonly events = new AbortController();
   private fitDistance = Math.hypot(0.6, 3.3);
 
-  async init(host: HTMLElement): Promise<void> {
+  async init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void> {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.setClearColor('#101f2c');
@@ -24,6 +25,26 @@ export class GlobeRenderer implements RendererAdapter {
     this.controls.addEventListener('change', this.render);
     const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.MeshBasicMaterial({ color: '#142b3b' }));
     this.scene.add(sphere, this.objects);
+    let press: { x: number; y: number; id: number; moved: boolean } | undefined;
+    const options = { signal: this.events.signal };
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('pointerdown', event => {
+      if (event.button === 0) press = { x: event.clientX, y: event.clientY, id: event.pointerId, moved: false };
+    }, options);
+    canvas.addEventListener('pointermove', event => {
+      if (press?.id === event.pointerId) press.moved ||= Math.hypot(event.clientX - press.x, event.clientY - press.y) > 5;
+    }, options);
+    canvas.addEventListener('pointerup', event => {
+      const click = press; press = undefined;
+      if (!click || click.id !== event.pointerId || click.moved) return;
+      const rect = canvas.getBoundingClientRect();
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2), this.camera);
+      const candidates = [sphere, ...this.objects.children.filter(child => child instanceof THREE.Mesh && child.userData['id'])];
+      const hit = ray.intersectObjects(candidates, false)[0];
+      onSelect(typeof hit?.object.userData['id'] === 'string' ? hit.object.userData['id'] : null);
+    }, options);
+    canvas.addEventListener('pointercancel', () => { press = undefined; }, options);
     for (let longitude = -180; longitude < 180; longitude += 30) {
       this.scene.add(this.line(Array.from({ length: 181 }, (_, index) => [longitude, index - 90] as Coordinate), '#365261', 1));
     }
@@ -57,8 +78,10 @@ export class GlobeRenderer implements RendererAdapter {
       const layer = world.layers.find((layer) => layer.id === object.layerId);
       if (!layer?.visible) continue;
       const opacity = layer.opacity * object.style.opacity;
+      if (opacity === 0) continue;
       if (object.geometry.type === 'Point') {
         const marker = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ color: object.style.color, transparent: opacity < 1, opacity }));
+        marker.userData['id'] = object.id;
         marker.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(marker);
       } else if (object.geometry.type === 'LineString') {
         const dense: Coordinate[] = [];
@@ -91,5 +114,5 @@ export class GlobeRenderer implements RendererAdapter {
       }
     });
   }
-  destroy(): void { this.observer?.disconnect(); this.controls.dispose(); this.disposeObject(this.scene); this.renderer.dispose(); this.renderer.domElement.remove(); }
+  destroy(): void { this.events.abort(); this.observer?.disconnect(); this.controls.dispose(); this.disposeObject(this.scene); this.renderer.dispose(); this.renderer.domElement.remove(); }
 }

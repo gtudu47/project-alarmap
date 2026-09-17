@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { worldSchema, type World, type MemberRole } from '@alarmap/map-model';
+import { worldSchema, type World, type MapObject, type MemberRole } from '@alarmap/map-model';
 import { Infrastructure } from '../infrastructure.js';
 
 export interface WorldSummary { id: string; name: string; slug: string; radiusKm: number; revision: number; role: MemberRole }
@@ -84,6 +84,35 @@ export class WorldsService {
       if (point.rows[0].locked) throw new ConflictException('Ce calque est verrouillé.');
       if (update) await client.query('UPDATE map_objects SET name=$3,geometry=ST_SetSRID(ST_MakePoint($4,$5),4326) WHERE id=$1 AND world_id=$2', [pointId, id, update.name, update.longitude, update.latitude]);
       else await client.query('DELETE FROM map_objects WHERE id=$1 AND world_id=$2', [pointId, id]);
+      await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+    return this.get(userId, id);
+  }
+
+  async restorePoint(userId: string, id: string, revision: number, point: MapObject): Promise<{ world: World; role: MemberRole }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
+        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2 WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
+      const world = permission.rows[0];
+      if (!world) throw new NotFoundException('Monde introuvable.');
+      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
+      const layer = await client.query<{ locked: boolean }>('SELECT locked FROM layers WHERE id=$1 AND world_id=$2 FOR UPDATE', [point.layerId, id]);
+      if (!layer.rows[0]) throw new NotFoundException('Calque introuvable.');
+      if (layer.rows[0].locked) throw new ConflictException('Ce calque est verrouillé.');
+      const existing = await client.query<{ world_id: string; locked: boolean; geometry_type: string }>(`SELECT o.world_id,l.locked,ST_GeometryType(o.geometry) AS geometry_type
+        FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id WHERE o.id=$1 FOR UPDATE OF o,l`, [point.id]);
+      if (existing.rows[0] && (existing.rows[0].world_id !== id || existing.rows[0].locked || existing.rows[0].geometry_type !== 'ST_Point')) throw new ConflictException('Ce lieu ne peut pas être restauré.');
+      const saved = await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style,properties,start_year,end_year)
+        VALUES($1,$2,$3,$4,$5,ST_SetSRID(ST_GeomFromGeoJSON($6),4326),$7::jsonb,$8::jsonb,$9,$10)
+        ON CONFLICT(id) DO UPDATE SET layer_id=EXCLUDED.layer_id,kind=EXCLUDED.kind,name=EXCLUDED.name,geometry=EXCLUDED.geometry,
+        style=EXCLUDED.style,properties=EXCLUDED.properties,start_year=EXCLUDED.start_year,end_year=EXCLUDED.end_year
+        WHERE map_objects.world_id=EXCLUDED.world_id`, [point.id,id,point.layerId,point.kind,point.name,JSON.stringify(point.geometry),JSON.stringify(point.style),JSON.stringify(point.properties),point.startYear ?? null,point.endYear ?? null]);
+      if (saved.rowCount !== 1) throw new ConflictException('Ce lieu ne peut pas être restauré.');
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
       await client.query('COMMIT');
     } catch (error) { await client.query('ROLLBACK'); throw error; }

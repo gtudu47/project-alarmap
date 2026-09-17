@@ -19,8 +19,14 @@ test('modifier puis supprimer un lieu avec confirmation', async ({ page }) => {
       world.revision++;
       body = { world, role: 'owner' };
     } else if (path.includes('/points/') && method === 'DELETE') {
-      expect(route.request().postDataJSON()).toEqual({ revision: 1 });
+      expect(route.request().postDataJSON()).toEqual({ revision: world.revision });
       deletions++; world.objects = world.objects.filter(object => object.geometry.type !== 'Point'); world.revision++;
+      body = { world, role: 'owner' };
+    } else if (path.includes('/points/') && method === 'PUT') {
+      const input = route.request().postDataJSON();
+      expect(input.revision).toBe(world.revision);
+      world.objects = world.objects.filter(object => object.id !== input.point.id);
+      world.objects.push(input.point); world.revision++;
       body = { world, role: 'owner' };
     } else if (path.endsWith('/' + world.id)) body = { world, role: 'owner' };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -44,4 +50,16 @@ test('modifier puis supprimer un lieu avec confirmation', async ({ page }) => {
   await expect(selected).toHaveCount(0);
   await expect(page.getByText('Lieu supprimé.', { exact: true })).toBeVisible();
   expect(deletions).toBe(1);
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect(page.getByText('Action annulée.', { exact: true })).toBeVisible();
+  expect(world.objects.find(object => object.name === 'Nouvelle capitale')).toBeDefined();
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Annuler l’action', exact: true })).toBeDisabled();
+  expect(world.objects.find(object => object.name === 'Origine')).toBeDefined();
+  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await expect(page.getByText('Action rétablie.', { exact: true })).toBeVisible();
+  expect(world.objects.find(object => object.name === 'Nouvelle capitale')).toBeDefined();
+  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Rétablir l’action', exact: true })).toBeDisabled();
+  expect(world.objects.some(object => object.geometry.type === 'Point')).toBe(false);
 });

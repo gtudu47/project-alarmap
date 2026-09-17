@@ -206,3 +206,27 @@ via conteneur Node si absente, build/démarrage Compose avec attente de santé.
 Mode de vérification seule. Aucun secret local ou volume inclus dans Git.
 CheckOnly PowerShell et bash -n Linux réussis. Installation neuve Linux
 et installateur de releases encore non validés/non livrés.
+
+## Annulation/rétablissement des lieux
+
+PointHistory dans le moteur commun : instantanés isolés, curseur avancé seulement
+après succès, 50 entrées, nouvelle action coupe la branche de rétablissement.
+UI : annuler/rétablir ajout, modification et suppression ; reset au changement
+ou rechargement du monde et à la déconnexion. Conflit sans avancée de curseur.
+PUT /api/v1/worlds/:id/points/:pointId restaure un point avec identité, style,
+propriétés et dates ; autorisation, révision, géométrie, monde/calque et verrous
+vérifiés. Aucune migration nécessaire. Historique limité à la session.
+
+Validation finale : npm run check réussi (lint, types, 21 tests unitaires,
+builds). Construction et démarrage Docker réussis, health/ready ok.
+13 parcours Playwright Edge passent, dont la séquence annulation de suppression,
+annulation de modification puis rétablissement des deux actions.
+
+## Sélection directe des points
+
+Callback de sélection partagé par MapEngine et ses adaptateurs. Carte plane :
+proximité de 10 pixels des points visibles. Globe : intersection des marqueurs
+et de la sphère (occlusion), sans sélection des objets derrière la planète.
+Séparation clic/déplacement et libération des écouteurs à la destruction.
+La fiche sélectionnée permet l’édition selon les droits existants.
+Validation sélection : lint/typecheck, build Docker et 15 tests Playwright Edge réussis. Annulation/rétablissement inclus dans cette livraison.

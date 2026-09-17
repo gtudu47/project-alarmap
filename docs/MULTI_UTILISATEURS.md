@@ -94,7 +94,27 @@ Le propriétaire ou un éditeur peut modifier son nom, sa longitude et sa latitu
 La suppression demande une confirmation dans la fiche. Les deux opérations
 vérifient la révision du monde et le verrouillage du calque côté serveur.
 Un conflit impose de recharger le monde avant de réessayer. L’identité du lieu
-reste stable après modification. La suppression est définitive à ce stade ;
-l’annulation et l’historique d’édition restent à développer.
+reste stable après modification. La suppression peut être annulée pendant la session, tant que l’action figure
+dans les 50 dernières actions et que le monde n’a pas été rechargé.
 API : PATCH /api/v1/worlds/:id/points/:pointId (nom, coordonnées, révision),
 DELETE sur la même route (révision). Toutes les routes exigent une session.
+
+## Annuler et rétablir
+
+Les boutons « Annuler l’action » et « Rétablir l’action » concernent l’ajout,
+la modification et la suppression de lieux. Les actions sont sauvegardées sur
+le serveur ; elles ne rétablissent pas une ancienne révision entière du monde.
+L’historique reste en mémoire dans l’onglet (50 actions), sans stockage local
+persistant. Fermer/recharger le monde ou se déconnecter efface cet historique.
+Une nouvelle action après une annulation efface la suite de rétablissement.
+Un conflit serveur laisse les piles intactes ; recharger abandonne l’historique.
+Ce mécanisme ne remplace pas une sauvegarde ou le futur historique durable.
+
+### Sélection directe
+
+Cliquer sur un point dans la carte plane ou le globe ouvre sa fiche.
+Un clic dans une zone vide ferme la fiche. Les déplacements de plus de cinq
+pixels sont traités comme des mouvements de caméra. Les objets invisibles
+(calque masqué ou opacité nulle) ne sont pas sélectionnables. Le globe teste
+également la sphère pour ne pas sélectionner un point derrière la planète.
+Les lignes et polygones ne disposent pas encore de sélection directe.

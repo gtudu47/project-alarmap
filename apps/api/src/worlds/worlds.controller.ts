@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Patch, Get, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Patch, Put, Get, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
+import { objectSchema } from '@alarmap/map-model';
 import { AuthGuard, type AuthRequest } from '../auth/auth.guard.js';
 import { parseInput } from '../validation.js';
 import { WorldsService } from './worlds.service.js';
@@ -41,5 +42,12 @@ export class WorldsController {
   deletePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
     const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
     return this.worlds.changePoint(request.account.id, id, pointId, input.revision);
+  }
+
+  @Put(':id/points/:pointId')
+  @Header('Cache-Control', 'no-store')
+  restorePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: objectSchema.refine(point => point.geometry.type === 'Point' && point.id === pointId, 'Point invalide.') }).strict(), body);
+    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point);
   }
 }

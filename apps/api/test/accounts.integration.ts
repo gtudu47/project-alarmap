@@ -79,6 +79,22 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal(removed.world.revision, 3);
     assert.deepEqual(removed.world.objects, []);
     assert.equal((await request(endpoint, tokens[0], { revision: 3 }, 'DELETE')).status, 404);
+    const original = { ...reopened.world.objects[0]!, name: 'Restauré', kind: 'city', style: { color: '#e6b96c', opacity: 1 }, properties: { note: 'Identité conservée' }, startYear: -50, endYear: 100 };
+    assert.equal((await request(endpoint, tokens[1], { revision: 2, point: original }, 'PUT')).status, 409);
+    await infra.pool.query("UPDATE members SET role='viewer' WHERE world_id=$1 AND user_id=$2", [world.id, users[1]]);
+    assert.equal((await request(endpoint, tokens[1], { revision: 3, point: original }, 'PUT')).status, 403);
+    const restored = await request(endpoint, tokens[0], { revision: 3, point: original }, 'PUT');
+    assert.equal(restored.status, 200);
+    const restoredBody = await restored.json() as { world: { objects: unknown[]; revision: number } };
+    assert.equal(restoredBody.world.revision, 4);
+    assert.deepEqual(restoredBody.world.objects[0], original);
+    assert.equal((await request('/worlds/' + other.world.id + '/points/' + pointId, tokens[0], { revision: 0, point: original }, 'PUT')).status, 404);
+    await infra.pool.query('UPDATE layers SET locked=true WHERE world_id=$1', [world.id]);
+    assert.equal((await request(endpoint, tokens[0], { revision: 4, point: original }, 'PUT')).status, 409);
+    await infra.pool.query('UPDATE layers SET locked=false WHERE world_id=$1', [world.id]);
+    const rewritten = await request(endpoint, tokens[0], { revision: 4, point: { ...original, name: 'Rétabli' } }, 'PUT');
+    assert.equal(rewritten.status, 200);
+    assert.equal((await request(endpoint, tokens[0], { revision: 5, point: { ...original, geometry: { type: 'LineString', coordinates: [[0,0],[1,1]] } } }, 'PUT')).status, 400);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

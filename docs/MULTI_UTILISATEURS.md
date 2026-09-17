@@ -118,3 +118,16 @@ pixels sont traités comme des mouvements de caméra. Les objets invisibles
 (calque masqué ou opacité nulle) ne sont pas sélectionnables. Le globe teste
 également la sphère pour ne pas sélectionner un point derrière la planète.
 Les lignes et polygones ne disposent pas encore de sélection directe.
+
+## Gestion des calques
+
+Dans un monde privé ouvert, les réglages de chaque calque permettent de modifier
+son nom, son opacité et le verrouillage de ses objets. Le verrouillage empêche
+l’écriture des objets ; un propriétaire ou éditeur peut le désactiver.
+Le nouveau calque est ajouté après les calques existants. Le formulaire d’ajout
+de lieu permet de choisir un calque déverrouillé. Supprimer un calque demande
+une confirmation ; le serveur refuse les calques verrouillés, non vides ou
+le dernier calque du monde. Un lecteur ne peut modifier aucun calque.
+La case de visibilité conserve son rôle de filtre local de consultation.
+Une modification des calques réinitialise l’historique local des lieux ;
+les boutons Annuler/Rétablir ne couvrent pas encore les opérations de calques.

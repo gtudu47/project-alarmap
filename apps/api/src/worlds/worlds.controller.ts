@@ -27,7 +27,7 @@ export class WorldsController {
   @Post(':id/points')
   @Header('Cache-Control', 'no-store')
   addPoint(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown, @Req() request: AuthRequest) {
-    const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90), revision: z.number().int().nonnegative() }).strict(), body);
+    const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90), revision: z.number().int().nonnegative(), layerId: z.uuid().optional() }).strict(), body);
     return this.worlds.addPoint(request.account.id, id, input);
   }
 
@@ -49,5 +49,24 @@ export class WorldsController {
   restorePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
     const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: objectSchema.refine(point => point.geometry.type === 'Point' && point.id === pointId, 'Point invalide.') }).strict(), body);
     return this.worlds.restorePoint(request.account.id, id, input.revision, input.point);
+  }
+
+  @Post(':id/layers')
+  @Header('Cache-Control', 'no-store')
+  createLayer(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), name: z.string().trim().min(1).max(120) }).strict(), body);
+    return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'create', name: input.name });
+  }
+  @Patch(':id/layers/:layerId')
+  @Header('Cache-Control', 'no-store')
+  updateLayer(@Param('id', ParseUUIDPipe) id: string, @Param('layerId', ParseUUIDPipe) layerId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), name: z.string().trim().min(1).max(120), opacity: z.number().min(0).max(1), locked: z.boolean() }).strict(), body);
+    return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'update', layerId, name: input.name, opacity: input.opacity, locked: input.locked });
+  }
+  @Delete(':id/layers/:layerId')
+  @Header('Cache-Control', 'no-store')
+  deleteLayer(@Param('id', ParseUUIDPipe) id: string, @Param('layerId', ParseUUIDPipe) layerId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
+    return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'delete', layerId });
   }
 }

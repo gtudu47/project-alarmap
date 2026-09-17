@@ -230,3 +230,15 @@ et de la sphère (occlusion), sans sélection des objets derrière la planète.
 Séparation clic/déplacement et libération des écouteurs à la destruction.
 La fiche sélectionnée permet l’édition selon les droits existants.
 Validation sélection : lint/typecheck, build Docker et 15 tests Playwright Edge réussis. Annulation/rétablissement inclus dans cette livraison.
+
+## Gestion des calques (17 septembre 2026)
+
+POST/PATCH/DELETE layers ajoutés sous worlds : droits, révision et transaction.
+Création en fin de pile, nom, opacité et verrouillage ; suppression uniquement
+si vide, déverrouillé et au moins un autre calque. Ajout de point avec layerId
+facultatif pour compatibilité API ; calque choisi et déverrouillé côté serveur.
+UI : réglages repliables, création, suppression confirmée, choix du calque.
+Une modification de calque vide l’historique local des lieux. Pas de migration.
+Typecheck et lint réussis ; intégration PostGIS étendue réussie (droits, calques
+verrouillés/non vides, dernier calque, conflit et références entre mondes).
+Push au seuil de 5 % demandé : reconstruction Docker en cours ; test navigateur layers.spec.ts écrit mais non encore exécuté pour ce lot.

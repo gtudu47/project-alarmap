@@ -171,3 +171,10 @@ select:focus-visible { outline: 3px solid #b5863b; outline-offset: 3px; }
 .atlas-list .account-secondary { margin-top: 10px; }
 .history-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 .history-actions button { flex: 1; font-size: 12px; }
+.layer-settings { border: 1px solid #d8ddd4; border-top: 0; padding: 10px; font-size: 12px; background: #faf9f4; }
+.layer-settings summary { cursor: pointer; line-height: 1.5; }
+.layer-settings .point-form { margin-top: 14px; }
+.point-form .layer-lock { display: flex; align-items: center; gap: 8px; }
+.point-form .layer-lock input { width: auto; }
+.point-form select { min-width: 0; padding: 10px; border: 1px solid #bbc8ba; border-radius: 5px; background: white; color: #243a3b; }
+@media(max-width:760px) { .sidebar:has(.layer-settings) .layer-section { width: 100%; } }

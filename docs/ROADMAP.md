@@ -156,3 +156,9 @@ L’historique durable et l’annulation des autres géométries restent à dév
 Sélection des points visibles par clic dans la carte plane et le globe,
 ouverture de la fiche existante et distinction avec le déplacement de caméra.
 La sélection directe des lignes et polygones reste à développer.
+
+### Gestion des calques
+
+Création, nom, opacité, verrouillage et suppression de calques vides sauvegardés.
+Choix du calque à l’ajout d’un lieu. Contrôles serveur de droits et de révision.
+Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à faire.

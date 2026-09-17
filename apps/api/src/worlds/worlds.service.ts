@@ -44,7 +44,7 @@ export class WorldsService {
     if (!result.rows[0]) throw new NotFoundException('Monde introuvable.');
     return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role };
   }
-  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number }): Promise<{ world: World; role: MemberRole }> {
+  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -55,7 +55,7 @@ export class WorldsService {
       if (!world) throw new NotFoundException('Monde introuvable.');
       if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
       if (world.revision !== input.revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
-      const layer = await client.query<{ id: string }>('SELECT id FROM layers WHERE world_id=$1 AND NOT locked ORDER BY sort_order,id LIMIT 1', [id]);
+      const layer = await client.query<{ id: string }>('SELECT id FROM layers WHERE world_id=$1 AND NOT locked AND ($2::uuid IS NULL OR id=$2) ORDER BY sort_order,id LIMIT 1 FOR UPDATE', [id, input.layerId ?? null]);
       if (!layer.rows[0]) throw new ConflictException('Aucun calque modifiable.');
       await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style)
         VALUES($1,$2,$3,'city',$4,ST_SetSRID(ST_MakePoint($5,$6),4326),$7::jsonb)`,
@@ -118,5 +118,36 @@ export class WorldsService {
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
     return this.get(userId, id);
+  }
+
+  async changeLayer(userId: string, id: string, revision: number, command: { type: 'create'; name: string } | { type: 'update'; layerId: string; name: string; opacity: number; locked: boolean } | { type: 'delete'; layerId: string }): Promise<{ world: World; role: MemberRole }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
+        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2 WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
+      const world = permission.rows[0];
+      if (!world) throw new NotFoundException('Monde introuvable.');
+      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
+      if (command.type === 'create') {
+        await client.query('INSERT INTO layers(id,world_id,name,sort_order) SELECT $1,$2,$3,COALESCE(MAX(sort_order),-1)+1 FROM layers WHERE world_id=$2', [randomUUID(),id,command.name]);
+      } else {
+        const layer = await client.query<{ locked: boolean }>('SELECT locked FROM layers WHERE id=$1 AND world_id=$2 FOR UPDATE', [command.layerId,id]);
+        if (!layer.rows[0]) throw new NotFoundException('Calque introuvable.');
+        if (command.type === 'update') await client.query('UPDATE layers SET name=$3,opacity=$4,locked=$5 WHERE id=$1 AND world_id=$2', [command.layerId,id,command.name,command.opacity,command.locked]);
+        else {
+          if (layer.rows[0].locked) throw new ConflictException('Déverrouillez le calque avant de le supprimer.');
+          if ((await client.query('SELECT 1 FROM map_objects WHERE world_id=$1 AND layer_id=$2 LIMIT 1',[id,command.layerId])).rowCount) throw new ConflictException('Ce calque contient encore des objets.');
+          const count = await client.query<{ count: string }>('SELECT COUNT(*) FROM layers WHERE world_id=$1',[id]);
+          if (Number(count.rows[0]?.count) <= 1) throw new ConflictException('Conservez au moins un calque.');
+          await client.query('DELETE FROM layers WHERE id=$1 AND world_id=$2',[command.layerId,id]);
+        }
+      }
+      await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1',[id]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+    return this.get(userId,id);
   }
 }

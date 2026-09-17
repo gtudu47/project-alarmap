@@ -30,8 +30,22 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <section class="layer-section" aria-labelledby="layers-heading">
           <h2 id="layers-heading">{{ text.layers }} <span>{{ world.layers.length }}</span></h2>
           @for (layer of world.layers; track layer.id) {
-            <label class="layer-row"><input type="checkbox" [checked]="layerIsVisible(layer.id)" (change)="toggleLayer(layer.id)"><span class="layer-dot"></span>{{ layer.name }}</label>
+            <label class="layer-row"><input type="checkbox" [checked]="layerIsVisible(layer.id)" (change)="toggleLayer(layer.id)"><span class="layer-dot"></span>{{ layer.name }} {{ layer.locked ? '🔒' : '' }}</label>
+            @if (personal() && role !== 'viewer') {
+              <details class="layer-settings"><summary>Réglages de {{ layer.name }}</summary>
+                <form class="point-form" (submit)="saveLayer($event, layer.id)">
+                  <label>Nom du calque<input name="name" [value]="layer.name" required maxlength="120"></label>
+                  <label>Opacité (%)<input name="opacity" type="number" min="0" max="100" step="1" [value]="layer.opacity * 100" required></label>
+                  <label class="layer-lock"><input name="locked" type="checkbox" [checked]="layer.locked">Verrouiller les objets</label>
+                  <button class="account-primary" [disabled]="pointBusy()">Enregistrer le calque</button>
+                </form>
+                @if (layerDeleteConfirm() === layer.id) {
+                  <p>Supprimer ce calque vide ?</p><button class="account-secondary" [disabled]="pointBusy()" (click)="deleteLayer(layer.id)">Confirmer</button><button class="account-link" (click)="layerDeleteConfirm.set(null)">Annuler</button>
+                } @else { <button class="account-link" [disabled]="pointBusy() || layer.locked || world.layers.length < 2 || layerHasObjects(layer.id)" (click)="layerDeleteConfirm.set(layer.id)">Supprimer ce calque vide</button> }
+              </details>
+            }
           }
+          @if (personal() && role !== 'viewer') { <form class="point-form" (submit)="createLayer($event)"><label>Nouveau calque<input name="name" required maxlength="120"></label><button class="account-secondary" [disabled]="pointBusy()">Créer le calque</button></form> }
         </section>
         @if (personal() && role !== 'viewer') {
           <div class="history-actions" aria-label="Historique des lieux">
@@ -40,6 +54,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           </div>
           <form class="point-form" (submit)="addPoint($event)">
             <h2>Ajouter un lieu</h2>
+            <label>Calque du lieu<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
             <label>Nom du lieu<input name="name" required maxlength="200"></label>
             <label>Longitude<input name="longitude" type="number" required min="-180" max="180" step="any" value="0"></label>
             <label>Latitude<input name="latitude" type="number" required min="-90" max="90" step="any" value="0"></label>
@@ -109,6 +124,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
+  readonly layerDeleteConfirm = signal<string | null>(null);
+  layerHasObjects(id: string): boolean { return this.world.objects.some(object => object.layerId === id); }
+  async createLayer(event: Event): Promise<void> {
+    event.preventDefault(); const form = event.target as HTMLFormElement;
+    if (await this.changeLayer('POST', '', { name: new FormData(form).get('name') })) form.reset();
+  }
+  async saveLayer(event: Event, id: string): Promise<void> {
+    event.preventDefault(); const fields = new FormData(event.target as HTMLFormElement);
+    await this.changeLayer('PATCH', id, { name: fields.get('name'), opacity: Number(fields.get('opacity')) / 100, locked: fields.has('locked') });
+  }
+  async deleteLayer(id: string): Promise<void> { if (this.layerDeleteConfirm() === id) await this.changeLayer('DELETE', id, {}); }
+  private async changeLayer(method: string, id: string, data: Record<string, unknown>): Promise<boolean> {
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer') return false;
+    const worldId = this.world.id; this.pointBusy.set(true); this.pointMessage.set('');
+    try {
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/layers' + (id ? '/' + id : ''), { method, body: JSON.stringify({ ...data, revision: this.world.revision }) });
+      if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return false;
+      this.world = worldSchema.parse(access.world); this.syncScene(); this.clearHistory(); this.layerDeleteConfirm.set(null);
+      this.pointMessage.set('Calques enregistrés. Historique des lieux réinitialisé.'); return true;
+    } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Modification du calque impossible.'); return false; }
+    finally { this.pointBusy.set(false); }
+  }
   private readonly history = new PointHistory();
   readonly historyState = signal({ undo: false, redo: false });
   private refreshHistory(): void { this.historyState.set({ undo: this.history.canUndo, redo: this.history.canRedo }); }
@@ -174,7 +211,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const existingIds = new Set(this.world.objects.map(object => object.id));
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision }) });
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision, layerId: fields.get('layerId') }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); const added = this.world.objects.filter(object => !existingIds.has(object.id)); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.pointMessage.set('Lieu enregistré.'); }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
     finally { this.pointBusy.set(false); }

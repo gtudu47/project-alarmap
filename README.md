@@ -19,7 +19,7 @@ créé automatiquement.
 Le fonctionnement local complet demande PostgreSQL/PostGIS et les migrations.
 Dans la prévisualisation sans base, la démonstration reste disponible mais les
 comptes affichent l’indisponibilité du serveur. Le dessin complet, la publication
-publique, les exports, l’installateur de releases et le rollback restent à
+publique, les exports JSON, l’installateur de releases et le rollback restent à
 implémenter. La route /embed/demonstration montre encore la scène de référence.
 
 - [Activer les comptes et inviter des personnes](docs/MULTI_UTILISATEURS.md)
@@ -63,6 +63,21 @@ Copy-Item .env.example .env
 Après une copie manuelle, remplacer les secrets d’exemple avant le lancement
 Docker. L’API refuse les secrets d’exemple en production. L’installation
 automatique de releases réalisera cette initialisation en V0.1-F.
+
+## Installation depuis le dépôt
+
+Cloner ce dépôt puis, depuis sa racine :
+
+- Windows : ouvrir PowerShell et lancer `./install.ps1`.
+- Linux : lancer `bash install.sh`.
+
+Docker doit être installé et son moteur Linux démarré. Ces scripts génèrent
+la configuration si elle manque, construisent les images et attendent que les
+services soient sains. Node.js et npm sur l’hôte ne sont pas nécessaires pour
+ce parcours. Réexécuter le script conserve la configuration et les volumes.
+Vérification seule : `./install.ps1 -CheckOnly` ou `bash install.sh --check`.
+Il s’agit d’une installation depuis les sources, pas encore d’une release validée.
+Voir [détails des installateurs](installer/README.md).
 
 ## Démarrer avec Docker Compose
 

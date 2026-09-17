@@ -26,3 +26,14 @@ test('accueil sur mobile sans débordement', async ({ page }) => {
   await page.getByRole('link', { name: 'Guide', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Vos premiers pas dans AlarMap' })).toBeVisible();
 });
+
+test('localiser un lieu depuis l’Atlas ouvre sa fiche et la carte', async ({ page }) => {
+  await page.goto('/?page=atlas');
+  await page.getByRole('button', { name: 'Localiser Origine', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Lieu sélectionné' })).toContainText('Origine');
+  await expect(page.getByTestId('map-host').locator('canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Fermer la fiche' }).click();
+  await expect(page.getByRole('region', { name: 'Lieu sélectionné' })).toHaveCount(0);
+});

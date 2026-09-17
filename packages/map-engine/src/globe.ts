@@ -77,6 +77,10 @@ export class GlobeRenderer implements RendererAdapter {
     this.render();
     return new Promise((resolve, reject) => this.renderer.domElement.toBlob(blob => blob ? resolve(blob) : reject(new Error('Export PNG impossible.')), 'image/png'));
   }
+  focus(coordinate: Coordinate): void {
+    this.camera.position.set(...toSphere(coordinate, this.fitDistance));
+    this.controls.target.set(0, 0, 0); this.controls.update(); this.render();
+  }
   reset(): void { this.camera.position.set(0, 0.6, 3.3).normalize().multiplyScalar(this.fitDistance); this.controls.target.set(0, 0, 0); this.controls.update(); this.render(); }
   private readonly render = (): void => { this.renderer.render(this.scene, this.camera); };
   private disposeObject(object: THREE.Object3D): void {

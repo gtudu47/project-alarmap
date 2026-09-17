@@ -34,7 +34,7 @@ export const pageText = {
         <div class="page-eyebrow">{{ world.name }}</div><h1 id="page-title" tabindex="-1">{{ text.catalog }}</h1><p class="page-lead">Le catalogue des objets du monde actuellement ouvert.</p>
         <div class="atlas-filters"><label>{{ text.search }}<input type="search" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="Nom d’un lieu ou d’un tracé"></label><label>Géométrie<select [value]="geometry()" (change)="geometry.set($any($event.target).value)"><option value="">Toutes les géométries</option><option value="Point">Points</option><option value="LineString">Lignes</option><option value="Polygon">Polygones</option><option value="MultiPolygon">Multipolygones</option></select></label></div>
         <p class="result-count" role="status">{{ objects().length }} résultat(s) sur {{ world.objects.length }}</p>
-        <ul class="atlas-list">@for (object of objects(); track object.id) { <li><span class="object-symbol" [style.color]="object.style.color" aria-hidden="true">{{ object.geometry.type === 'Point' ? '●' : '⌁' }}</span><div><h2>{{ object.name || text.unnamed }}</h2><p>{{ geometryName(object.geometry.type) }} · {{ layerName(object.layerId) }}</p>@if (object.geometry.type === 'Point') { <p>Longitude {{ object.geometry.coordinates[0] }}° · Latitude {{ object.geometry.coordinates[1] }}°</p> }</div></li> } @empty { <li class="empty-atlas">{{ text.empty }}</li> }</ul>
+        <ul class="atlas-list">@for (object of objects(); track object.id) { <li><span class="object-symbol" [style.color]="object.style.color" aria-hidden="true">{{ object.geometry.type === 'Point' ? '●' : '⌁' }}</span><div><h2>{{ object.name || text.unnamed }}</h2><p>{{ geometryName(object.geometry.type) }} · {{ layerName(object.layerId) }}</p>@if (object.geometry.type === 'Point') { <p>Longitude {{ object.geometry.coordinates[0] }}° · Latitude {{ object.geometry.coordinates[1] }}°</p><button class="account-secondary" (click)="locate.emit(object.id)" [attr.aria-label]="'Localiser ' + object.name">Localiser sur la carte →</button> }</div></li> } @empty { <li class="empty-atlas">{{ text.empty }}</li> }</ul>
         <button class="account-secondary" (click)="navigate.emit('carte')">Retour à la carte</button>
       } @else {
         <div class="page-eyebrow">GUIDE DE PRISE EN MAIN</div><h1 id="page-title" tabindex="-1">{{ text.guideTitle }}</h1>
@@ -50,6 +50,7 @@ export class WorkspacePages {
   @Input() personal = false;
   @Input() page: WorkspacePage = 'accueil';
   @Output() readonly navigate = new EventEmitter<WorkspacePage>();
+  @Output() readonly locate = new EventEmitter<string>();
   @Output() readonly account = new EventEmitter<void>();
   readonly text = pageText;
   readonly query = signal('');

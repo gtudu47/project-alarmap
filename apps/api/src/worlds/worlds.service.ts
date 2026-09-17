@@ -66,4 +66,28 @@ export class WorldsService {
     finally { client.release(); }
     return this.get(userId, id);
   }
+
+  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number }): Promise<{ world: World; role: MemberRole }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
+        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
+        WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
+      const world = permission.rows[0];
+      if (!world) throw new NotFoundException('Monde introuvable.');
+      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
+      const point = await client.query<{ locked: boolean }>(`SELECT l.locked FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id
+        WHERE o.id=$1 AND o.world_id=$2 AND ST_GeometryType(o.geometry)='ST_Point' FOR UPDATE OF o,l`, [pointId, id]);
+      if (!point.rows[0]) throw new NotFoundException('Lieu introuvable.');
+      if (point.rows[0].locked) throw new ConflictException('Ce calque est verrouillé.');
+      if (update) await client.query('UPDATE map_objects SET name=$3,geometry=ST_SetSRID(ST_MakePoint($4,$5),4326) WHERE id=$1 AND world_id=$2', [pointId, id, update.name, update.longitude, update.latitude]);
+      else await client.query('DELETE FROM map_objects WHERE id=$1 AND world_id=$2', [pointId, id]);
+      await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+    return this.get(userId, id);
+  }
 }

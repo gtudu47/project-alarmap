@@ -86,3 +86,15 @@ Les données existantes ne sont pas modifiées par le simple affichage d’une c
 
 Les comptes anonymes reçoivent 401. Un monde inaccessible retourne 404.
 Un membre en lecture seule reçoit 403 s’il essaie d’ajouter un lieu.
+
+## Modification et suppression des lieux
+
+Dans l’Atlas, cliquer sur « Localiser » pour ouvrir la fiche d’un point.
+Le propriétaire ou un éditeur peut modifier son nom, sa longitude et sa latitude.
+La suppression demande une confirmation dans la fiche. Les deux opérations
+vérifient la révision du monde et le verrouillage du calque côté serveur.
+Un conflit impose de recharger le monde avant de réessayer. L’identité du lieu
+reste stable après modification. La suppression est définitive à ce stade ;
+l’annulation et l’historique d’édition restent à développer.
+API : PATCH /api/v1/worlds/:id/points/:pointId (nom, coordonnées, révision),
+DELETE sur la même route (révision). Toutes les routes exigent une session.

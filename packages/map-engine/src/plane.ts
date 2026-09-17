@@ -1,5 +1,5 @@
 import { Application, Container, Graphics } from 'pixi.js';
-import type { World } from '@alarmap/map-model';
+import type { Coordinate, World } from '@alarmap/map-model';
 import type { RendererAdapter } from './types.js';
 import { splitAntimeridian } from './geography.js';
 
@@ -51,6 +51,11 @@ export class PlaneRenderer implements RendererAdapter {
   async exportPng(): Promise<Blob> {
     this.app.renderer.render(this.app.stage);
     return new Promise((resolve, reject) => this.app.canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Export PNG impossible.')), 'image/png'));
+  }
+  focus([longitude, latitude]: Coordinate): void {
+    this.zoom = Math.max(this.zoom, 2);
+    const scale = Math.min(this.host.clientWidth / 400, this.host.clientHeight / 220) * this.zoom;
+    this.offset = { x: -longitude * scale, y: latitude * scale }; this.transform();
   }
   reset(): void { this.zoom = 1; this.offset = { x: 0, y: 0 }; this.transform(); }
   private transform(): void {

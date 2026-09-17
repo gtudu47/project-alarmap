@@ -1,4 +1,4 @@
-import { worldSchema, type World } from '@alarmap/map-model';
+import { coordinateSchema, worldSchema, type Coordinate, type World } from '@alarmap/map-model';
 import type { RendererAdapter, ViewMode } from './types.js';
 export * from './geography.js';
 export type { ViewMode, RendererAdapter } from './types.js';
@@ -7,10 +7,11 @@ export type { ViewMode, RendererAdapter } from './types.js';
 export class MapEngine {
   private renderer?: RendererAdapter;
   private world?: World;
+  private focusCoordinate?: Coordinate;
   private generation = 0;
   private disposed = false;
   constructor(private readonly host: HTMLElement) {}
-  loadWorld(world: World): void { this.world = worldSchema.parse(world); this.renderer?.setWorld(this.world); }
+  loadWorld(world: World): void { if (this.world?.id !== world.id) this.focusCoordinate = undefined; this.world = worldSchema.parse(world); this.renderer?.setWorld(this.world); }
   async setView(mode: ViewMode): Promise<void> {
     if (this.disposed) throw new Error('Moteur détruit.');
     const generation = ++this.generation;
@@ -21,6 +22,7 @@ export class MapEngine {
     if (generation !== this.generation || this.disposed) { renderer.destroy(); return; }
     this.renderer = renderer;
     if (this.world) renderer.setWorld(this.world);
+    if (this.focusCoordinate) renderer.focus(this.focusCoordinate);
   }
   setLayerVisible(id: string, visible: boolean): void {
     if (!this.world) return;
@@ -31,6 +33,7 @@ export class MapEngine {
     if (this.disposed || !this.renderer) throw new Error('Aucune vue disponible pour l’export.');
     return this.renderer.exportPng();
   }
-  reset(): void { this.renderer?.reset(); }
+  focus(coordinate: Coordinate): void { this.focusCoordinate = coordinateSchema.parse(coordinate); this.renderer?.focus(this.focusCoordinate); }
+  reset(): void { this.focusCoordinate = undefined; this.renderer?.reset(); }
   destroy(): void { this.disposed = true; ++this.generation; this.renderer?.destroy(); this.renderer = undefined; }
 }

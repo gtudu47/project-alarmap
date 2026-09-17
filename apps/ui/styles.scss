@@ -165,3 +165,7 @@ select:focus-visible { outline: 3px solid #b5863b; outline-offset: 3px; }
 .map-toolbar { gap: 8px; }
 .map-toolbar .segmented { margin-right: auto; }
 @media(max-width:760px) { .map-toolbar { flex-wrap: wrap; } .map-toolbar .reset { padding: 9px; } }
+.selected-place { margin-top: 22px; border: 1px solid #bbc8ba; padding: 14px; border-radius: 8px; background: #faf9f4; }
+.selected-place h2 { text-transform: none; letter-spacing: 0; font-size: 15px; overflow-wrap: anywhere; }
+.selected-place p { font-size: 12px; line-height: 1.6; }
+.atlas-list .account-secondary { margin-top: 10px; }

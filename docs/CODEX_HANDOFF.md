@@ -156,3 +156,53 @@ Validation : npm run check réussi (lint, types, 19 tests, builds) ;
 11 tests Playwright Edge réussis, dont export PNG carte/globe et calques séparés.
 Prochaine étape : sélection d’objets et édition géographique, après validation
 réelle du socle Docker/PostGIS dès que le moteur peut démarrer.
+
+## Validation réelle Docker (17 septembre 2026)
+
+Docker 29.8.0 répond désormais. PostgreSQL/PostGIS et MinIO démarrés.
+Les deux tests d’intégration réels passent : migrations et références entre
+mondes ; comptes HTTP, permissions, révisions concurrentes, révocation.
+Images MinIO déplacées vers quay.io/minio (Docker Hub inaccessible).
+Lockfile npm régénéré sous Linux propre pour inclure les dépendances optionnelles
+manquantes sous Windows. Construction complète Docker en cours.
+Localisation des points depuis l’Atlas ajoutée au moteur commun et aux deux vues.
+Le commit initial 7f5d095 a été poussé sur origin/dev ; les changements ci-dessus
+sont postérieurs et encore locaux.
+
+### Résultat final de la validation Docker
+
+Construction et démarrage complets réussis sur Windows/Docker Desktop.
+API, Editor, Viewer, proxy et PostgreSQL sains ; MinIO initialisé.
+GET http://127.0.0.1:8080/api/v1/health/ready retourne status ok.
+19 tests unitaires, 2 tests d’intégration PostgreSQL/PostGIS et 12 parcours
+Playwright Edge réussis. Les parcours comptes Playwright utilisent encore
+leurs réponses contrôlées ; les tests HTTP d’intégration utilisent la vraie base.
+Lien administrateur généré dans secrets/admin-setup.txt (ignoré par Git),
+valable une heure. Aucun compte personnel créé automatiquement.
+Pour régénérer après expiration : docker compose exec -T alarmap-api node
+apps/api/dist/setup-admin.js, puis docker compose cp
+alarmap-api:/app/secrets/admin-setup.txt secrets/admin-setup.txt.
+La validation Linux natif, installation autonome et mise en ligne VPS restent à faire.
+
+## Édition des lieux (17 septembre 2026)
+
+PATCH et DELETE /api/v1/worlds/:id/points/:pointId disponibles. Validation stricte,
+permissions owner/editor, monde et objet liés, verrouillage du calque, révision
+optimiste et transaction PostgreSQL. Nom/coordonnées modifiables depuis la fiche
+Atlas ; suppression avec confirmation explicite dans l’interface.
+Tests d’intégration PostGIS étendus et réussis : viewer refusé, autre monde
+refusé, coordonnées invalides, calque verrouillé, révision obsolète, modification
+avec identité conservée et suppression autorisée à un éditeur.
+Typecheck, lint et build Docker réussis. Conteneurs reconstruits et démarrés.
+Correction proxy Nginx : upstreams avec résolution DNS Docker dynamique pour
+éviter les 502 après remplacement des conteneurs. Configuration nginx -t validée.
+Pas de migration nouvelle. Undo/Redo reste à développer.
+Après correction du proxy : les 13 tests Playwright Edge passent sur la pile Docker. API health/ready retourne ok.
+
+## Scripts d’installation depuis les sources
+
+install.ps1 et install.sh ajoutés : détection Docker/Compose, configuration
+via conteneur Node si absente, build/démarrage Compose avec attente de santé.
+Mode de vérification seule. Aucun secret local ou volume inclus dans Git.
+CheckOnly PowerShell et bash -n Linux réussis. Installation neuve Linux
+et installateur de releases encore non validés/non livrés.

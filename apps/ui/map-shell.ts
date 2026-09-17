@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { MapEngine, type ViewMode } from '@alarmap/map-engine';
-import { createDemoWorld, worldSchema } from '@alarmap/map-model';
+import { createDemoWorld, worldSchema, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
 import { AccountsClient, type WorldAccess } from './accounts.client';
@@ -20,7 +20,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
       <span class="version">v0.1 · {{ text.demo }}</span>
     </header>
     @if (mode === 'editor') { <nav class="workspace-nav" aria-label="Navigation principale">@for (item of pages; track item) { <a [href]="'?page=' + item" [attr.aria-current]="page() === item ? 'page' : null" (click)="navigate(item, $event)">{{ labels[item] }}</a> }</nav> }
-    @if (mode === 'editor' && page() !== 'carte') { <alarmap-workspace-page [world]="world" [personal]="personal()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" /> }
+    @if (mode === 'editor' && page() !== 'carte') { <alarmap-workspace-page [world]="world" [personal]="personal()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
     <main [hidden]="page() !== 'carte'">
       <aside class="sidebar">
         <div class="eyebrow">{{ personal() ? 'Mon monde privé' : text.demo }}</div>
@@ -44,6 +44,21 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
+        @if (selectedObject(); as object) { <section class="selected-place" aria-label="Lieu sélectionné"><h2>{{ object.name }}</h2><p>Lieu sélectionné depuis l’Atlas.</p>
+          @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
+            <form class="point-form" (submit)="updatePoint($event)">
+              <label>Nom du lieu sélectionné<input name="name" [value]="object.name" required maxlength="200"></label>
+              <label>Longitude du lieu<input name="longitude" type="number" [value]="object.geometry.coordinates[0]" required min="-180" max="180" step="any"></label>
+              <label>Latitude du lieu<input name="latitude" type="number" [value]="object.geometry.coordinates[1]" required min="-90" max="90" step="any"></label>
+              <button class="account-primary" [disabled]="pointBusy()">Enregistrer les modifications</button>
+            </form>
+            @if (deleteConfirm() === object.id) {
+              <p>Supprimer définitivement ce lieu ?</p>
+              <button class="account-secondary" [disabled]="pointBusy()" (click)="deletePoint()">Confirmer la suppression</button>
+              <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler</button>
+            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le lieu</button> }
+          }
+<button class="account-link" (click)="selectedId.set(null)">Fermer la fiche</button></section> }
         <div class="status" [class.ready]="apiStatus() === 'ready'" role="status"><span class="status-dot"></span>{{ apiLabel() }}</div>
         <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : text.sample }}</p>
       </aside>
@@ -90,6 +105,19 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
+  readonly selectedId = signal<string | null>(null);
+  readonly deleteConfirm = signal<string | null>(null);
+  selectedObject(): MapObject | undefined { return this.world.objects.find(object => object.id === this.selectedId()); }
+  locateObject(id: string): void {
+    const object = this.world.objects.find(item => item.id === id);
+    if (!object || object.geometry.type !== 'Point') return;
+    this.deleteConfirm.set(null); this.selectedId.set(id);
+    this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));
+    this.engine?.setLayerVisible(object.layerId, true);
+    this.navigate('carte');
+    const coordinate = object.geometry.coordinates;
+    requestAnimationFrame(() => { if (this.selectedId() === id) this.engine?.focus(coordinate); });
+  }
   readonly pointBusy = signal(false);
   readonly pointMessage = signal('');
   role: WorldAccess['role'] = 'viewer';
@@ -97,14 +125,14 @@ export class MapShell implements AfterViewInit, OnDestroy {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
       if (this.personal() && !this.accounts.user()) {
-        this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        this.selectedId.set(null); this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
   }
   openWorld(access: WorldAccess): void {
     if (!this.accounts.user()) return;
-    this.world = worldSchema.parse(access.world); this.role = access.role;
+    this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
     this.syncScene(); this.engine?.reset(); this.accountOpen.set(false); this.pointMessage.set('');
   }
@@ -122,6 +150,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
       const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); form.reset(); this.pointMessage.set('Lieu enregistré.'); }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
+  async updatePoint(event: Event): Promise<void> {
+    event.preventDefault(); const fields = new FormData(event.target as HTMLFormElement);
+    await this.changePoint({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')) });
+  }
+  async deletePoint(): Promise<void> {
+    if (this.deleteConfirm() !== this.selectedId()) return;
+    await this.changePoint();
+  }
+  private async changePoint(update?: { name: FormDataEntryValue | null; longitude: number; latitude: number }): Promise<void> {
+    const id = this.selectedId(); const worldId = this.world.id;
+    if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy()) return;
+    this.pointBusy.set(true); this.pointMessage.set('');
+    try {
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + id, { method: update ? 'PATCH' : 'DELETE', body: JSON.stringify({ ...update, revision: this.world.revision }) });
+      if (this.personal() && this.world.id === worldId && this.accounts.user()) {
+        this.world = worldSchema.parse(result.world); this.syncScene(); this.deleteConfirm.set(null);
+        if (!update) { if (this.selectedId() === id) this.selectedId.set(null); this.pointMessage.set('Lieu supprimé.'); }
+        else { this.pointMessage.set('Lieu modifié.'); if (this.selectedId() === id) this.engine?.focus([update.longitude, update.latitude]); }
+      }
+    } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Modification impossible.'); }
     finally { this.pointBusy.set(false); }
   }
   readonly view = signal<ViewMode>('plane');

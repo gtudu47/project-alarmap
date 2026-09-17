@@ -18,7 +18,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Migration PostgreSQL/PostGIS et contrat de stockage local/S3.
 - [x] Dockerfiles, Compose, proxy et dépendances de démarrage.
 - [x] Validation des builds, 12 tests unitaires, 3 parcours navigateur et démarrage natif de l’API.
-- [!] Démarrage complet Docker/PostGIS : Docker absent de l’environnement initial.
+- [x] Démarrage complet Docker/PostGIS validé sur Windows avec Docker Desktop (17 septembre 2026).
 - [ ] Validation de la CI distante Windows/Linux.
 
 ### Lot C — Modèle et moteur
@@ -39,7 +39,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Code et tests de l’initialisation administrateur, invitations, Argon2/JWT et sessions.
 - [x] Écran Mon espace, connexion, invitations et création de mondes privés.
 - [x] Premier outil de lieux par coordonnées avec sauvegarde et révisions.
-- [ ] Validation complète des comptes/mondes sur Docker/PostGIS réel.
+- [x] Tests API des comptes/mondes sur PostgreSQL/PostGIS réel : isolation, lecture seule, concurrence et révocation.
 - [-] Autorisations owner/editor/viewer sur les routes existantes ; tests HTTP/PostGIS écrits, à exécuter.
 - [ ] Publication filtrée : draft/private/unlisted/public.
 - [ ] Viewer et iframe sur données publiées réelles ; export PNG.
@@ -138,3 +138,9 @@ Les fonctions de publication et les modules métier avancés restent à dévelop
 
 Export PNG de la vue courante dans Editor et Viewer (carte plane et globe).
 Visibilité indépendante des calques. Export JSON et import de sauvegarde à venir.
+
+### Édition de points
+
+Ajout, modification du nom et des coordonnées, suppression confirmée depuis
+la fiche d’un point. Permissions, verrouillage de calque et révisions vérifiés
+sur PostgreSQL/PostGIS réel. Annulation et dessin des autres géométries à venir.

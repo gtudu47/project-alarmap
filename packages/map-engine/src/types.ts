@@ -1,9 +1,12 @@
+import type { GridOptions, GridStats, GridView } from './grid.js';
 import type { Coordinate, World } from '@alarmap/map-model';
 
 export type ViewMode = 'plane' | 'globe';
 export interface RendererAdapter {
   init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void>;
   setWorld(world: World): void;
+  setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void;
+  zoomToGrid?(): void;
   exportPng(): Promise<Blob>;
   focus(coordinate: Coordinate): void;
   reset(): void;

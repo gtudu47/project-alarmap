@@ -131,3 +131,25 @@ le dernier calque du monde. Un lecteur ne peut modifier aucun calque.
 La case de visibilité conserve son rôle de filtre local de consultation.
 Une modification des calques réinitialise l’historique local des lieux ;
 les boutons Annuler/Rétablir ne couvrent pas encore les opérations de calques.
+
+## Grille kilométrique et détails au zoom
+
+Dans la carte plane, ouvrir « Détail et tuiles ». Choisir largeur et hauteur
+en kilomètres (par exemple 1 × 1 ou 10 × 12), puis appliquer les dimensions.
+« Voir ce niveau de détail » rapproche la caméra. Les grandes mailles se
+subdivisent au zoom jusqu’aux dimensions choisies ; le panneau indique le
+niveau effectivement affiché. Le rayon du monde sert au calcul.
+La largeur est mesurée au parallèle médian de chaque bande ; les cases aux
+pôles et à l’antiméridien peuvent être partielles. Réglages limités à la session.
+
+Les mondes privés chargent les objets de la zone visible après le déplacement
+ou le zoom. Une vue éloignée conserve un représentant par cellule et calque ;
+le rapprochement révèle les autres points. Les lignes sont simplifiées selon
+la résolution. Les noms des points apparaissent au rapprochement. Ce mécanisme
+affiche les données existantes : il ne génère pas de nouveaux paysages.
+
+Limites : grille kilométrique disponible en vue plane seulement ; réponse
+limitée à 2 000 objets avec indication de réduction. Le chargement initial du
+monde reste intégral pour l’éditeur et l’Atlas. Le streaming complet des grandes
+cartes, la pagination, le cache de tuiles et les mesures à 100 000 objets restent
+à réaliser. La démonstration locale utilise ses objets intégrés sans requête API.

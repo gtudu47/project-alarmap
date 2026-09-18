@@ -162,3 +162,12 @@ La sélection directe des lignes et polygones reste à développer.
 Création, nom, opacité, verrouillage et suppression de calques vides sauvegardés.
 Choix du calque à l’ajout d’un lieu. Contrôles serveur de droits et de révision.
 Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à faire.
+
+### Grille kilométrique et premiers niveaux de détail
+
+- [x] Grille plane adaptative : largeur/hauteur choisies, rayon personnalisé,
+  subdivision au zoom et cadrage au niveau choisi.
+- [x] Objets demandés selon la zone visible et la résolution pour les mondes
+  privés, permissions serveur, regroupement des points et simplification.
+- [ ] Même grille sur globe ; streaming sans chargement initial intégral,
+  pagination, cache et benchmark des grandes cartes (V0.9).

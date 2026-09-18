@@ -126,6 +126,17 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(layersEndpoint + '/' + emptyId, tokens[0], { revision: 10 }, 'DELETE')).status, 200);
     const otherAccess = await (await request('/worlds/' + other.world.id, tokens[0])).json() as { world: World };
     assert.equal((await request('/worlds/' + other.world.id + '/layers/' + otherAccess.world.layers[0]!.id, tokens[0], { revision: 0 }, 'DELETE')).status, 409);
+    await infra.pool.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style)
+      VALUES($1,$2,$3,'city','Détail rapproché',ST_SetSRID(ST_MakePoint(175.001,-20.001),4326),' {"color":"#e6b96c","opacity":1}'::jsonb)`, [randomUUID(),world.id,original.layerId]);
+    const tileQuery = '?west=174&east=176&south=-21&north=-19&detailKm=';
+    assert.equal((await request('/worlds/' + world.id + '/tiles' + tileQuery + '100')).status, 401);
+    assert.equal((await request('/worlds/' + other.world.id + '/tiles' + tileQuery + '100', tokens[1])).status, 404);
+    assert.equal((await request('/worlds/' + world.id + '/tiles?west=200&east=0&south=0&north=1&detailKm=1', tokens[0])).status, 400);
+    const coarseTiles = await (await request('/worlds/' + world.id + '/tiles' + tileQuery + '100', tokens[1])).json() as { total: number; reduced: boolean; objects: unknown[] };
+    const fineTiles = await (await request('/worlds/' + world.id + '/tiles' + tileQuery + '0.001', tokens[1])).json() as { total: number; reduced: boolean; objects: unknown[] };
+    assert.equal(coarseTiles.total, fineTiles.total);
+    assert.ok(fineTiles.objects.length > coarseTiles.objects.length);
+    assert.equal(coarseTiles.reduced, true);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

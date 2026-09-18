@@ -1,4 +1,5 @@
-import { coordinateSchema, worldSchema, type Coordinate, type World } from '@alarmap/map-model';
+import { DEFAULT_GRID, validateGrid, type GridOptions, type GridStats, type GridView } from './grid.js';
+import { coordinateSchema, objectSchema, worldSchema, type MapObject, type Coordinate, type World } from '@alarmap/map-model';
 import type { RendererAdapter, ViewMode } from './types.js';
 export * from './geography.js';
 export type { ViewMode, RendererAdapter } from './types.js';
@@ -8,6 +9,8 @@ export class MapEngine {
   private renderer?: RendererAdapter;
   private world?: World;
   private focusCoordinate?: Coordinate;
+  private grid = { ...DEFAULT_GRID };
+  private gridListener: (stats: GridStats, view: GridView) => void = () => {};
   private generation = 0;
   private disposed = false;
   constructor(private readonly host: HTMLElement, private readonly onSelect: (id: string | null) => void = () => {}) {}
@@ -15,7 +18,7 @@ export class MapEngine {
   async setView(mode: ViewMode): Promise<void> {
     if (this.disposed) throw new Error('Moteur détruit.');
     const generation = ++this.generation;
-    const renderer = mode === 'plane' ? new (await import('./plane.js')).PlaneRenderer() : new (await import('./globe.js')).GlobeRenderer();
+    const renderer: RendererAdapter = mode === 'plane' ? new (await import('./plane.js')).PlaneRenderer() : new (await import('./globe.js')).GlobeRenderer();
     if (generation !== this.generation) return;
     this.renderer?.destroy(); this.renderer = undefined;
     await renderer.init(this.host, id => {
@@ -27,12 +30,21 @@ export class MapEngine {
     this.renderer = renderer;
     if (this.world) renderer.setWorld(this.world);
     if (this.focusCoordinate) renderer.focus(this.focusCoordinate);
+    renderer.setGrid?.(this.grid, this.gridListener);
+  }
+  setVisibleObjects(objects: MapObject[]): void {
+    if (this.world) this.renderer?.setWorld({ ...this.world, objects: objects.map(object => objectSchema.parse(object)) });
   }
   setLayerVisible(id: string, visible: boolean): void {
     if (!this.world) return;
     this.world = { ...this.world, layers: this.world.layers.map((layer) => layer.id === id ? { ...layer, visible } : layer) };
     this.renderer?.setWorld(this.world);
   }
+  setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void {
+    this.grid = validateGrid(options); this.gridListener = onChange;
+    this.renderer?.setGrid?.(this.grid, this.gridListener);
+  }
+  zoomToGrid(): void { this.renderer?.zoomToGrid?.(); }
   async exportPng(): Promise<Blob> {
     if (this.disposed || !this.renderer) throw new Error('Aucune vue disponible pour l’export.');
     return this.renderer.exportPng();
@@ -43,3 +55,5 @@ export class MapEngine {
 }
 
 export { PointHistory, type PointChange } from './history.js';
+
+export * from './grid.js';

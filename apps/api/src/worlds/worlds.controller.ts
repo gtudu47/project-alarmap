@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Patch, Put, Get, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Patch, Put, Get, Query, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { objectSchema } from '@alarmap/map-model';
@@ -68,5 +68,12 @@ export class WorldsController {
   deleteLayer(@Param('id', ParseUUIDPipe) id: string, @Param('layerId', ParseUUIDPipe) layerId: string, @Body() body: unknown, @Req() request: AuthRequest) {
     const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
     return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'delete', layerId });
+  }
+
+  @Get(':id/tiles')
+  @Header('Cache-Control', 'no-store')
+  tiles(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Req() request: AuthRequest) {
+    const bounds = parseInput(z.object({ west: z.coerce.number().min(-180).max(180), east: z.coerce.number().min(-180).max(180), south: z.coerce.number().min(-90).max(90), north: z.coerce.number().min(-90).max(90), detailKm: z.coerce.number().positive().max(1e12) }).strict().refine(value => value.west < value.east && value.south < value.north, 'Emprise invalide.'), query);
+    return this.worlds.tiles(request.account.id,id,bounds);
   }
 }

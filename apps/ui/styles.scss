@@ -178,3 +178,7 @@ select:focus-visible { outline: 3px solid #b5863b; outline-offset: 3px; }
 .point-form .layer-lock input { width: auto; }
 .point-form select { min-width: 0; padding: 10px; border: 1px solid #bbc8ba; border-radius: 5px; background: white; color: #243a3b; }
 @media(max-width:760px) { .sidebar:has(.layer-settings) .layer-section { width: 100%; } }
+.tile-settings { margin-top: 20px; font-size: 12px; }
+.tile-settings summary { cursor: pointer; color: #356a55; font-weight: 600; }
+.tile-settings p, .tile-readout { font-size: 11px; line-height: 1.6; color: #526b60; }
+@media(max-width:760px) { .tile-settings, .tile-readout { width: 100%; } .sidebar:has(.tile-settings) { max-height: 44vh; flex-shrink: 0; } }

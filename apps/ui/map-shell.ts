@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
-import { MapEngine, PointHistory, type PointChange, type ViewMode } from '@alarmap/map-engine';
+import { MapEngine, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
 import { createDemoWorld, worldSchema, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
@@ -27,6 +27,20 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <h1>{{ world.name }}</h1>
         <p class="intro">{{ text.tagline }}</p>
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
+        @if (view() === 'plane') {
+          <details class="tile-settings"><summary>Détail et tuiles</summary>
+            <form class="point-form" (submit)="applyGrid($event)">
+              <label>Largeur de tuile (km)<input name="widthKm" type="number" min="0.1" max="10000" step="any" [value]="gridOptions.widthKm" required></label>
+              <label>Hauteur de tuile (km)<input name="heightKm" type="number" min="0.1" max="10000" step="any" [value]="gridOptions.heightKm" required></label>
+              <label class="layer-lock"><input name="enabled" type="checkbox" [checked]="gridOptions.enabled">Afficher la grille</label>
+              <button class="account-secondary">Appliquer les dimensions</button>
+              <button class="account-primary" type="button" [disabled]="loading()" (click)="zoomToGrid()">Voir ce niveau de détail</button>
+            </form>
+            <p>Largeur mesurée au milieu de chaque bande de latitude. Les cases aux limites du monde sont partielles.</p>
+          </details>
+          @if (gridInfo(); as grid) { <p class="tile-readout" data-testid="tile-readout">Mailles affichées : {{ formatKm(grid.widthKm) }} × {{ formatKm(grid.heightKm) }} km · {{ grid.multiplier === 1 ? 'détail choisi atteint' : 'zoomez pour subdiviser' }}</p> }
+          <p class="tile-readout" role="status">{{ tileMessage() }}</p>
+        }
         <section class="layer-section" aria-labelledby="layers-heading">
           <h2 id="layers-heading">{{ text.layers }} <span>{{ world.layers.length }}</span></h2>
           @for (layer of world.layers; track layer.id) {
@@ -124,6 +138,45 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
+  gridOptions: GridOptions = { ...DEFAULT_GRID };
+  readonly gridInfo = signal<GridStats | null>(null);
+  readonly tileMessage = signal('');
+  private tileTimer?: ReturnType<typeof setTimeout>;
+  private tileAbort?: AbortController;
+  private tileKey = '';
+  private tileRequest = 0;
+  formatKm(value: number): string { return value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }); }
+  applyGrid(event: Event): void {
+    event.preventDefault(); const fields = new FormData(event.target as HTMLFormElement);
+    this.gridOptions = { enabled: fields.has('enabled'), widthKm: Number(fields.get('widthKm')), heightKm: Number(fields.get('heightKm')) };
+    this.engine?.setGrid(this.gridOptions, this.gridChanged);
+  }
+  zoomToGrid(): void { this.engine?.zoomToGrid(); }
+  private readonly gridChanged = (stats: GridStats, view: GridView): void => {
+    this.gridInfo.set(stats);
+    if (this.view() !== 'plane') return;
+    const bounds = { west: Math.max(-180,view.west), east: Math.min(180,view.east), south: Math.max(-90,view.south), north: Math.min(90,view.north), detailKm: Math.max(stats.widthKm,stats.heightKm) };
+    if (bounds.west >= bounds.east || bounds.south >= bounds.north) return;
+    const key = this.world.id + ':' + this.world.revision + ':' + JSON.stringify(this.layerVisibility()) + ':' + JSON.stringify(bounds);
+    if (key === this.tileKey) return;
+    this.tileKey = key; const request = ++this.tileRequest;
+    clearTimeout(this.tileTimer); this.tileAbort?.abort();
+    this.tileTimer = setTimeout(() => { void this.loadTiles(bounds,request); }, 180);
+  };
+  private async loadTiles(bounds: { west: number; east: number; south: number; north: number; detailKm: number }, request: number): Promise<void> {
+    if (!this.personal() || this.view() !== 'plane') { this.tileMessage.set('Démonstration locale · zoomez pour afficher les noms.'); return; }
+    const worldId = this.world.id; const revision = this.world.revision;
+    const abort = new AbortController(); this.tileAbort = abort; this.tileMessage.set('Chargement des détails…');
+    try {
+      const query = new URLSearchParams(Object.entries(bounds).map(([key,value]) => [key,String(value)]));
+      const result = await this.accounts.request<{ revision: number; objects: MapObject[]; total: number; reduced: boolean }>('/worlds/' + worldId + '/tiles?' + query, { signal: abort.signal });
+      if (request !== this.tileRequest || this.world.id !== worldId || !this.personal() || !this.accounts.user() || this.view() !== 'plane') return;
+      if (result.revision !== revision || this.world.revision !== revision) { this.tileMessage.set('Le monde a changé : rechargez-le pour consulter les détails.'); return; }
+      if (!Array.isArray(result.objects)) throw new Error('Réponse de détail invalide.');
+      this.engine?.setVisibleObjects(result.objects);
+      this.tileMessage.set(result.objects.length + ' objet(s) chargé(s)' + (result.reduced ? ' · zoomez pour davantage de détails' : ' dans cette zone'));
+    } catch { if (!abort.signal.aborted && request === this.tileRequest) this.tileMessage.set('Détails indisponibles. La scène déjà chargée reste visible.'); }
+  }
   readonly layerDeleteConfirm = signal<string | null>(null);
   layerHasObjects(id: string): boolean { return this.world.objects.some(object => object.layerId === id); }
   async createLayer(event: Event): Promise<void> {
@@ -252,12 +305,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
   async ngAfterViewInit(): Promise<void> {
     this.engine = new MapEngine(this.host.nativeElement, id => { this.selectedId.set(id); this.deleteConfirm.set(null); });
     this.engine.loadWorld(this.world);
+    this.engine.setGrid(this.gridOptions, this.gridChanged);
     void this.checkApi();
     await this.setView('plane');
   }
   async setView(mode: ViewMode): Promise<void> {
     this.loading.set(true); this.error.set(false);
-    try { await this.engine?.setView(mode); this.view.set(mode); }
+    try { await this.engine?.setView(mode); this.view.set(mode); if (mode === 'plane') { this.tileKey = ''; this.engine?.setGrid(this.gridOptions, this.gridChanged); } }
     catch { this.error.set(true); }
     finally { this.loading.set(false); }
   }
@@ -292,5 +346,5 @@ export class MapShell implements AfterViewInit, OnDestroy {
       this.apiStatus.set(response.ok && typeof result === 'object' && result !== null && 'status' in result && result.status === 'ok' ? 'ready' : 'unavailable');
     } catch { if (!this.abort.signal.aborted) this.apiStatus.set('unavailable'); }
   }
-  ngOnDestroy(): void { window.removeEventListener('popstate', this.onPopState); this.abort.abort(); this.engine?.destroy(); }
+  ngOnDestroy(): void { clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; window.removeEventListener('popstate', this.onPopState); this.abort.abort(); this.engine?.destroy(); }
 }

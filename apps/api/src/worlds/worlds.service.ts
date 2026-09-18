@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { worldSchema, type World, type MapObject, type MemberRole } from '@alarmap/map-model';
+import { objectSchema, worldSchema, type World, type MapObject, type MemberRole } from '@alarmap/map-model';
 import { Infrastructure } from '../infrastructure.js';
 
 export interface WorldSummary { id: string; name: string; slug: string; radiusKm: number; revision: number; role: MemberRole }
@@ -149,5 +149,28 @@ export class WorldsService {
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
     return this.get(userId,id);
+  }
+
+  async tiles(userId: string, id: string, bounds: { west: number; east: number; south: number; north: number; detailKm: number }): Promise<{ revision: number; objects: MapObject[]; total: number; reduced: boolean }> {
+    const result = await this.pool.query<{ revision: number; total: number; documents: unknown[] }>(`WITH allowed AS (
+      SELECT w.id,w.revision,w.radius_km FROM worlds w LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
+      WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)
+    ), candidates AS (
+      SELECT o.*,a.radius_km FROM map_objects o JOIN allowed a ON a.id=o.world_id
+      JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id
+      WHERE o.geometry && ST_MakeEnvelope($3,$4,$5,$6,4326) AND l.opacity>0 AND (o.style->>'opacity')::float>0
+    ), ranked AS (
+      SELECT c.*,row_number() OVER (PARTITION BY CASE WHEN GeometryType(geometry)='POINT'
+        THEN layer_id::text || ':' || floor(ST_X(geometry)/($7/(radius_km*pi()/180)))::text || ':' || floor(ST_Y(geometry)/($7/(radius_km*pi()/180)))::text ELSE id::text END ORDER BY id) AS rank
+      FROM candidates c
+    ), sampled AS (SELECT * FROM ranked WHERE rank=1 ORDER BY id LIMIT 2000)
+    SELECT a.revision,(SELECT count(*)::int FROM candidates) AS total,
+      COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object('id',s.id,'layerId',s.layer_id,'name',s.name,'kind',s.kind,
+        'geometry',ST_AsGeoJSON(ST_SimplifyPreserveTopology(s.geometry,$7/(s.radius_km*pi()/180)/8))::jsonb,
+        'style',s.style,'properties',s.properties,'startYear',s.start_year,'endYear',s.end_year))) FROM sampled s),'[]'::jsonb) AS documents
+      FROM allowed a`, [id,userId,bounds.west,bounds.south,bounds.east,bounds.north,bounds.detailKm]);
+    const row = result.rows[0]; if (!row) throw new NotFoundException('Monde introuvable.');
+    const objects = row.documents.map(document => objectSchema.parse(document));
+    return { revision: row.revision, objects, total: row.total, reduced: objects.length < row.total };
   }
 }

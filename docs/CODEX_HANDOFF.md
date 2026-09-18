@@ -242,3 +242,26 @@ Une modification de calque vide l’historique local des lieux. Pas de migration
 Typecheck et lint réussis ; intégration PostGIS étendue réussie (droits, calques
 verrouillés/non vides, dernier calque, conflit et références entre mondes).
 Push au seuil de 5 % demandé : reconstruction Docker en cours ; test navigateur layers.spec.ts écrit mais non encore exécuté pour ce lot.
+
+## Tuiles et détail au zoom (18 septembre 2026)
+
+Grille adaptative Pixi : dimensions km indépendantes, rayon du monde, bandes
+de latitude et bords partiels, limite de lignes visibles, zoom étendu. Points
+et traits gardent une taille écran ; noms au rapprochement. Nouveau panneau
+« Détail et tuiles », bouton de cadrage et indication du niveau effectif.
+GET /api/v1/worlds/:id/tiles : session et appartenance requises, bounds validés,
+filtre spatial PostGIS, représentant par cellule/calque, simplification des
+lignes, maximum 2 000 objets. Réponse avec révision, total et reduced.
+Client : délai de 180 ms, annulation des anciennes requêtes, rejet des réponses
+obsolètes et contrôle de révision. Aucune migration supplémentaire.
+
+Validation : 24 tests unitaires, 2 tests d’intégration PostgreSQL/PostGIS, lint,
+typecheck et construction Docker réussis. 18 parcours Playwright Edge réussis,
+y compris le test de calques qui restait à exécuter au précédent push.
+Les conteneurs API, Editor et Viewer sont sains.
+
+Limites : vue plane uniquement, réglages non persistés ; objets du monde encore
+chargés intégralement à l’ouverture pour édition/Atlas. Ce premier LOD ne livre
+pas la V0.9 entière. Pas de génération de terrain. Prochaine tâche : étendre le
+contrat de scène pour charger les objets à la demande sans instantané intégral,
+puis pagination/cache et cohérence du globe.

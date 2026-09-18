@@ -177,3 +177,8 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Choix du dénominateur, zoom centré, indication de l’échelle nominale
   nord-sud et de la largeur physique d’impression du PNG.
 - [ ] Mise en page d’impression et légende d’échelle incorporée à l’export.
+
+### Commande de zoom
+
+- [x] Curseur vertical circulaire en bas à droite, commun à la carte et au
+  globe, synchronisé avec les autres commandes et accessible au clavier.

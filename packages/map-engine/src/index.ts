@@ -11,6 +11,7 @@ export class MapEngine {
   private focusCoordinate?: Coordinate;
   private grid = { ...DEFAULT_GRID };
   private gridListener: (stats: GridStats, view: GridView) => void = () => {};
+  private zoomListener: (level: number) => void = () => {};
   private generation = 0;
   private disposed = false;
   constructor(private readonly host: HTMLElement, private readonly onSelect: (id: string | null) => void = () => {}) {}
@@ -28,6 +29,7 @@ export class MapEngine {
     });
     if (generation !== this.generation || this.disposed) { renderer.destroy(); return; }
     this.renderer = renderer;
+    renderer.onZoom(this.zoomListener);
     if (this.world) renderer.setWorld(this.world);
     if (this.focusCoordinate) renderer.focus(this.focusCoordinate);
     renderer.setGrid?.(this.grid, this.gridListener);
@@ -43,6 +45,11 @@ export class MapEngine {
   setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void {
     this.grid = validateGrid(options); this.gridListener = onChange;
     this.renderer?.setGrid?.(this.grid, this.gridListener);
+  }
+  onZoom(listener: (level: number) => void): void { this.zoomListener = listener; this.renderer?.onZoom(listener); }
+  setZoom(level: number): void {
+    if (!Number.isFinite(level)) return;
+    this.renderer?.setZoom(Math.max(0, Math.min(100, level)));
   }
   setScale(denominator: number): void { this.renderer?.setScale?.(denominator); }
   zoomToGrid(): void { this.renderer?.zoomToGrid?.(); }

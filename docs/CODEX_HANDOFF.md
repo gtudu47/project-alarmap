@@ -277,3 +277,13 @@ Validation : typecheck, lint, 26 tests unitaires et build Docker réussis. Six
 parcours Edge ciblés réussis (Editor, Viewer, iframe, tuiles, échelle). Première
 exécution : deux dépassements de délai avec capture navigateur concurrente ;
 relance isolée intégralement réussie sans modification des délais.
+
+## Curseur de zoom vertical
+
+Commande en bas à droite, poignée circulaire, adaptée au mobile et au clavier.
+Contrat partagé setZoom/onZoom : niveau logarithmique 0–100 pour carte plane
+et globe, synchronisé à la molette, au recentrage et au choix d’échelle.
+Validation : typecheck/lint et build Docker réussis ; trois parcours tuiles/
+échelle et deux parcours du curseur réussis. Contrôle visuel du globe effectué.
+Le test attend explicitement la fin du changement de vue (jusqu’à 15 secondes
+pour le démarrage WebGL logiciel) avant de mesurer le niveau de zoom.

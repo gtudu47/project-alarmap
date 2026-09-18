@@ -12,6 +12,7 @@ export class GlobeRenderer implements RendererAdapter {
   private readonly objects = new THREE.Group();
   private observer?: ResizeObserver;
   private readonly events = new AbortController();
+  private zoomListener: (level: number) => void = () => {};
   private fitDistance = Math.hypot(0.6, 3.3);
 
   async init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void> {
@@ -72,6 +73,12 @@ export class GlobeRenderer implements RendererAdapter {
       new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }),
     );
   }
+  onZoom(listener: (level: number) => void): void { this.zoomListener = listener; this.render(); }
+  setZoom(level: number): void {
+    const distance = this.controls.maxDistance * (this.controls.minDistance / this.controls.maxDistance) ** (level / 100);
+    this.camera.position.sub(this.controls.target).setLength(distance).add(this.controls.target);
+    this.controls.update(); this.render();
+  }
   setWorld(world: World): void {
     for (const child of [...this.objects.children]) { this.disposeObject(child); this.objects.remove(child); }
     for (const object of world.objects) {
@@ -105,7 +112,11 @@ export class GlobeRenderer implements RendererAdapter {
     this.controls.target.set(0, 0, 0); this.controls.update(); this.render();
   }
   reset(): void { this.camera.position.set(0, 0.6, 3.3).normalize().multiplyScalar(this.fitDistance); this.controls.target.set(0, 0, 0); this.controls.update(); this.render(); }
-  private readonly render = (): void => { this.renderer.render(this.scene, this.camera); };
+  private readonly render = (): void => {
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    this.zoomListener(Math.max(0, Math.min(100, 100 * Math.log(this.controls.maxDistance / distance) / Math.log(this.controls.maxDistance / this.controls.minDistance))));
+    this.renderer.render(this.scene, this.camera);
+  };
   private disposeObject(object: THREE.Object3D): void {
     object.traverse((child) => {
       if (child instanceof THREE.Mesh || child instanceof THREE.Line) {

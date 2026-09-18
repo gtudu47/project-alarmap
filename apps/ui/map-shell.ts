@@ -118,6 +118,11 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <div #mapHost class="map-host" data-testid="map-host"></div>
         @if (loading()) { <div class="map-message" role="status">{{ text.loading }}</div> }
         @if (error()) { <div class="map-message error" role="alert">{{ text.unavailable }}</div> }
+        <div class="zoom-control" aria-label="Commande de zoom">
+          <span aria-hidden="true">+</span>
+          <input class="zoom-slider" type="range" min="0" max="100" step="0.1" aria-label="Niveau de zoom" aria-orientation="vertical" [value]="zoomLevel()" [disabled]="loading() || !!error()" (input)="changeZoom($event)">
+          <span aria-hidden="true">−</span>
+        </div>
         <div class="map-footer"><span>{{ text.help }}</span><span>{{ view() === 'plane' ? 'Équirectangulaire · longitude / latitude' : 'Sphère · rayon personnalisé' }}</span></div>
       </section>
     </main>
@@ -319,10 +324,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly exporting = signal(false);
   readonly exportMessage = signal('');
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
+  readonly zoomLevel = signal(0);
+  changeZoom(event: Event): void { this.engine?.setZoom(Number((event.target as HTMLInputElement).value)); }
   private engine?: MapEngine;
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
     this.engine = new MapEngine(this.host.nativeElement, id => { this.selectedId.set(id); this.deleteConfirm.set(null); });
+    this.engine.onZoom(level => this.zoomLevel.set(level));
     this.engine.loadWorld(this.world);
     this.engine.setGrid(this.gridOptions, this.gridChanged);
     void this.checkApi();

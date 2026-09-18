@@ -12,6 +12,7 @@ export class PlaneRenderer implements RendererAdapter {
   private observer?: ResizeObserver;
   private world?: World;
   private zoom = 1;
+  private zoomListener: (level: number) => void = () => {};
   private gridOptions = { ...DEFAULT_GRID };
   private gridGraphics?: Graphics;
   private gridListener: (stats: GridStats, view: GridView) => void = () => {};
@@ -70,6 +71,12 @@ export class PlaneRenderer implements RendererAdapter {
     this.transform();
   }
 
+  onZoom(listener: (level: number) => void): void { this.zoomListener = listener; this.transform(); }
+  setZoom(level: number): void {
+    const next = 0.5 * (1e7 / 0.5) ** (level / 100);
+    const ratio = next / this.zoom;
+    this.offset.x *= ratio; this.offset.y *= ratio; this.zoom = next; this.transform();
+  }
   setWorld(world: World): void { this.world = world; this.draw(); this.transform(); }
   setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void {
     this.gridOptions = options; this.gridListener = onChange; this.transform();
@@ -102,6 +109,7 @@ export class PlaneRenderer implements RendererAdapter {
   private transform(): void {
     const scale = Math.min(this.host.clientWidth / 400, this.host.clientHeight / 220) * this.zoom;
     if (scale <= 0) return;
+    this.zoomListener(100 * Math.log(this.zoom / 0.5) / Math.log(1e7 / 0.5));
     this.scene.scale.set(scale);
     this.scene.position.set(this.host.clientWidth / 2 + this.offset.x, this.host.clientHeight / 2 + this.offset.y);
     for (const point of this.points) { point.scale.set(1 / scale); for (const child of point.children) child.visible = scale > 50; }

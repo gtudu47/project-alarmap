@@ -170,3 +170,10 @@ moment de l’export, conserver les proportions et désactiver l’ajustement à
 page. Cette largeur tient compte de la taille CSS de la vue, indépendamment
 de la densité de pixels du moniteur. Le PNG n’inclut pas encore de légende
 d’échelle ni de mise en page d’impression automatique.
+
+## Curseur de zoom
+
+Une barre verticale avec poignée circulaire se trouve en bas à droite de la
+carte et du globe. Monter rapproche la vue ; descendre l’éloigne. Le curseur
+suit la molette, le recentrage et les changements d’échelle. Il fonctionne
+au clavier avec les flèches et conserve le centre de la vue lors du réglage.

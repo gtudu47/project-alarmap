@@ -318,3 +318,16 @@ Le parcours existant d’édition de point a dépassé le délai avant connexion
 premier chargement puis réussi seul sans modification.
 Limites : pas de sélection/édition des sommets d’une ligne enregistrée, pas
 de simulation hydrologique. Prochaine étape : édition des lignes et polygones.
+
+## Échelle en 3D (19 septembre 2026)
+
+Panneau d’échelle partagé entre les vues. Globe : échelle différentielle au
+centre de la sphère, calculée à partir du rayon, de la distance caméra, du
+champ vertical, de la hauteur CSS et du grossissement. setScale utilise le
+zoom optique pour atteindre les petites échelles sans traverser la surface.
+Callback onScale partagé ; curseur logarithmique synchronisé avec distance
+et grossissement. Recentrer rétablit le grossissement initial. Marqueurs
+redimensionnés pour rester lisibles. Pas de grille km ni streaming 3D livré.
+Validation : types/lint, 27 tests unitaires, build Docker et huit parcours
+Edge réussis (échelles, tuiles, zoom et sélection). Capture à 1:25 000 centrée
+sur Origine contrôlée visuellement.

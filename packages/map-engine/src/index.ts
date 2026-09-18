@@ -14,6 +14,8 @@ export class MapEngine {
   private zoomListener: (level: number) => void = () => {};
   private coordinateListener: (coordinate: Coordinate) => boolean = () => false;
   onCoordinate(listener: (coordinate: Coordinate) => boolean): void { this.coordinateListener = listener; }
+  private scaleListener: (denominator: number) => void = () => {};
+  onScale(listener: (denominator: number) => void): void { this.scaleListener = listener; this.renderer?.onScale?.(listener); }
   private generation = 0;
   private disposed = false;
   constructor(private readonly host: HTMLElement, private readonly onSelect: (id: string | null) => void = () => {}) {}
@@ -32,6 +34,7 @@ export class MapEngine {
     if (generation !== this.generation || this.disposed) { renderer.destroy(); return; }
     this.renderer = renderer;
     renderer.onZoom(this.zoomListener);
+    renderer.onScale?.(this.scaleListener);
     if (this.world) renderer.setWorld(this.world);
     if (this.focusCoordinate) renderer.focus(this.focusCoordinate);
     renderer.setGrid?.(this.grid, this.gridListener);

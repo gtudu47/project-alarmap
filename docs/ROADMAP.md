@@ -194,3 +194,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Dessin de routes/rivières par sommets en vue plane, aperçu, retrait du
   dernier sommet, abandon et sauvegarde ; rendu plane/globe et Undo/Redo.
 - [ ] Sélection/édition des sommets des lignes existantes ; dessin de polygones.
+
+### Échelle du globe
+
+- [x] Rapport d’échelle local au centre, grossissement perspective, indication
+  actualisée et curseur synchronisé ; marqueurs de taille écran constante.
+- [ ] Grille kilométrique adaptative et streaming spatial sur le globe.

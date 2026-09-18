@@ -7,3 +7,8 @@ export function pixelsPerDegreeAtScale(radiusKm: number, denominator: number): n
 export function scaleDenominator(radiusKm: number, pixelsPerDegree: number): number {
   return radiusKm * 1000 * Math.PI / 180 * CSS_PIXELS_PER_METRE / pixelsPerDegree;
 }
+
+/** Échelle différentielle au point central d’une sphère de rayon graphique 1. */
+export function globeScaleDenominator(radiusKm: number, distance: number, fovDegrees: number, height: number, zoom: number): number {
+  return radiusKm * 1000 * 2 * (distance - 1) * Math.tan(fovDegrees * Math.PI / 360) * CSS_PIXELS_PER_METRE / (height * zoom);
+}

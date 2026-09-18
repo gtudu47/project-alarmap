@@ -27,17 +27,17 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <h1>{{ world.name }}</h1>
         <p class="intro">{{ text.tagline }}</p>
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
-        @if (view() === 'plane') {
           <details class="tile-settings"><summary>Échelle cartographique</summary>
             <form class="point-form" (submit)="applyScale($event)">
               <label>Échelle 1:<input name="denominator" type="number" min="100" max="1000000000" step="1" value="25000" list="scale-presets" required></label>
               <datalist id="scale-presets"><option value="10000"></option><option value="25000"></option><option value="50000"></option><option value="100000"></option><option value="1000000"></option></datalist>
               <button class="account-primary" [disabled]="loading()">Appliquer l’échelle</button>
             </form>
-            <p>Échelle nominale nord-sud, calculée à 96 pixels CSS par pouce. La taille physique à l’écran dépend de votre affichage. La projection déforme les distances est-ouest hors de l’équateur.</p>
+            <p>{{ view() === 'plane' ? 'Échelle nominale nord-sud. La projection déforme les distances est-ouest hors de l’équateur.' : 'Échelle locale au centre du globe. Elle varie vers les bords et ne vaut pas pour toute la sphère.' }} Calcul à 96 pixels CSS par pouce ; la taille physique à l’écran dépend de votre affichage.</p>
             <p>Pour le PNG, imprimer à la largeur indiquée ci-dessous, sans ajustement à la page.</p>
           </details>
-          @if (currentScale(); as scale) { <p class="tile-readout" data-testid="scale-readout">Échelle actuelle ≈ 1:{{ formatScale(scale) }} · 1 cm représente {{ formatKm(scale / 100000) }} km (nord-sud). Largeur d’impression du PNG : {{ formatKm(printWidthCm()) }} cm.</p> }
+          @if (currentScale(); as scale) { <p class="tile-readout" data-testid="scale-readout">Échelle actuelle ≈ 1:{{ formatScale(scale) }} · 1 cm représente {{ formatKm(scale / 100000) }} km ({{ view() === 'plane' ? 'nord-sud' : 'au centre du globe' }}). Largeur d’impression du PNG : {{ formatKm(printWidthCm()) }} cm.</p> }
+        @if (view() === 'plane') {
           <details class="tile-settings"><summary>Détail et tuiles</summary>
             <form class="point-form" (submit)="applyGrid($event)">
               <label>Largeur de tuile (km)<input name="widthKm" type="number" min="0.1" max="10000" step="any" [value]="gridOptions.widthKm" required></label>
@@ -391,6 +391,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       (form.elements.namedItem('name') as HTMLInputElement).focus();
       return true;
     });
+    this.engine.onScale(scale => { this.currentScale.set(scale); this.printWidthCm.set(this.host.nativeElement.clientWidth * 2.54 / 96); });
     this.engine.onZoom(level => this.zoomLevel.set(level));
     this.engine.loadWorld(this.world);
     this.engine.setGrid(this.gridOptions, this.gridChanged);

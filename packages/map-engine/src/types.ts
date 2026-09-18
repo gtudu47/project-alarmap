@@ -10,6 +10,7 @@ export interface RendererAdapter {
   onZoom(listener: (level: number) => void): void;
   setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void;
   zoomToGrid?(): void;
+  onScale?(listener: (denominator: number) => void): void;
   setScale?(denominator: number): void;
   exportPng(): Promise<Blob>;
   focus(coordinate: Coordinate): void;

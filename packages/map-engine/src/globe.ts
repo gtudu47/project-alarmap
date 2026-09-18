@@ -1,3 +1,4 @@
+import { globeScaleDenominator, pixelsPerDegreeAtScale } from './scale.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Coordinate, World } from '@alarmap/map-model';
@@ -13,9 +14,13 @@ export class GlobeRenderer implements RendererAdapter {
   private observer?: ResizeObserver;
   private readonly events = new AbortController();
   private zoomListener: (level: number) => void = () => {};
+  private radiusKm = 6371;
+  private host!: HTMLElement;
+  private scaleListener: (denominator: number) => void = () => {};
   private fitDistance = Math.hypot(0.6, 3.3);
 
   async init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void> {
+    this.host = host;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.setClearColor('#101f2c');
@@ -75,11 +80,23 @@ export class GlobeRenderer implements RendererAdapter {
   }
   onZoom(listener: (level: number) => void): void { this.zoomListener = listener; this.render(); }
   setZoom(level: number): void {
-    const distance = this.controls.maxDistance * (this.controls.minDistance / this.controls.maxDistance) ** (level / 100);
-    this.camera.position.sub(this.controls.target).setLength(distance).add(this.controls.target);
+    const magnification = 10 ** (-6 + 14 * level / 100);
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    this.camera.zoom = magnification * (distance - 1) / (this.controls.maxDistance - 1);
+    this.camera.updateProjectionMatrix();
     this.controls.update(); this.render();
   }
+  onScale(listener: (denominator: number) => void): void { this.scaleListener = listener; this.render(); }
+  setScale(denominator: number): void {
+    pixelsPerDegreeAtScale(this.radiusKm, denominator);
+    if (!this.host.clientHeight) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    const base = globeScaleDenominator(this.radiusKm, distance, this.camera.fov, this.host.clientHeight, 1);
+    this.camera.zoom = Math.max(1e-6, Math.min(1e12, base / denominator));
+    this.camera.updateProjectionMatrix(); this.render();
+  }
   setWorld(world: World): void {
+    this.radiusKm = world.radiusKm;
     for (const child of [...this.objects.children]) { this.disposeObject(child); this.objects.remove(child); }
     for (const object of world.objects) {
       const layer = world.layers.find((layer) => layer.id === object.layerId);
@@ -108,13 +125,23 @@ export class GlobeRenderer implements RendererAdapter {
     return new Promise((resolve, reject) => this.renderer.domElement.toBlob(blob => blob ? resolve(blob) : reject(new Error('Export PNG impossible.')), 'image/png'));
   }
   focus(coordinate: Coordinate): void {
+    this.camera.zoom = 1; this.camera.updateProjectionMatrix();
     this.camera.position.set(...toSphere(coordinate, this.fitDistance));
     this.controls.target.set(0, 0, 0); this.controls.update(); this.render();
   }
-  reset(): void { this.camera.position.set(0, 0.6, 3.3).normalize().multiplyScalar(this.fitDistance); this.controls.target.set(0, 0, 0); this.controls.update(); this.render(); }
+  reset(): void { this.camera.zoom = 1; this.camera.updateProjectionMatrix(); this.camera.position.set(0, 0.6, 3.3).normalize().multiplyScalar(this.fitDistance); this.controls.target.set(0, 0, 0); this.controls.update(); this.render(); }
   private readonly render = (): void => {
     const distance = this.camera.position.distanceTo(this.controls.target);
-    this.zoomListener(Math.max(0, Math.min(100, 100 * Math.log(this.controls.maxDistance / distance) / Math.log(this.controls.maxDistance / this.controls.minDistance))));
+    const magnification = this.camera.zoom * (this.controls.maxDistance - 1) / (distance - 1);
+    this.zoomListener(Math.max(0, Math.min(100, 100 * (Math.log10(magnification) + 6) / 14)));
+    if (this.host.clientHeight) this.scaleListener(globeScaleDenominator(this.radiusKm, distance, this.camera.fov, this.host.clientHeight, this.camera.zoom));
+    for (const object of this.objects.children) {
+      if (object instanceof THREE.Mesh) {
+        const depth = object.position.clone().applyMatrix4(this.camera.matrixWorldInverse).z;
+        const size = Math.max(1e-12, -depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (Math.max(1,this.host.clientHeight) * this.camera.zoom) * 5);
+        object.scale.setScalar(size / 0.015);
+      }
+    }
     this.renderer.render(this.scene, this.camera);
   };
   private disposeObject(object: THREE.Object3D): void {

@@ -200,3 +200,15 @@ Annuler/Rétablir couvre sa création pendant la session ; recharger efface cet
 historique. Modifier les sommets ou sélectionner/supprimer directement une
 ligne existante reste à développer. Les rivières sont descriptives : aucun
 calcul d’écoulement n’est appliqué.
+
+## Échelle du globe
+
+Le panneau Échelle cartographique est aussi disponible en vue Globe 3D.
+Le rapport choisi (par exemple 1:25 000) règle le grossissement optique autour
+du centre visible sans entrer dans la sphère. Le rayon du monde, le champ de
+vision et la hauteur CSS déterminent l’échelle nominale locale centrale.
+Elle se recalcule lors du zoom, du redimensionnement et du recentrage ; le
+curseur vertical suit le grossissement. La taille écran des marqueurs reste
+constante. L’échelle varie vers les bords du globe : elle ne constitue pas une
+échelle uniforme de toute l’image imprimée. La grille kilométrique adaptative
+et les demandes de détails par zone restent pour l’instant réservées à la 2D.

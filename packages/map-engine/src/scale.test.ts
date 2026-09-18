@@ -12,3 +12,11 @@ describe('échelle nominale', () => {
     for (const value of [0, -1, NaN, Infinity, 1e10]) expect(() => pixelsPerDegreeAtScale(6371, value)).toThrow();
   });
 });
+
+import { globeScaleDenominator } from './scale.js';
+it('échelle centrale perspective : rayon, hauteur et grossissement', () => {
+  const base = globeScaleDenominator(6371, 3, 42, 800, 1);
+  expect(globeScaleDenominator(6371,3,42,800,base/25000)).toBeCloseTo(25000);
+  expect(globeScaleDenominator(12742,3,42,800,1)).toBeCloseTo(base*2);
+  expect(globeScaleDenominator(6371,3,42,1600,1)).toBeCloseTo(base/2);
+});

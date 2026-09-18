@@ -52,3 +52,19 @@ test('choisir une échelle et actualiser sa valeur au zoom', async ({ page }) =>
   await page.getByRole('button', { name: 'Recentrer', exact: true }).click();
   await expect(page.getByTestId('scale-readout')).not.toContainText(/1:25\s000/);
 });
+
+test('échelle 1:25 000 sur le globe et synchronisation au zoom', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed','true',{timeout:15000});
+  await page.getByText('Échelle cartographique', { exact: true }).click();
+  await page.getByLabel('Échelle 1:', { exact: true }).fill('25000');
+  await page.getByRole('button', { name: 'Appliquer l’échelle' }).click();
+  await expect(page.getByTestId('scale-readout')).toContainText(/1:25\s000/);
+  await expect(page.getByTestId('scale-readout')).toContainText('au centre du globe');
+  const slider = page.getByRole('slider', { name: 'Niveau de zoom' });
+  await slider.focus(); await slider.press('ArrowUp');
+  await expect(page.getByTestId('scale-readout')).not.toContainText(/1:25\s000/);
+  await page.getByRole('button', { name: 'Recentrer', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});

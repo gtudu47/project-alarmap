@@ -171,3 +171,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
   privés, permissions serveur, regroupement des points et simplification.
 - [ ] Même grille sur globe ; streaming sans chargement initial intégral,
   pagination, cache et benchmark des grandes cartes (V0.9).
+
+### Échelle cartographique plane
+
+- [x] Choix du dénominateur, zoom centré, indication de l’échelle nominale
+  nord-sud et de la largeur physique d’impression du PNG.
+- [ ] Mise en page d’impression et légende d’échelle incorporée à l’export.

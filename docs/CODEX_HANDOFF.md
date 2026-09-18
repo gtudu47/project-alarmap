@@ -265,3 +265,15 @@ chargés intégralement à l’ouverture pour édition/Atlas. Ce premier LOD ne 
 pas la V0.9 entière. Pas de génération de terrain. Prochaine tâche : étendre le
 contrat de scène pour charger les objets à la demande sans instantané intégral,
 puis pagination/cache et cohérence du globe.
+
+## Choix d’échelle (18 septembre 2026)
+
+Échelle cartographique en vue plane : dénominateur personnalisable, suggestions,
+zoom autour du centre actuel et affichage recalculé à chaque transformation.
+Calcul nord-sud fondé sur le rayon et 96 pixels CSS/pouce. Indication de largeur
+d’impression du PNG ; pas de légende exportée ni de mise en page automatique.
+La distorsion est-ouest et les limites de zoom sont documentées.
+Validation : typecheck, lint, 26 tests unitaires et build Docker réussis. Six
+parcours Edge ciblés réussis (Editor, Viewer, iframe, tuiles, échelle). Première
+exécution : deux dépassements de délai avec capture navigateur concurrente ;
+relance isolée intégralement réussie sans modification des délais.

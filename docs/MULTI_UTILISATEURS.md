@@ -153,3 +153,20 @@ limitée à 2 000 objets avec indication de réduction. Le chargement initial du
 monde reste intégral pour l’éditeur et l’Atlas. Le streaming complet des grandes
 cartes, la pagination, le cache de tuiles et les mesures à 100 000 objets restent
 à réaliser. La démonstration locale utilise ses objets intégrés sans requête API.
+
+## Échelle cartographique
+
+Dans la carte plane, ouvrir « Échelle cartographique », saisir le dénominateur
+(par exemple 25000 pour 1:25 000), puis appliquer. Valeurs de 100 à un milliard.
+L’échelle actuelle se recalcule au zoom et au redimensionnement ; les limites
+de zoom peuvent empêcher certaines valeurs extrêmes, la valeur affichée fait foi.
+À 1:25 000, 1 cm nominal représente 250 m dans la direction nord-sud.
+Le calcul utilise le rayon du monde et 96 pixels CSS par pouce. La projection
+équirectangulaire déforme les distances est-ouest hors de l’équateur ; cette
+échelle ne constitue pas une garantie de mesure physique sur le moniteur.
+
+Pour imprimer un PNG exporté, utiliser la largeur en centimètres indiquée au
+moment de l’export, conserver les proportions et désactiver l’ajustement à la
+page. Cette largeur tient compte de la taille CSS de la vue, indépendamment
+de la densité de pixels du moniteur. Le PNG n’inclut pas encore de légende
+d’échelle ni de mise en page d’impression automatique.

@@ -1,3 +1,4 @@
+import { pixelsPerDegreeAtScale } from './scale.js';
 import { DEFAULT_GRID, visibleGrid, type GridOptions, type GridStats, type GridView } from './grid.js';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import type { Coordinate, World } from '@alarmap/map-model';
@@ -79,6 +80,14 @@ export class PlaneRenderer implements RendererAdapter {
     if (base <= 0) return;
     const next = Math.min(1e7, Math.max(0.5, 80 * this.world.radiusKm * Math.PI / 180 / Math.min(this.gridOptions.widthKm,this.gridOptions.heightKm) / base));
     const ratio = next / this.zoom; this.offset.x *= ratio; this.offset.y *= ratio; this.zoom = next; this.transform();
+  }
+  setScale(denominator: number): void {
+    if (!this.world) return;
+    const base = Math.min(this.host.clientWidth / 400, this.host.clientHeight / 220);
+    if (base <= 0) return;
+    const next = Math.min(1e7, Math.max(0.5, pixelsPerDegreeAtScale(this.world.radiusKm, denominator) / base));
+    const ratio = next / this.zoom;
+    this.offset.x *= ratio; this.offset.y *= ratio; this.zoom = next; this.transform();
   }
   async exportPng(): Promise<Blob> {
     this.app.renderer.render(this.app.stage);

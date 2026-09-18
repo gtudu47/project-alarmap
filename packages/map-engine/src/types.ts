@@ -7,6 +7,7 @@ export interface RendererAdapter {
   setWorld(world: World): void;
   setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void;
   zoomToGrid?(): void;
+  setScale?(denominator: number): void;
   exportPng(): Promise<Blob>;
   focus(coordinate: Coordinate): void;
   reset(): void;

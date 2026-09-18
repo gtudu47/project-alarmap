@@ -41,3 +41,14 @@ test('les détails sont demandés selon le zoom du monde privé', async ({ page 
   expect(coarse).toBeGreaterThan(1);
   await expect(page.getByText('2 objet(s) chargé(s) dans cette zone', { exact: true })).toBeVisible();
 });
+
+test('choisir une échelle et actualiser sa valeur au zoom', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Échelle cartographique', { exact: true }).click();
+  await page.getByLabel('Échelle 1:', { exact: true }).fill('25000');
+  await page.getByRole('button', { name: 'Appliquer l’échelle' }).click();
+  await expect(page.getByTestId('scale-readout')).toContainText(/1:25\s000/);
+  await expect(page.getByTestId('scale-readout')).toContainText('0,25 km');
+  await page.getByRole('button', { name: 'Recentrer', exact: true }).click();
+  await expect(page.getByTestId('scale-readout')).not.toContainText(/1:25\s000/);
+});

@@ -44,6 +44,7 @@ export class MapEngine {
     this.grid = validateGrid(options); this.gridListener = onChange;
     this.renderer?.setGrid?.(this.grid, this.gridListener);
   }
+  setScale(denominator: number): void { this.renderer?.setScale?.(denominator); }
   zoomToGrid(): void { this.renderer?.zoomToGrid?.(); }
   async exportPng(): Promise<Blob> {
     if (this.disposed || !this.renderer) throw new Error('Aucune vue disponible pour l’export.');
@@ -57,3 +58,5 @@ export class MapEngine {
 export { PointHistory, type PointChange } from './history.js';
 
 export * from './grid.js';
+
+export * from './scale.js';

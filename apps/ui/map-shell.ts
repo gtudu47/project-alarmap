@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
-import { MapEngine, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
+import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
 import { createDemoWorld, worldSchema, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
@@ -28,6 +28,16 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <p class="intro">{{ text.tagline }}</p>
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
         @if (view() === 'plane') {
+          <details class="tile-settings"><summary>Échelle cartographique</summary>
+            <form class="point-form" (submit)="applyScale($event)">
+              <label>Échelle 1:<input name="denominator" type="number" min="100" max="1000000000" step="1" value="25000" list="scale-presets" required></label>
+              <datalist id="scale-presets"><option value="10000"></option><option value="25000"></option><option value="50000"></option><option value="100000"></option><option value="1000000"></option></datalist>
+              <button class="account-primary" [disabled]="loading()">Appliquer l’échelle</button>
+            </form>
+            <p>Échelle nominale nord-sud, calculée à 96 pixels CSS par pouce. La taille physique à l’écran dépend de votre affichage. La projection déforme les distances est-ouest hors de l’équateur.</p>
+            <p>Pour le PNG, imprimer à la largeur indiquée ci-dessous, sans ajustement à la page.</p>
+          </details>
+          @if (currentScale(); as scale) { <p class="tile-readout" data-testid="scale-readout">Échelle actuelle ≈ 1:{{ formatScale(scale) }} · 1 cm représente {{ formatKm(scale / 100000) }} km (nord-sud). Largeur d’impression du PNG : {{ formatKm(printWidthCm()) }} cm.</p> }
           <details class="tile-settings"><summary>Détail et tuiles</summary>
             <form class="point-form" (submit)="applyGrid($event)">
               <label>Largeur de tuile (km)<input name="widthKm" type="number" min="0.1" max="10000" step="any" [value]="gridOptions.widthKm" required></label>
@@ -145,6 +155,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private tileAbort?: AbortController;
   private tileKey = '';
   private tileRequest = 0;
+  readonly currentScale = signal(0);
+  readonly printWidthCm = signal(0);
+  formatScale(value: number): string { return Math.round(value).toLocaleString('fr-FR'); }
+  applyScale(event: Event): void {
+    event.preventDefault();
+    this.engine?.setScale(Number(new FormData(event.target as HTMLFormElement).get('denominator')));
+  }
   formatKm(value: number): string { return value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }); }
   applyGrid(event: Event): void {
     event.preventDefault(); const fields = new FormData(event.target as HTMLFormElement);
@@ -154,6 +171,8 @@ export class MapShell implements AfterViewInit, OnDestroy {
   zoomToGrid(): void { this.engine?.zoomToGrid(); }
   private readonly gridChanged = (stats: GridStats, view: GridView): void => {
     this.gridInfo.set(stats);
+    this.currentScale.set(scaleDenominator(this.world.radiusKm, view.pixelsPerDegree));
+    this.printWidthCm.set(this.host.nativeElement.clientWidth * 2.54 / 96);
     if (this.view() !== 'plane') return;
     const bounds = { west: Math.max(-180,view.west), east: Math.min(180,view.east), south: Math.max(-90,view.south), north: Math.min(90,view.north), detailKm: Math.max(stats.widthKm,stats.heightKm) };
     if (bounds.west >= bounds.east || bounds.south >= bounds.north) return;

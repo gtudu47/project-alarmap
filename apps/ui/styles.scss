@@ -193,3 +193,5 @@ select:focus-visible { outline: 3px solid #b5863b; outline-offset: 3px; }
 .zoom-slider:focus-visible { outline: 2px solid #d7b976; outline-offset: 3px; border-radius: 12px; }
 .zoom-slider:disabled { opacity: .45; cursor: wait; }
 @media(max-width:760px) { .zoom-control { right: 12px; bottom: 48px; gap: 4px; padding: 6px 0; } .zoom-slider { height: 96px; } }
+
+.map-host.placing-point canvas { cursor: crosshair; }

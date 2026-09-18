@@ -12,6 +12,8 @@ export class MapEngine {
   private grid = { ...DEFAULT_GRID };
   private gridListener: (stats: GridStats, view: GridView) => void = () => {};
   private zoomListener: (level: number) => void = () => {};
+  private coordinateListener: (coordinate: Coordinate) => boolean = () => false;
+  onCoordinate(listener: (coordinate: Coordinate) => boolean): void { this.coordinateListener = listener; }
   private generation = 0;
   private disposed = false;
   constructor(private readonly host: HTMLElement, private readonly onSelect: (id: string | null) => void = () => {}) {}
@@ -26,7 +28,7 @@ export class MapEngine {
       if (generation !== this.generation || this.disposed) return;
       const object = this.world?.objects.find(object => object.id === id);
       this.onSelect(object && this.world?.layers.some(layer => layer.id === object.layerId && layer.visible) ? object.id : null);
-    });
+    }, coordinate => generation === this.generation && !this.disposed ? this.coordinateListener(coordinate) : false);
     if (generation !== this.generation || this.disposed) { renderer.destroy(); return; }
     this.renderer = renderer;
     renderer.onZoom(this.zoomListener);

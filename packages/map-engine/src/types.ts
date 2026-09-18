@@ -3,7 +3,7 @@ import type { Coordinate, World } from '@alarmap/map-model';
 
 export type ViewMode = 'plane' | 'globe';
 export interface RendererAdapter {
-  init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void>;
+  init(host: HTMLElement, onSelect: (id: string | null) => void, onCoordinate?: (coordinate: Coordinate) => boolean): Promise<void>;
   setWorld(world: World): void;
   setZoom(level: number): void;
   onZoom(listener: (level: number) => void): void;

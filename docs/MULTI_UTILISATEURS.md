@@ -177,3 +177,13 @@ Une barre verticale avec poignée circulaire se trouve en bas à droite de la
 carte et du globe. Monter rapproche la vue ; descendre l’éloigne. Le curseur
 suit la molette, le recentrage et les changements d’échelle. Il fonctionne
 au clavier avec les flèches et conserve le centre de la vue lors du réglage.
+
+## Placer un lieu par clic
+
+Dans un monde privé, en vue plane, cliquer sur « Placer sur la carte ». Un clic
+dans les limites de la carte remplit longitude et latitude du formulaire.
+Saisir un nom, choisir un calque déverrouillé et enregistrer. Aucune écriture
+n’est faite avant « Enregistrer le lieu ». Annuler/Rétablir fonctionne ensuite
+comme pour un lieu ajouté par coordonnées. Un glissement déplace la caméra ;
+Échap ou « Annuler le placement » désactive l’outil. Réservé aux propriétaires
+et éditeurs ; placement par clic sur globe à venir.

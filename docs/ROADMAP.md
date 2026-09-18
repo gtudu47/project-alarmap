@@ -182,3 +182,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Curseur vertical circulaire en bas à droite, commun à la carte et au
   globe, synchronisé avec les autres commandes et accessible au clavier.
+
+### Placement des lieux
+
+- [x] Choix des coordonnées par clic en vue plane, validation par formulaire,
+  sauvegarde et historique des points existant.
+- [ ] Placement sur globe, dessin des lignes et polygones.

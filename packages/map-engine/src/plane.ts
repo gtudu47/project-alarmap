@@ -21,7 +21,7 @@ export class PlaneRenderer implements RendererAdapter {
   private drag?: { x: number; y: number; startX: number; startY: number; moved: boolean; id: number };
   private readonly events = new AbortController();
 
-  async init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void> {
+  async init(host: HTMLElement, onSelect: (id: string | null) => void, onCoordinate?: (coordinate: Coordinate) => boolean): Promise<void> {
     this.host = host;
     await this.app.init({ preference: 'webgl', background: '#101f2c', antialias: true, resolution: Math.min(devicePixelRatio, 2), autoDensity: true, resizeTo: host });
     host.append(this.app.canvas);
@@ -43,6 +43,9 @@ export class PlaneRenderer implements RendererAdapter {
       if (!this.drag || this.drag.id !== event.pointerId || this.drag.moved) return;
       const bounds = this.app.canvas.getBoundingClientRect();
       const x = event.clientX - bounds.left; const y = event.clientY - bounds.top;
+      const longitude = (x - this.scene.x) / this.scene.scale.x;
+      const latitude = (this.scene.y - y) / this.scene.scale.y;
+      if (longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90 && onCoordinate?.([longitude, latitude])) return;
       let nearest: string | null = null; let distance = 10;
       for (const layer of [...(this.world?.layers ?? [])].sort((a, b) => a.order - b.order)) {
         if (!layer.visible || layer.opacity === 0) continue;

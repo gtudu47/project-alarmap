@@ -76,8 +76,12 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             <button class="account-secondary" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
             <button class="account-secondary" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
           </div>
-          <form class="point-form" (submit)="addPoint($event)">
+          <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>Ajouter un lieu</h2>
+            @if (view() === 'plane') {
+              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading()" (click)="placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
+              @if (placingPoint()) { <p role="status">Cliquez sur la carte pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
+            }
             <label>Calque du lieu<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
             <label>Nom du lieu<input name="name" required maxlength="200"></label>
             <label>Longitude<input name="longitude" type="number" required min="-180" max="180" step="any" value="0"></label>
@@ -115,7 +119,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <button class="reset" type="button" (click)="reset()" [disabled]="loading()">{{ text.reset }}</button>
         </div>
         @if (exportMessage()) { <p class="export-message" role="status">{{ exportMessage() }}</p> }
-        <div #mapHost class="map-host" data-testid="map-host"></div>
+        <div #mapHost [class.placing-point]="placingPoint()" class="map-host" data-testid="map-host"></div>
         @if (loading()) { <div class="map-message" role="status">{{ text.loading }}</div> }
         @if (error()) { <div class="map-message error" role="alert">{{ text.unavailable }}</div> }
         <div class="zoom-control" aria-label="Commande de zoom">
@@ -271,6 +275,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     });
   }
   openWorld(access: WorldAccess): void {
+    this.placingPoint.set(false);
     if (!this.accounts.user()) return;
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
@@ -289,7 +294,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
       const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision, layerId: fields.get('layerId') }) });
-      if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); const added = this.world.objects.filter(object => !existingIds.has(object.id)); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.pointMessage.set('Lieu enregistré.'); }
+      if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); const added = this.world.objects.filter(object => !existingIds.has(object.id)); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.placingPoint.set(false); this.pointMessage.set('Lieu enregistré.'); }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
     finally { this.pointBusy.set(false); }
   }
@@ -324,12 +329,27 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly exporting = signal(false);
   readonly exportMessage = signal('');
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
+  @ViewChild('pointForm') private pointForm?: ElementRef<HTMLFormElement>;
+  readonly placingPoint = signal(false);
+  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape') this.placingPoint.set(false); };
   readonly zoomLevel = signal(0);
   changeZoom(event: Event): void { this.engine?.setZoom(Number((event.target as HTMLInputElement).value)); }
   private engine?: MapEngine;
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
     this.engine = new MapEngine(this.host.nativeElement, id => { this.selectedId.set(id); this.deleteConfirm.set(null); });
+    window.addEventListener('keydown', this.cancelPlacement);
+    this.engine.onCoordinate(([longitude, latitude]) => {
+      if (!this.placingPoint() || !this.personal() || this.role === 'viewer' || this.pointBusy() || this.view() !== 'plane') return false;
+      const form = this.pointForm?.nativeElement;
+      if (!form) return false;
+      (form.elements.namedItem('longitude') as HTMLInputElement).value = longitude.toFixed(6);
+      (form.elements.namedItem('latitude') as HTMLInputElement).value = latitude.toFixed(6);
+      this.placingPoint.set(false);
+      this.pointMessage.set('Position choisie. Renseignez le nom et enregistrez le lieu.');
+      (form.elements.namedItem('name') as HTMLInputElement).focus();
+      return true;
+    });
     this.engine.onZoom(level => this.zoomLevel.set(level));
     this.engine.loadWorld(this.world);
     this.engine.setGrid(this.gridOptions, this.gridChanged);
@@ -337,6 +357,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     await this.setView('plane');
   }
   async setView(mode: ViewMode): Promise<void> {
+    this.placingPoint.set(false);
     this.loading.set(true); this.error.set(false);
     try { await this.engine?.setView(mode); this.view.set(mode); if (mode === 'plane') { this.tileKey = ''; this.engine?.setGrid(this.gridOptions, this.gridChanged); } }
     catch { this.error.set(true); }
@@ -373,5 +394,5 @@ export class MapShell implements AfterViewInit, OnDestroy {
       this.apiStatus.set(response.ok && typeof result === 'object' && result !== null && 'status' in result && result.status === 'ok' ? 'ready' : 'unavailable');
     } catch { if (!this.abort.signal.aborted) this.apiStatus.set('unavailable'); }
   }
-  ngOnDestroy(): void { clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; window.removeEventListener('popstate', this.onPopState); this.abort.abort(); this.engine?.destroy(); }
+  ngOnDestroy(): void { window.removeEventListener('keydown', this.cancelPlacement); clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; window.removeEventListener('popstate', this.onPopState); this.abort.abort(); this.engine?.destroy(); }
 }

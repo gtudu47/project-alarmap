@@ -287,3 +287,16 @@ Validation : typecheck/lint et build Docker réussis ; trois parcours tuiles/
 échelle et deux parcours du curseur réussis. Contrôle visuel du globe effectué.
 Le test attend explicitement la fin du changement de vue (jusqu’à 15 secondes
 pour le démarrage WebGL logiciel) avant de mesurer le niveau de zoom.
+
+## Placement par clic (19 septembre 2026)
+
+Commits de grille, échelle et curseur poussés sur dev avant cette étape.
+Mode « Placer sur la carte » en vue plane pour propriétaire/éditeur : conversion
+écran vers longitude/latitude, remplissage du formulaire et saisie du nom.
+Validation explicite avant sauvegarde avec l’API existante et historique de
+points. Glissement exclu, Échap et bouton d’annulation ; changement de vue
+ou de monde désactive le mode. Pas de migration ni de nouvelle route API.
+Validation : types, lint, build Docker et quatre parcours Edge réussis
+(placement/sauvegarde/annulation, modification/suppression, sélection plane/globe).
+Prochaine étape : outil de lignes avec validation géographique, persistance et
+commandes d’annulation ; puis polygones avec trous.

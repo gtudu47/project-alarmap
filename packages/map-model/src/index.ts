@@ -38,6 +38,11 @@ export const objectSchema = z.object({
   style: z.object({ color: z.string().regex(/^#[0-9a-fA-F]{6}$/), opacity: z.number().min(0).max(1) }),
   properties: z.record(z.string(), z.unknown()), ...periodFields,
 }).refine(validPeriod, 'Période invalide.');
+export const lineObjectSchema = objectSchema.refine(object => {
+  if (object.geometry.type !== 'LineString' || !['road','river'].includes(object.kind) || !object.name.trim()) return false;
+  const points = object.geometry.coordinates;
+  return points.length <= 2000 && points.some(p => p[0] !== points[0]![0] || p[1] !== points[0]![1]);
+}, 'Une route ou rivière exige 2 à 2 000 sommets, dont deux distincts, et un nom.');
 export type MapObject = z.infer<typeof objectSchema>;
 export const worldSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION), id: z.uuid(), name: z.string().trim().min(1).max(200),

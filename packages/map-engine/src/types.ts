@@ -5,6 +5,7 @@ export type ViewMode = 'plane' | 'globe';
 export interface RendererAdapter {
   init(host: HTMLElement, onSelect: (id: string | null) => void, onCoordinate?: (coordinate: Coordinate) => boolean): Promise<void>;
   setWorld(world: World): void;
+  setDraftLine?(points: Coordinate[]): void;
   setZoom(level: number): void;
   onZoom(listener: (level: number) => void): void;
   setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void;

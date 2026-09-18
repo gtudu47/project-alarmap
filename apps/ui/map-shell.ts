@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
-import { createDemoWorld, worldSchema, type MapObject } from '@alarmap/map-model';
+import { createDemoWorld, worldSchema, lineObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
 import { AccountsClient, type WorldAccess } from './accounts.client';
@@ -72,6 +72,22 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           @if (personal() && role !== 'viewer') { <form class="point-form" (submit)="createLayer($event)"><label>Nouveau calque<input name="name" required maxlength="120"></label><button class="account-secondary" [disabled]="pointBusy()">Créer le calque</button></form> }
         </section>
         @if (personal() && role !== 'viewer') {
+          @if (view() === 'plane') {
+            <details class="tile-settings"><summary>Routes et rivières</summary>
+              <form class="point-form" (submit)="saveLine($event)">
+                <label>Nom du tracé<input name="name" required maxlength="200"></label>
+                <label>Type de tracé<select name="kind"><option value="road">Route</option><option value="river">Rivière</option></select></label>
+                <label>Calque du tracé<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
+                <button type="button" class="account-secondary" [disabled]="pointBusy()" (click)="startLine()">Commencer le tracé</button>
+                @if (drawingLine()) {
+                  <p role="status">{{ linePoints().length }} sommet(s). Cliquez sur la carte ; Échap abandonne.</p>
+                  <button type="button" class="account-secondary" [disabled]="pointBusy() || !linePoints().length" (click)="removeLineVertex()">Retirer le dernier sommet</button>
+                  <button type="button" class="account-link" [disabled]="pointBusy()" (click)="cancelLine()">Abandonner le tracé</button>
+                  <button class="account-primary" [disabled]="pointBusy() || linePoints().length < 2">Enregistrer le tracé</button>
+                }
+              </form>
+            </details>
+          }
           <div class="history-actions" aria-label="Historique des lieux">
             <button class="account-secondary" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
             <button class="account-secondary" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
@@ -79,7 +95,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>Ajouter un lieu</h2>
             @if (view() === 'plane') {
-              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading()" (click)="placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
+              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading()" (click)="cancelLine(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
               @if (placingPoint()) { <p role="status">Cliquez sur la carte pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
             }
             <label>Calque du lieu<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
@@ -119,7 +135,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <button class="reset" type="button" (click)="reset()" [disabled]="loading()">{{ text.reset }}</button>
         </div>
         @if (exportMessage()) { <p class="export-message" role="status">{{ exportMessage() }}</p> }
-        <div #mapHost [class.placing-point]="placingPoint()" class="map-host" data-testid="map-host"></div>
+        <div #mapHost [class.placing-point]="placingPoint() || drawingLine()" class="map-host" data-testid="map-host"></div>
         @if (loading()) { <div class="map-message" role="status">{{ text.loading }}</div> }
         @if (error()) { <div class="map-message error" role="alert">{{ text.unavailable }}</div> }
         <div class="zoom-control" aria-label="Commande de zoom">
@@ -239,7 +255,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const pointId = (change.before ?? change.after)!.id; const worldId = this.world.id; const previousRevision = this.world.revision;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + pointId, { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : '/points/') + pointId, { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
         this.world = worldSchema.parse(result.world); this.syncScene(); this.deleteConfirm.set(null);
         if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
@@ -269,13 +285,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
       if (this.personal() && !this.accounts.user()) {
-        this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        this.cancelLine(); this.placingPoint.set(false); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
   }
   openWorld(access: WorldAccess): void {
-    this.placingPoint.set(false);
+    this.placingPoint.set(false); this.cancelLine();
     if (!this.accounts.user()) return;
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
@@ -331,7 +347,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
   @ViewChild('pointForm') private pointForm?: ElementRef<HTMLFormElement>;
   readonly placingPoint = signal(false);
-  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape') this.placingPoint.set(false); };
+  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); } };
+  readonly drawingLine = signal(false);
+  readonly linePoints = signal<Coordinate[]>([]);
+  startLine(): void { this.placingPoint.set(false); this.drawingLine.set(true); }
+  cancelLine(): void { this.drawingLine.set(false); this.linePoints.set([]); this.engine?.setDraftLine([]); }
+  removeLineVertex(): void { this.linePoints.update(points => points.slice(0,-1)); this.engine?.setDraftLine(this.linePoints()); }
+  async saveLine(event: Event): Promise<void> {
+    event.preventDefault();
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !this.drawingLine()) return;
+    const form = event.target as HTMLFormElement; const fields = new FormData(form);
+    const worldId = this.world.id; const revision = this.world.revision;
+    this.pointBusy.set(true);
+    try {
+      const line = lineObjectSchema.parse({ id: crypto.randomUUID(), layerId: fields.get('layerId'), name: String(fields.get('name')).trim(), kind: fields.get('kind'), geometry: { type: 'LineString', coordinates: this.linePoints() }, style: { color: fields.get('kind') === 'river' ? '#69bdd5' : '#e6b96c', opacity: 1 }, properties: {} });
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/lines/' + line.id, { method: 'PUT', body: JSON.stringify({ revision, point: line }) });
+      if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
+      this.world = worldSchema.parse(access.world); this.cancelLine(); this.syncScene();
+      if (this.world.revision === revision + 1) this.recordHistory({ before: null, after: line }); else this.clearHistory();
+      form.reset(); this.pointMessage.set('Tracé enregistré.');
+    } catch { this.pointMessage.set('Tracé non enregistré : vérifiez les sommets, les droits, le calque et la révision. Le dessin est conservé.'); }
+    finally { this.pointBusy.set(false); }
+  }
   readonly zoomLevel = signal(0);
   changeZoom(event: Event): void { this.engine?.setZoom(Number((event.target as HTMLInputElement).value)); }
   private engine?: MapEngine;
@@ -340,6 +377,10 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.engine = new MapEngine(this.host.nativeElement, id => { this.selectedId.set(id); this.deleteConfirm.set(null); });
     window.addEventListener('keydown', this.cancelPlacement);
     this.engine.onCoordinate(([longitude, latitude]) => {
+      if (this.drawingLine() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
+        if (this.linePoints().length < 2000) { this.linePoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.engine?.setDraftLine(this.linePoints()); }
+        return true;
+      }
       if (!this.placingPoint() || !this.personal() || this.role === 'viewer' || this.pointBusy() || this.view() !== 'plane') return false;
       const form = this.pointForm?.nativeElement;
       if (!form) return false;
@@ -357,7 +398,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     await this.setView('plane');
   }
   async setView(mode: ViewMode): Promise<void> {
-    this.placingPoint.set(false);
+    this.placingPoint.set(false); this.cancelLine();
     this.loading.set(true); this.error.set(false);
     try { await this.engine?.setView(mode); this.view.set(mode); if (mode === 'plane') { this.tileKey = ''; this.engine?.setGrid(this.gridOptions, this.gridChanged); } }
     catch { this.error.set(true); }

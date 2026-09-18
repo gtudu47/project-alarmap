@@ -187,3 +187,16 @@ n’est faite avant « Enregistrer le lieu ». Annuler/Rétablir fonctionne ensu
 comme pour un lieu ajouté par coordonnées. Un glissement déplace la caméra ;
 Échap ou « Annuler le placement » désactive l’outil. Réservé aux propriétaires
 et éditeurs ; placement par clic sur globe à venir.
+
+## Dessiner routes et rivières
+
+Dans un monde privé, ouvrir « Routes et rivières » en vue plane. Renseigner le
+nom, le type et un calque déverrouillé, puis commencer le tracé. Chaque clic
+ajoute un sommet ; les glissements déplacent la caméra. Retirer le dernier
+sommet corrige le dessin. Enregistrer sauvegarde la ligne (2 à 2 000 sommets,
+au moins deux distincts). Échap ou Abandonner supprime le brouillon local.
+La ligne sauvegardée est visible dans les deux vues et dans l’Atlas.
+Annuler/Rétablir couvre sa création pendant la session ; recharger efface cet
+historique. Modifier les sommets ou sélectionner/supprimer directement une
+ligne existante reste à développer. Les rivières sont descriptives : aucun
+calcul d’écoulement n’est appliqué.

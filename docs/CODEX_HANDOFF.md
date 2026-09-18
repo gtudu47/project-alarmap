@@ -300,3 +300,21 @@ Validation : types, lint, build Docker et quatre parcours Edge réussis
 (placement/sauvegarde/annulation, modification/suppression, sélection plane/globe).
 Prochaine étape : outil de lignes avec validation géographique, persistance et
 commandes d’annulation ; puis polygones avec trous.
+
+## Routes et rivières : création (19 septembre 2026)
+
+Outil de tracé en vue plane : aperçu local, ajout/retrait de sommets, abandon,
+nom/type/calque, sauvegarde. Validation partagée lineObjectSchema : LineString,
+road/river, nom et 2–2000 sommets dont deux distincts.
+PUT/DELETE worlds/:id/lines/:lineId réutilisent les transactions de restauration
+et suppression avec un type géométrique explicite. Les routes points restent
+limitées aux points. Historique commun dirigé vers la route selon la géométrie.
+Aucune migration requise. Consultation existante plane/globe et Atlas.
+
+Validation : types/lint et build Docker réussis ; deux tests d’intégration
+PostGIS passent avec droits, calques, révisions, rechargement, raccordement
+antiméridien et restauration des lignes. Parcours rivière et placement réussis.
+Le parcours existant d’édition de point a dépassé le délai avant connexion au
+premier chargement puis réussi seul sans modification.
+Limites : pas de sélection/édition des sommets d’une ligne enregistrée, pas
+de simulation hydrologique. Prochaine étape : édition des lignes et polygones.

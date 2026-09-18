@@ -188,3 +188,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Choix des coordonnées par clic en vue plane, validation par formulaire,
   sauvegarde et historique des points existant.
 - [ ] Placement sur globe, dessin des lignes et polygones.
+
+### Premiers tracés
+
+- [x] Dessin de routes/rivières par sommets en vue plane, aperçu, retrait du
+  dernier sommet, abandon et sauvegarde ; rendu plane/globe et Undo/Redo.
+- [ ] Sélection/édition des sommets des lignes existantes ; dessin de polygones.

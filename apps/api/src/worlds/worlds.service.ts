@@ -67,7 +67,7 @@ export class WorldsService {
     return this.get(userId, id);
   }
 
-  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number }): Promise<{ world: World; role: MemberRole }> {
+  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number }, geometryType = 'ST_Point'): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -79,7 +79,7 @@ export class WorldsService {
       if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
       if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       const point = await client.query<{ locked: boolean }>(`SELECT l.locked FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id
-        WHERE o.id=$1 AND o.world_id=$2 AND ST_GeometryType(o.geometry)='ST_Point' FOR UPDATE OF o,l`, [pointId, id]);
+        WHERE o.id=$1 AND o.world_id=$2 AND ST_GeometryType(o.geometry)=$3 FOR UPDATE OF o,l`, [pointId, id, geometryType]);
       if (!point.rows[0]) throw new NotFoundException('Lieu introuvable.');
       if (point.rows[0].locked) throw new ConflictException('Ce calque est verrouillé.');
       if (update) await client.query('UPDATE map_objects SET name=$3,geometry=ST_SetSRID(ST_MakePoint($4,$5),4326) WHERE id=$1 AND world_id=$2', [pointId, id, update.name, update.longitude, update.latitude]);
@@ -91,7 +91,7 @@ export class WorldsService {
     return this.get(userId, id);
   }
 
-  async restorePoint(userId: string, id: string, revision: number, point: MapObject): Promise<{ world: World; role: MemberRole }> {
+  async restorePoint(userId: string, id: string, revision: number, point: MapObject, geometryType = 'ST_Point'): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -106,7 +106,7 @@ export class WorldsService {
       if (layer.rows[0].locked) throw new ConflictException('Ce calque est verrouillé.');
       const existing = await client.query<{ world_id: string; locked: boolean; geometry_type: string }>(`SELECT o.world_id,l.locked,ST_GeometryType(o.geometry) AS geometry_type
         FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id WHERE o.id=$1 FOR UPDATE OF o,l`, [point.id]);
-      if (existing.rows[0] && (existing.rows[0].world_id !== id || existing.rows[0].locked || existing.rows[0].geometry_type !== 'ST_Point')) throw new ConflictException('Ce lieu ne peut pas être restauré.');
+      if (existing.rows[0] && (existing.rows[0].world_id !== id || existing.rows[0].locked || existing.rows[0].geometry_type !== geometryType)) throw new ConflictException('Ce lieu ne peut pas être restauré.');
       const saved = await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style,properties,start_year,end_year)
         VALUES($1,$2,$3,$4,$5,ST_SetSRID(ST_GeomFromGeoJSON($6),4326),$7::jsonb,$8::jsonb,$9,$10)
         ON CONFLICT(id) DO UPDATE SET layer_id=EXCLUDED.layer_id,kind=EXCLUDED.kind,name=EXCLUDED.name,geometry=EXCLUDED.geometry,

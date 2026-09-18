@@ -13,6 +13,8 @@ export class PlaneRenderer implements RendererAdapter {
   private world?: World;
   private zoom = 1;
   private zoomListener: (level: number) => void = () => {};
+  private draft: Coordinate[] = [];
+  private draftGraphic?: Graphics;
   private gridOptions = { ...DEFAULT_GRID };
   private gridGraphics?: Graphics;
   private gridListener: (stats: GridStats, view: GridView) => void = () => {};
@@ -80,6 +82,7 @@ export class PlaneRenderer implements RendererAdapter {
     const ratio = next / this.zoom;
     this.offset.x *= ratio; this.offset.y *= ratio; this.zoom = next; this.transform();
   }
+  setDraftLine(points: Coordinate[]): void { this.draft = points; this.transform(); }
   setWorld(world: World): void { this.world = world; this.draw(); this.transform(); }
   setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void {
     this.gridOptions = options; this.gridListener = onChange; this.transform();
@@ -113,6 +116,14 @@ export class PlaneRenderer implements RendererAdapter {
     const scale = Math.min(this.host.clientWidth / 400, this.host.clientHeight / 220) * this.zoom;
     if (scale <= 0) return;
     this.zoomListener(100 * Math.log(this.zoom / 0.5) / Math.log(1e7 / 0.5));
+    this.draftGraphic?.clear();
+    if (this.draftGraphic) {
+      for (const segment of splitAntimeridian(this.draft)) {
+        segment.forEach(([x,y],i) => i === 0 ? this.draftGraphic!.moveTo(x,-y) : this.draftGraphic!.lineTo(x,-y));
+        this.draftGraphic.stroke({ color: '#f0ca7b', pixelLine: true });
+      }
+      for (const [x,y] of this.draft) this.draftGraphic.circle(x,-y,4/scale).fill('#f0ca7b');
+    }
     this.scene.scale.set(scale);
     this.scene.position.set(this.host.clientWidth / 2 + this.offset.x, this.host.clientHeight / 2 + this.offset.y);
     for (const point of this.points) { point.scale.set(1 / scale); for (const child of point.children) child.visible = scale > 50; }
@@ -128,6 +139,7 @@ export class PlaneRenderer implements RendererAdapter {
   private draw(): void {
     for (const child of this.scene.removeChildren()) child.destroy({ children: true });
     this.points = [];
+    this.draftGraphic = undefined;
     const grid = new Graphics();
     grid.rect(-180, -90, 360, 180).fill('#142b3b');
     for (let longitude = -180; longitude <= 180; longitude += 30) grid.moveTo(longitude, -90).lineTo(longitude, 90);
@@ -136,6 +148,7 @@ export class PlaneRenderer implements RendererAdapter {
     grid.moveTo(-180, 0).lineTo(180, 0).moveTo(0, -90).lineTo(0, 90).stroke({ color: '#66818a', pixelLine: true });
     this.scene.addChild(grid);
     this.gridGraphics = new Graphics(); this.scene.addChild(this.gridGraphics);
+    this.draftGraphic = new Graphics(); this.scene.addChild(this.draftGraphic);
     if (!this.world) return;
     for (const layer of [...this.world.layers].sort((a, b) => a.order - b.order)) {
       if (!layer.visible) continue;

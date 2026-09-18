@@ -137,6 +137,24 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal(coarseTiles.total, fineTiles.total);
     assert.ok(fineTiles.objects.length > coarseTiles.objects.length);
     assert.equal(coarseTiles.reduced, true);
+    const line = { id: randomUUID(), layerId: otherAccess.world.layers[0]!.id, name: 'Route du raccord', kind: 'road', geometry: { type: 'LineString', coordinates: [[179,10],[-179,12]] }, style: { color: '#e6b96c', opacity: 1 }, properties: {} };
+    const linePath = '/worlds/' + other.world.id + '/lines/' + line.id;
+    assert.equal((await request(linePath, tokens[1], { revision: 0, point: line }, 'PUT')).status, 404);
+    await infra.pool.query("INSERT INTO members(world_id,user_id,role) VALUES($1,$2,'viewer')",[other.world.id,users[1]]);
+    assert.equal((await request(linePath, tokens[1], { revision: 0, point: line }, 'PUT')).status, 403);
+    assert.equal((await request(linePath, tokens[0], { revision: 0, point: { ...line, geometry: { type: 'LineString', coordinates: [[0,0],[0,0]] } } }, 'PUT')).status, 400);
+    assert.equal((await request(linePath, tokens[0], { revision: 0, point: { ...line, layerId: original.layerId } }, 'PUT')).status, 404);
+    await infra.pool.query('UPDATE layers SET locked=true WHERE world_id=$1',[other.world.id]);
+    assert.equal((await request(linePath, tokens[0], { revision: 0, point: line }, 'PUT')).status, 409);
+    await infra.pool.query('UPDATE layers SET locked=false WHERE world_id=$1',[other.world.id]);
+    assert.equal((await request(linePath, tokens[0], { revision: 0, point: line }, 'PUT')).status, 200);
+    const lineWorld = await (await request('/worlds/' + other.world.id, tokens[0])).json() as { world: World };
+    assert.deepEqual(lineWorld.world.objects[0]!.geometry, line.geometry);
+    assert.equal((await request(linePath, tokens[0], { revision: 0 }, 'DELETE')).status, 409);
+    assert.equal((await request(linePath, tokens[1], { revision: 1 }, 'DELETE')).status, 403);
+    assert.equal((await request(linePath.replace('/lines/','/points/'), tokens[0], { revision: 1 }, 'DELETE')).status, 404);
+    assert.equal((await request(linePath, tokens[0], { revision: 1 }, 'DELETE')).status, 200);
+    assert.equal((await request(linePath, tokens[0], { revision: 2, point: line }, 'PUT')).status, 200);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

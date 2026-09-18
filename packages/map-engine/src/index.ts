@@ -53,6 +53,7 @@ export class MapEngine {
     if (!Number.isFinite(level)) return;
     this.renderer?.setZoom(Math.max(0, Math.min(100, level)));
   }
+  setDraftLine(points: Coordinate[]): void { this.renderer?.setDraftLine?.(points); }
   setScale(denominator: number): void { this.renderer?.setScale?.(denominator); }
   zoomToGrid(): void { this.renderer?.zoomToGrid?.(); }
   async exportPng(): Promise<Blob> {

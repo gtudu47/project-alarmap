@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Patch, Put, Get, Query, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { objectSchema } from '@alarmap/map-model';
+import { objectSchema, lineObjectSchema } from '@alarmap/map-model';
 import { AuthGuard, type AuthRequest } from '../auth/auth.guard.js';
 import { parseInput } from '../validation.js';
 import { WorldsService } from './worlds.service.js';
@@ -49,6 +49,19 @@ export class WorldsController {
   restorePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
     const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: objectSchema.refine(point => point.geometry.type === 'Point' && point.id === pointId, 'Point invalide.') }).strict(), body);
     return this.worlds.restorePoint(request.account.id, id, input.revision, input.point);
+  }
+
+  @Put(':id/lines/:lineId')
+  @Header('Cache-Control', 'no-store')
+  saveLine(@Param('id', ParseUUIDPipe) id: string, @Param('lineId', ParseUUIDPipe) lineId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: lineObjectSchema.refine(line => line.id === lineId, 'Identifiant invalide.') }).strict(), body);
+    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point, 'ST_LineString');
+  }
+  @Delete(':id/lines/:lineId')
+  @Header('Cache-Control', 'no-store')
+  deleteLine(@Param('id', ParseUUIDPipe) id: string, @Param('lineId', ParseUUIDPipe) lineId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
+    return this.worlds.changePoint(request.account.id, id, lineId, input.revision, undefined, 'ST_LineString');
   }
 
   @Post(':id/layers')

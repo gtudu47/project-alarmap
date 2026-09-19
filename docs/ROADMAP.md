@@ -200,3 +200,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Rapport d’échelle local au centre, grossissement perspective, indication
   actualisée et curseur synchronisé ; marqueurs de taille écran constante.
 - [ ] Grille kilométrique adaptative et streaming spatial sur le globe.
+
+### Grille métrique 3D
+
+- [x] Dimensions partagées, grille adaptative sur la sphère, cadrage au détail
+  choisi et emprises traversant l’antiméridien ou couvrant un pôle.
+- [ ] Streaming des objets 3D selon la zone visible et mesures de performances.

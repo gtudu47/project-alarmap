@@ -68,3 +68,22 @@ test('échelle 1:25 000 sur le globe et synchronisation au zoom', async ({ page 
   await page.getByRole('button', { name: 'Recentrer', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
+
+test('grille kilométrique sur globe, dimensions partagées et masquage', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button',{name:'Globe 3D',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Globe 3D',exact:true})).toHaveAttribute('aria-pressed','true',{timeout:15000});
+  await page.getByText('Détail et tuiles',{exact:true}).click();
+  await page.getByRole('button',{name:'Voir ce niveau de détail'}).click();
+  await expect(page.getByTestId('tile-readout')).toContainText('1 × 1 km');
+  await expect(page.getByTestId('tile-readout')).toContainText('détail choisi atteint');
+  await page.getByLabel('Largeur de tuile (km)').fill('10'); await page.getByLabel('Hauteur de tuile (km)').fill('12');
+  await page.getByRole('button',{name:'Appliquer les dimensions'}).click();
+  await page.getByRole('button',{name:'Voir ce niveau de détail'}).click();
+  await expect(page.getByTestId('tile-readout')).toContainText('10 × 12 km');
+  await page.getByLabel('Afficher la grille',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Appliquer les dimensions'}).click();
+  await page.getByRole('button',{name:'Carte plane',exact:true}).click();
+  await expect(page.getByLabel('Largeur de tuile (km)')).toHaveValue('10');
+  await expect(page.getByLabel('Afficher la grille',{exact:true})).not.toBeChecked();
+});

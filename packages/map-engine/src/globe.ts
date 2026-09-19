@@ -1,9 +1,12 @@
+import { capViews } from './globe-grid.js';
+import { DEFAULT_GRID, visibleGrid, type GridOptions, type GridStats, type GridView } from './grid.js';
+import { CSS_PIXELS_PER_METRE } from './scale.js';
 import { globeScaleDenominator, pixelsPerDegreeAtScale } from './scale.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Coordinate, World } from '@alarmap/map-model';
 import type { RendererAdapter } from './types.js';
-import { normalizeLongitude, toSphere } from './geography.js';
+import { normalizeLongitude, toSphere, fromSphere } from './geography.js';
 
 export class GlobeRenderer implements RendererAdapter {
   private readonly scene = new THREE.Scene();
@@ -14,6 +17,10 @@ export class GlobeRenderer implements RendererAdapter {
   private observer?: ResizeObserver;
   private readonly events = new AbortController();
   private zoomListener: (level: number) => void = () => {};
+  private gridOptions = { ...DEFAULT_GRID };
+  private gridListener: (stats: GridStats, view: GridView) => void = () => {};
+  private readonly metricGrid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#628b8c', transparent: true, opacity: 0.8 }));
+  private gridKey = '';
   private radiusKm = 6371;
   private host!: HTMLElement;
   private scaleListener: (denominator: number) => void = () => {};
@@ -30,7 +37,7 @@ export class GlobeRenderer implements RendererAdapter {
     this.controls.enablePan = false; this.controls.minDistance = 1.2; this.controls.maxDistance = 8;
     this.controls.addEventListener('change', this.render);
     const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.MeshBasicMaterial({ color: '#142b3b' }));
-    this.scene.add(sphere, this.objects);
+    this.scene.add(sphere, this.objects, this.metricGrid);
     let press: { x: number; y: number; id: number; moved: boolean } | undefined;
     const options = { signal: this.events.signal };
     const canvas = this.renderer.domElement;
@@ -85,6 +92,35 @@ export class GlobeRenderer implements RendererAdapter {
     this.camera.zoom = magnification * (distance - 1) / (this.controls.maxDistance - 1);
     this.camera.updateProjectionMatrix();
     this.controls.update(); this.render();
+  }
+  setGrid(options: GridOptions, listener: (stats: GridStats, view: GridView) => void): void { this.gridOptions = options; this.gridListener = listener; this.gridKey = ''; this.render(); }
+  zoomToGrid(): void { this.setScale(Math.max(100, Math.min(1e9, Math.min(this.gridOptions.widthKm,this.gridOptions.heightKm) * 1000 * CSS_PIXELS_PER_METRE / 80))); }
+  private updateGrid(): void {
+    if (!this.host.clientHeight) return;
+    this.camera.updateMatrixWorld();
+    const distance = this.camera.position.length();
+    const centre = this.camera.position.clone().normalize();
+    const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(1,1),this.camera);
+    const hit = ray.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(),1),new THREE.Vector3());
+    const angle = hit ? Math.atan2(hit.clone().cross(centre).length(), hit.dot(centre)) : Math.acos(1/distance);
+    const denominator = globeScaleDenominator(this.radiusKm,distance,this.camera.fov,this.host.clientHeight,this.camera.zoom);
+    const pixelsPerDegree = this.radiusKm*1000*Math.PI/180*CSS_PIXELS_PER_METRE/denominator;
+    const views = capViews(fromSphere([centre.x,centre.y,centre.z]),angle*180/Math.PI*1.02,pixelsPerDegree);
+    const key = JSON.stringify([views,this.gridOptions,this.radiusKm]);
+    if (key === this.gridKey) return;
+    this.gridKey = key;
+    const results = views.map(view => visibleGrid(this.gridOptions,this.radiusKm,view));
+    const vertices: number[] = [];
+    for (const result of results) for (const line of result.lines) {
+      const steps = Math.max(1,Math.ceil(Math.max(Math.abs(line.to[0]-line.from[0]),Math.abs(line.to[1]-line.from[1]))));
+      for (let i=0;i<steps;i++) for (const t of [i/steps,(i+1)/steps]) {
+        vertices.push(...toSphere([line.from[0]+(line.to[0]-line.from[0])*t,line.from[1]+(line.to[1]-line.from[1])*t],1.00001));
+      }
+    }
+    this.metricGrid.geometry.dispose(); this.metricGrid.geometry = new THREE.BufferGeometry();
+    this.metricGrid.geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+    this.metricGrid.visible = this.gridOptions.enabled;
+    this.gridListener(results[0]!.stats,views[0]!);
   }
   onScale(listener: (denominator: number) => void): void { this.scaleListener = listener; this.render(); }
   setScale(denominator: number): void {
@@ -142,6 +178,7 @@ export class GlobeRenderer implements RendererAdapter {
         object.scale.setScalar(size / 0.015);
       }
     }
+    this.updateGrid();
     this.renderer.render(this.scene, this.camera);
   };
   private disposeObject(object: THREE.Object3D): void {

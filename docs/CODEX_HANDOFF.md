@@ -331,3 +331,16 @@ redimensionnés pour rester lisibles. Pas de grille km ni streaming 3D livré.
 Validation : types/lint, 27 tests unitaires, build Docker et huit parcours
 Edge réussis (échelles, tuiles, zoom et sélection). Capture à 1:25 000 centrée
 sur Origine contrôlée visuellement.
+
+## Grille kilométrique 3D (19 septembre 2026)
+
+Adaptateur globe : setGrid et zoomToGrid, grille métrique sur la sphère,
+emprise conservatrice de la vue, découpage à l’antiméridien et couverture
+polaire. Utilise visibleGrid partagé avec la 2D ; géométrie remplacée et
+libérée à chaque changement d’emprise/résolution, cache du dernier état.
+Dimensions et visibilité communes dans le panneau. Les colonnes sont
+positionnées indépendamment par bande pour respecter leur largeur locale.
+Aucun streaming API 3D ajouté dans ce lot.
+Validation : types/lint, 29 tests unitaires et build Docker réussis. Sept
+parcours navigateur réussis (grilles, échelles, zoom, dimensions partagées,
+masquage). Capture globe à 1 × 1 km contrôlée visuellement.

@@ -37,7 +37,6 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             <p>Pour le PNG, imprimer à la largeur indiquée ci-dessous, sans ajustement à la page.</p>
           </details>
           @if (currentScale(); as scale) { <p class="tile-readout" data-testid="scale-readout">Échelle actuelle ≈ 1:{{ formatScale(scale) }} · 1 cm représente {{ formatKm(scale / 100000) }} km ({{ view() === 'plane' ? 'nord-sud' : 'au centre du globe' }}). Largeur d’impression du PNG : {{ formatKm(printWidthCm()) }} cm.</p> }
-        @if (view() === 'plane') {
           <details class="tile-settings"><summary>Détail et tuiles</summary>
             <form class="point-form" (submit)="applyGrid($event)">
               <label>Largeur de tuile (km)<input name="widthKm" type="number" min="0.1" max="10000" step="any" [value]="gridOptions.widthKm" required></label>
@@ -49,8 +48,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             <p>Largeur mesurée au milieu de chaque bande de latitude. Les cases aux limites du monde sont partielles.</p>
           </details>
           @if (gridInfo(); as grid) { <p class="tile-readout" data-testid="tile-readout">Mailles affichées : {{ formatKm(grid.widthKm) }} × {{ formatKm(grid.heightKm) }} km · {{ grid.multiplier === 1 ? 'détail choisi atteint' : 'zoomez pour subdiviser' }}</p> }
-          <p class="tile-readout" role="status">{{ tileMessage() }}</p>
-        }
+          @if (view() === 'plane') { <p class="tile-readout" role="status">{{ tileMessage() }}</p> }
         <section class="layer-section" aria-labelledby="layers-heading">
           <h2 id="layers-heading">{{ text.layers }} <span>{{ world.layers.length }}</span></h2>
           @for (layer of world.layers; track layer.id) {
@@ -401,7 +399,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   async setView(mode: ViewMode): Promise<void> {
     this.placingPoint.set(false); this.cancelLine();
     this.loading.set(true); this.error.set(false);
-    try { await this.engine?.setView(mode); this.view.set(mode); if (mode === 'plane') { this.tileKey = ''; this.engine?.setGrid(this.gridOptions, this.gridChanged); } }
+    try { await this.engine?.setView(mode); this.view.set(mode); this.tileKey = ''; this.engine?.setGrid(this.gridOptions, this.gridChanged); }
     catch { this.error.set(true); }
     finally { this.loading.set(false); }
   }

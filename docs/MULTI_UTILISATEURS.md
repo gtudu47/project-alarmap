@@ -212,3 +212,15 @@ curseur vertical suit le grossissement. La taille écran des marqueurs reste
 constante. L’échelle varie vers les bords du globe : elle ne constitue pas une
 échelle uniforme de toute l’image imprimée. La grille kilométrique adaptative
 et les demandes de détails par zone restent pour l’instant réservées à la 2D.
+
+## Grille kilométrique sur le globe
+
+« Détail et tuiles » est disponible dans les deux vues. Largeur, hauteur et
+visibilité restent partagées pendant la session. « Voir ce niveau de détail »
+cadre aussi le globe jusqu’à la résolution choisie ; éloigner la vue agrandit
+les mailles par puissances de deux. Les distances utilisent le rayon du monde.
+Sur le globe, les segments suivent la sphère dans une emprise autour de la
+zone regardée ; les emprises sont coupées à l’antiméridien et couvrent les
+pôles si nécessaire. Les cases aux limites des bandes restent partielles.
+Cette étape ajoute la grille ; le chargement API des objets par zone reste
+réservé à la vue plane.

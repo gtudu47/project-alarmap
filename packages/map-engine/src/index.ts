@@ -10,7 +10,7 @@ export class MapEngine {
   private world?: World;
   private focusCoordinate?: Coordinate;
   private grid = { ...DEFAULT_GRID };
-  private gridListener: (stats: GridStats, view: GridView) => void = () => {};
+  private gridListener: (stats: GridStats, view: GridView, regions?: GridView[]) => void = () => {};
   private zoomListener: (level: number) => void = () => {};
   private coordinateListener: (coordinate: Coordinate) => boolean = () => false;
   onCoordinate(listener: (coordinate: Coordinate) => boolean): void { this.coordinateListener = listener; }
@@ -47,7 +47,7 @@ export class MapEngine {
     this.world = { ...this.world, layers: this.world.layers.map((layer) => layer.id === id ? { ...layer, visible } : layer) };
     this.renderer?.setWorld(this.world);
   }
-  setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void {
+  setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView, regions?: GridView[]) => void): void {
     this.grid = validateGrid(options); this.gridListener = onChange;
     this.renderer?.setGrid?.(this.grid, this.gridListener);
   }

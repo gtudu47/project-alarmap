@@ -344,3 +344,16 @@ Aucun streaming API 3D ajouté dans ce lot.
 Validation : types/lint, 29 tests unitaires et build Docker réussis. Sept
 parcours navigateur réussis (grilles, échelles, zoom, dimensions partagées,
 masquage). Capture globe à 1 × 1 km contrôlée visuellement.
+
+## Chargement des objets sur le globe (19 septembre 2026)
+
+Callback de grille étendu avec les emprises (une ou deux). Le client commun
+charge chacune via l’API tiles existante, fusionne par identifiant et exige
+la même révision pour toutes les réponses. Changement de vue : annulation
+et invalidation des requêtes. Les modifications du monde déclenchent les
+notifications même lorsque la géométrie de grille est conservée en cache.
+Aucune modification de l’API ni migration. Maximum 2 000 objets par emprise.
+Le chargement initial du monde pour édition/Atlas reste intégral.
+Validation : types/lint et build Docker réussis ; six parcours Edge passent,
+dont globe centré à 179,999°, deux réponses dédoublonnées et refus d’une
+révision périmée. Les tests 2D et grilles/échelles restent verts.

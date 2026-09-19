@@ -18,9 +18,10 @@ export class GlobeRenderer implements RendererAdapter {
   private readonly events = new AbortController();
   private zoomListener: (level: number) => void = () => {};
   private gridOptions = { ...DEFAULT_GRID };
-  private gridListener: (stats: GridStats, view: GridView) => void = () => {};
+  private gridListener: (stats: GridStats, view: GridView, regions?: GridView[]) => void = () => {};
   private readonly metricGrid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#628b8c', transparent: true, opacity: 0.8 }));
   private gridKey = '';
+  private lastGrid?: { stats: GridStats; views: GridView[] };
   private radiusKm = 6371;
   private host!: HTMLElement;
   private scaleListener: (denominator: number) => void = () => {};
@@ -93,7 +94,7 @@ export class GlobeRenderer implements RendererAdapter {
     this.camera.updateProjectionMatrix();
     this.controls.update(); this.render();
   }
-  setGrid(options: GridOptions, listener: (stats: GridStats, view: GridView) => void): void { this.gridOptions = options; this.gridListener = listener; this.gridKey = ''; this.render(); }
+  setGrid(options: GridOptions, listener: (stats: GridStats, view: GridView, regions?: GridView[]) => void): void { this.gridOptions = options; this.gridListener = listener; this.gridKey = ''; this.render(); }
   zoomToGrid(): void { this.setScale(Math.max(100, Math.min(1e9, Math.min(this.gridOptions.widthKm,this.gridOptions.heightKm) * 1000 * CSS_PIXELS_PER_METRE / 80))); }
   private updateGrid(): void {
     if (!this.host.clientHeight) return;
@@ -107,7 +108,7 @@ export class GlobeRenderer implements RendererAdapter {
     const pixelsPerDegree = this.radiusKm*1000*Math.PI/180*CSS_PIXELS_PER_METRE/denominator;
     const views = capViews(fromSphere([centre.x,centre.y,centre.z]),angle*180/Math.PI*1.02,pixelsPerDegree);
     const key = JSON.stringify([views,this.gridOptions,this.radiusKm]);
-    if (key === this.gridKey) return;
+    if (key === this.gridKey && this.lastGrid) { this.gridListener(this.lastGrid.stats,views[0]!,views); return; }
     this.gridKey = key;
     const results = views.map(view => visibleGrid(this.gridOptions,this.radiusKm,view));
     const vertices: number[] = [];
@@ -120,7 +121,8 @@ export class GlobeRenderer implements RendererAdapter {
     this.metricGrid.geometry.dispose(); this.metricGrid.geometry = new THREE.BufferGeometry();
     this.metricGrid.geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
     this.metricGrid.visible = this.gridOptions.enabled;
-    this.gridListener(results[0]!.stats,views[0]!);
+    this.lastGrid = { stats: results[0]!.stats, views };
+    this.gridListener(results[0]!.stats,views[0]!,views);
   }
   onScale(listener: (denominator: number) => void): void { this.scaleListener = listener; this.render(); }
   setScale(denominator: number): void {

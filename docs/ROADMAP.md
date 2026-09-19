@@ -206,3 +206,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Dimensions partagées, grille adaptative sur la sphère, cadrage au détail
   choisi et emprises traversant l’antiméridien ou couvrant un pôle.
 - [ ] Streaming des objets 3D selon la zone visible et mesures de performances.
+
+### Détails selon la vue 3D
+
+- [x] Chargement des objets pour les emprises du globe, niveau de détail,
+  requêtes jumelées au raccordement et dédoublonnage. Contrôle des révisions.
+- [ ] Ouverture sans chargement intégral, pagination et cache spatial.

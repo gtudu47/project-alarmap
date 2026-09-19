@@ -224,3 +224,15 @@ zone regardée ; les emprises sont coupées à l’antiméridien et couvrent les
 pôles si nécessaire. Les cases aux limites des bandes restent partielles.
 Cette étape ajoute la grille ; le chargement API des objets par zone reste
 réservé à la vue plane.
+
+## Chargement des détails sur le globe
+
+Les mondes privés demandent désormais les objets selon la zone regardée et le
+niveau de détail en 3D aussi. Une vue traversant l’antiméridien charge ses
+deux emprises et dédoublonne les objets. Les deux réponses doivent avoir la
+même révision que le monde ouvert ; une réponse obsolète n’est pas appliquée.
+Un changement de vue annule les requêtes en cours.
+Le chargement initial reste intégral pour édition/Atlas. Les emprises sont
+conservatrices autour de la vue : certains objets hors écran sont encore
+chargés. Limite actuelle de 2 000 objets par emprise (jusqu’à 4 000 avant
+dédoublonnage au raccordement), sans pagination ni cache persistant.

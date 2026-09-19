@@ -8,7 +8,7 @@ export interface RendererAdapter {
   setDraftLine?(points: Coordinate[]): void;
   setZoom(level: number): void;
   onZoom(listener: (level: number) => void): void;
-  setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void;
+  setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView, regions?: GridView[]) => void): void;
   zoomToGrid?(): void;
   onScale?(listener: (denominator: number) => void): void;
   setScale?(denominator: number): void;

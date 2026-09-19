@@ -17,7 +17,7 @@ export class PlaneRenderer implements RendererAdapter {
   private draftGraphic?: Graphics;
   private gridOptions = { ...DEFAULT_GRID };
   private gridGraphics?: Graphics;
-  private gridListener: (stats: GridStats, view: GridView) => void = () => {};
+  private gridListener: (stats: GridStats, view: GridView, regions?: GridView[]) => void = () => {};
   private points: Graphics[] = [];
   private offset = { x: 0, y: 0 };
   private drag?: { x: number; y: number; startX: number; startY: number; moved: boolean; id: number };
@@ -84,7 +84,7 @@ export class PlaneRenderer implements RendererAdapter {
   }
   setDraftLine(points: Coordinate[]): void { this.draft = points; this.transform(); }
   setWorld(world: World): void { this.world = world; this.draw(); this.transform(); }
-  setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView) => void): void {
+  setGrid(options: GridOptions, onChange: (stats: GridStats, view: GridView, regions?: GridView[]) => void): void {
     this.gridOptions = options; this.gridListener = onChange; this.transform();
   }
   zoomToGrid(): void {

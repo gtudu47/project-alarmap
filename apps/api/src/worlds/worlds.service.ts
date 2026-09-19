@@ -28,21 +28,21 @@ export class WorldsService {
     finally { client.release(); }
     return this.get(userId, id);
   }
-  async get(userId: string, id: string): Promise<{ world: World; role: MemberRole }> {
+  async get(userId: string, id: string, summary = false): Promise<{ world: World; role: MemberRole; objectsComplete: boolean }> {
     const result = await this.pool.query<{ document: unknown; role: MemberRole }>(`SELECT
       CASE WHEN w.owner_id=$2 THEN 'owner' ELSE m.role END AS role,
       jsonb_build_object('schemaVersion',w.schema_version,'id',w.id,'name',w.name,'slug',w.slug,
         'radiusKm',w.radius_km,'revision',w.revision,'status',w.status,
         'layers',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',l.id,'name',l.name,'visible',l.visible,
           'locked',l.locked,'opacity',l.opacity,'order',l.sort_order) ORDER BY l.sort_order,l.id) FROM layers l WHERE l.world_id=w.id),'[]'::jsonb),
-        'objects',COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object('id',o.id,'layerId',o.layer_id,
+        'objects',CASE WHEN $3::boolean THEN '[]'::jsonb ELSE COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object('id',o.id,'layerId',o.layer_id,
           'name',o.name,'kind',o.kind,'geometry',ST_AsGeoJSON(o.geometry)::jsonb,'style',o.style,
           'properties',o.properties,'startYear',o.start_year,'endYear',o.end_year)) ORDER BY o.id)
-          FROM map_objects o WHERE o.world_id=w.id),'[]'::jsonb)) AS document
+          FROM map_objects o WHERE o.world_id=w.id),'[]'::jsonb) END) AS document
       FROM worlds w LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
-      WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)`, [id, userId]);
+      WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)`, [id, userId, summary]);
     if (!result.rows[0]) throw new NotFoundException('Monde introuvable.');
-    return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role };
+    return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary };
   }
   async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();

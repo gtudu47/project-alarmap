@@ -23,7 +23,10 @@ export class WorldsController {
   }
   @Get(':id')
   @Header('Cache-Control', 'no-store')
-  get(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthRequest) { return this.worlds.get(request.account.id, id); }
+  get(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ summary: z.enum(['1']).optional() }).strict(),query);
+    return this.worlds.get(request.account.id, id, input.summary === '1');
+  }
   @Post(':id/points')
   @Header('Cache-Control', 'no-store')
   addPoint(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown, @Req() request: AuthRequest) {

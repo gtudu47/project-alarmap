@@ -236,3 +236,13 @@ Le chargement initial reste intégral pour édition/Atlas. Les emprises sont
 conservatrices autour de la vue : certains objets hors écran sont encore
 chargés. Limite actuelle de 2 000 objets par emprise (jusqu’à 4 000 avant
 dédoublonnage au raccordement), sans pagination ni cache persistant.
+
+## Ouverture légère des mondes
+
+Ouvrir ou recharger un monde privé demande d’abord ses paramètres et ses
+calques, sans liste d’objets. La carte charge ensuite les zones visibles.
+Les points ainsi chargés restent sélectionnables. L’Atlas et les autres pages
+de synthèse attendent la liste complète avant d’afficher leurs résultats.
+La première modification charge également cette liste pour conserver le
+fonctionnement de l’édition et de l’historique actuels. Les réponses d’édition
+restent complètes ; leur allègement et la pagination de l’Atlas restent à faire.

@@ -357,3 +357,18 @@ Le chargement initial du monde pour édition/Atlas reste intégral.
 Validation : types/lint et build Docker réussis ; six parcours Edge passent,
 dont globe centré à 179,999°, deux réponses dédoublonnées et refus d’une
 révision périmée. Les tests 2D et grilles/échelles restent verts.
+
+## Ouverture légère (19 septembre 2026)
+
+GET worlds/:id?summary=1 renvoie objects=[] et objectsComplete=false ; SQL
+évite l’agrégation des objets dans cette branche. GET sans option conserve
+la réponse complète. AccountPanel et Recharger utilisent le résumé.
+En mode partiel, les objets reçus par zone alimentent aussi la sélection
+canonique de l’éditeur. Atlas/synthèses et mutations demandent un instantané
+complet avec contrôle du monde, de la session et de la révision. Protection
+contre les doubles soumissions après attente du chargement.
+Limite assumée : édition et Atlas chargent encore tous les objets ; pas de
+pagination ajoutée. Pas de migration.
+Validation : types/lint, intégration PostgreSQL/PostGIS (2 tests) et builds
+Docker réussis. Quatre parcours Edge passent : ouverture légère/Atlas, détails
+3D au raccordement, lignes et placement de points.

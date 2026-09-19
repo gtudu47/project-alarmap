@@ -212,3 +212,10 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Chargement des objets pour les emprises du globe, niveau de détail,
   requêtes jumelées au raccordement et dédoublonnage. Contrôle des révisions.
 - [ ] Ouverture sans chargement intégral, pagination et cache spatial.
+
+### Ouverture légère
+
+- [x] Ouverture/rechargement avec paramètres et calques seuls ; objets visibles
+  demandés ensuite. Sélection des points reçus par zone.
+- [x] Chargement complet explicite avant les pages de synthèse et l’édition.
+- [ ] Atlas paginé, réponses de mutation partielles et édition sans liste complète.

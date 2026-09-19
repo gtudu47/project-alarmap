@@ -118,7 +118,7 @@ export class AccountPanel implements OnInit {
     });
   }
   async openWorld(id: string): Promise<void> {
-    await this.run(async () => this.worldOpened.emit(await this.client.request<WorldAccess>(`/worlds/${id}`)));
+    await this.run(async () => this.worldOpened.emit(await this.client.request<WorldAccess>(`/worlds/${id}?summary=1`)));
   }
   async invite(event: Event): Promise<void> {
     event.preventDefault(); const form = event.target as HTMLFormElement; const data = new FormData(form);

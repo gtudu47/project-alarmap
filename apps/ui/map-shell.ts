@@ -20,7 +20,8 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
       <span class="version">v0.1 · {{ text.demo }}</span>
     </header>
     @if (mode === 'editor') { <nav class="workspace-nav" aria-label="Navigation principale">@for (item of pages; track item) { <a [href]="'?page=' + item" [attr.aria-current]="page() === item ? 'page' : null" (click)="navigate(item, $event)">{{ labels[item] }}</a> }</nav> }
-    @if (mode === 'editor' && page() !== 'carte') { <alarmap-workspace-page [world]="world" [personal]="personal()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
+    @if (mode === 'editor' && page() !== 'carte' && !objectsPartial()) { <alarmap-workspace-page [world]="world" [personal]="personal()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
+    @if (page() !== 'carte' && objectsPartial()) { <section class="workspace-page"><p role="status">{{ fullLoadMessage() }}</p><button class="account-secondary" (click)="ensureComplete()">Charger les objets du monde</button></section> }
     <main [hidden]="page() !== 'carte'">
       <aside class="sidebar">
         <div class="eyebrow">{{ personal() ? 'Mon monde privé' : text.demo }}</div>
@@ -157,11 +158,11 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const value = new URLSearchParams(location.search).get('page');
     return this.mode === 'editor' && (value === 'accueil' || value === 'atlas' || value === 'guide') ? value : 'carte';
   }
-  private readonly onPopState = () => { this.page.set(this.readPage()); };
+  private readonly onPopState = () => { this.page.set(this.readPage()); if (this.page() !== 'carte') void this.ensureComplete(); };
   navigate(page: WorkspacePage, event?: Event): void {
     if (event instanceof MouseEvent && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     event?.preventDefault();
-    this.page.set(page);
+    this.page.set(page); if (page !== 'carte') void this.ensureComplete();
     const url = new URL(location.href); url.searchParams.set('page', page);
     history.pushState(null, '', url);
     requestAnimationFrame(() => { document.querySelector<HTMLElement>('#page-title')?.focus(); window.dispatchEvent(new Event('resize')); });
@@ -217,6 +218,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (results.some(result => result.revision !== revision) || this.world.revision !== revision) { this.tileMessage.set('Le monde a changé : rechargez-le pour consulter les détails.'); return; }
       if (results.some(result => !Array.isArray(result.objects))) throw new Error('Réponse de détail invalide.');
       const objects = [...new Map(results.flatMap(result => result.objects).map(object => [object.id,object])).values()];
+      if (this.objectsPartial()) { this.world = { ...this.world, objects }; this.syncScene(); }
       this.engine?.setVisibleObjects(objects);
       this.tileMessage.set(objects.length + ' objet(s) chargé(s)' + (results.some(result => result.reduced) ? ' · zoomez pour davantage de détails' : ' dans cette zone'));
     } catch { if (!abort.signal.aborted && request === this.tileRequest) this.tileMessage.set('Détails indisponibles. La scène déjà chargée reste visible.'); }
@@ -233,7 +235,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   async deleteLayer(id: string): Promise<void> { if (this.layerDeleteConfirm() === id) await this.changeLayer('DELETE', id, {}); }
   private async changeLayer(method: string, id: string, data: Record<string, unknown>): Promise<boolean> {
-    if (this.pointBusy() || !this.personal() || this.role === 'viewer') return false;
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !await this.ensureComplete() || this.pointBusy()) return false;
     const worldId = this.world.id; this.pointBusy.set(true); this.pointMessage.set('');
     try {
       const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/layers' + (id ? '/' + id : ''), { method, body: JSON.stringify({ ...data, revision: this.world.revision }) });
@@ -249,7 +251,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private clearHistory(): void { this.history.clear(); this.refreshHistory(); }
   private recordHistory(change: PointChange): void { this.history.record(change); this.refreshHistory(); }
   async applyHistory(direction: 'undo' | 'redo'): Promise<void> {
-    if (this.pointBusy() || !this.personal() || this.role === 'viewer') return;
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !await this.ensureComplete() || this.pointBusy()) return;
     const change = this.history.peek(direction); if (!change) return;
     const target = direction === 'undo' ? change.before : change.after;
     const pointId = (change.before ?? change.after)!.id; const worldId = this.world.id; const previousRevision = this.world.revision;
@@ -285,7 +287,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
       if (this.personal() && !this.accounts.user()) {
-        this.cancelLine(); this.placingPoint.set(false); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        this.cancelLine(); this.placingPoint.set(false); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
@@ -293,18 +295,19 @@ export class MapShell implements AfterViewInit, OnDestroy {
   openWorld(access: WorldAccess): void {
     this.placingPoint.set(false); this.cancelLine();
     if (!this.accounts.user()) return;
+    this.objectsPartial.set(access.objectsComplete === false);
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
     this.syncScene(); this.engine?.reset(); this.accountOpen.set(false); this.pointMessage.set('');
   }
   async reloadWorld(): Promise<void> {
     this.pointBusy.set(true);
-    try { this.openWorld(await this.accounts.request<WorldAccess>('/worlds/' + this.world.id)); }
+    try { this.openWorld(await this.accounts.request<WorldAccess>('/worlds/' + this.world.id + '?summary=1')); }
     catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Rechargement impossible.'); }
     finally { this.pointBusy.set(false); }
   }
   async addPoint(event: Event): Promise<void> {
-    event.preventDefault(); if (this.pointBusy()) return;
+    event.preventDefault(); if (this.pointBusy() || !await this.ensureComplete() || this.pointBusy()) return;
     const form = event.target as HTMLFormElement; const fields = new FormData(form); const worldId = this.world.id; const previousRevision = this.world.revision;
     const existingIds = new Set(this.world.objects.map(object => object.id));
     this.pointBusy.set(true); this.pointMessage.set('');
@@ -325,7 +328,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private async changePoint(update?: { name: FormDataEntryValue | null; longitude: number; latitude: number }): Promise<void> {
     const id = this.selectedId(); const worldId = this.world.id; const previousRevision = this.world.revision;
     const before = this.world.objects.find(object => object.id === id);
-    if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy()) return;
+    if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy() || !await this.ensureComplete() || this.pointBusy()) return;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
       const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + id, { method: update ? 'PATCH' : 'DELETE', body: JSON.stringify({ ...update, revision: this.world.revision }) });
@@ -355,7 +358,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   removeLineVertex(): void { this.linePoints.update(points => points.slice(0,-1)); this.engine?.setDraftLine(this.linePoints()); }
   async saveLine(event: Event): Promise<void> {
     event.preventDefault();
-    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !this.drawingLine()) return;
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !this.drawingLine() || !await this.ensureComplete() || this.pointBusy()) return;
     const form = event.target as HTMLFormElement; const fields = new FormData(form);
     const worldId = this.world.id; const revision = this.world.revision;
     this.pointBusy.set(true);
@@ -368,6 +371,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
       form.reset(); this.pointMessage.set('Tracé enregistré.');
     } catch { this.pointMessage.set('Tracé non enregistré : vérifiez les sommets, les droits, le calque et la révision. Le dessin est conservé.'); }
     finally { this.pointBusy.set(false); }
+  }
+  readonly objectsPartial = signal(false);
+  readonly fullLoadMessage = signal('Chargement des objets du monde…');
+  private fullLoad?: Promise<boolean>;
+  async ensureComplete(): Promise<boolean> {
+    if (!this.objectsPartial()) return true;
+    if (this.fullLoad) return this.fullLoad;
+    const id = this.world.id; const revision = this.world.revision;
+    this.fullLoadMessage.set('Chargement des objets du monde…');
+    this.fullLoad = (async () => {
+      try {
+        const access = await this.accounts.request<WorldAccess>('/worlds/' + id);
+        if (!this.personal() || this.world.id !== id || !this.accounts.user()) return false;
+        if (access.world.revision !== revision || this.world.revision !== revision) {
+          this.fullLoadMessage.set('Le monde a changé. Rechargez-le depuis la carte.');
+          this.pointMessage.set('Le monde a changé. Rechargez-le avant de modifier.'); return false;
+        }
+        this.world = worldSchema.parse(access.world); this.objectsPartial.set(false); this.syncScene(); return true;
+      } catch { this.fullLoadMessage.set('Chargement impossible. Réessayez.'); this.pointMessage.set('Chargement des objets impossible. Réessayez.'); return false; }
+      finally { this.fullLoad = undefined; }
+    })();
+    return this.fullLoad;
   }
   readonly zoomLevel = signal(0);
   changeZoom(event: Event): void { this.engine?.setZoom(Number((event.target as HTMLInputElement).value)); }

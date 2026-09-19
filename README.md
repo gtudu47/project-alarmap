@@ -4,7 +4,7 @@ Cartographie et worldbuilding auto-hébergés, en français. Angular, NestJS,
 PostgreSQL/PostGIS et un moteur commun avec PixiJS (carte plane) et Three.js (globe).
 
 ## État réel
-
+(en dévellopement active)
 Version `0.1.0-dev.1`, branche `dev`. Le dépôt contient le socle du monorepo,
 une API de santé, les migrations initiales et deux applications affichant la
 même scène géographique de démonstration. Le changement carte/globe, le

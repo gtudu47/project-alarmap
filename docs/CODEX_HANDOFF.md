@@ -372,3 +372,12 @@ pagination ajoutée. Pas de migration.
 Validation : types/lint, intégration PostgreSQL/PostGIS (2 tests) et builds
 Docker réussis. Quatre parcours Edge passent : ouverture légère/Atlas, détails
 3D au raccordement, lignes et placement de points.
+
+## Correction CI (21 septembre 2026)
+
+Run 35459066663 : quality Linux échouait lors de la résolution de
+@alarmap/map-model dans history.test.ts avant compilation. Compose réussissait,
+Windows était annulé par la matrice. Cause reproduite localement en masquant
+temporairement le dossier dist du modèle. Vitest résout maintenant les quatre
+packages internes vers leurs sources TypeScript. Sans dist, les 29 tests
+passent après correction ; lint validé. Exports de production inchangés.

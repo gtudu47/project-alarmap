@@ -246,3 +246,15 @@ de synthèse attendent la liste complète avant d’afficher leurs résultats.
 La première modification charge également cette liste pour conserver le
 fonctionnement de l’édition et de l’historique actuels. Les réponses d’édition
 restent complètes ; leur allègement et la pagination de l’Atlas restent à faire.
+
+## Atlas paginé
+
+Après une ouverture légère, l’Atlas charge des pages de 50 objets au lieu du
+monde entier. La recherche porte sur tous les noms du monde, sans distinction
+de casse ou d’accents ; le filtre de géométrie est appliqué côté serveur.
+Page suivante/précédente naviguent dans un ordre stable d’identifiants.
+Une modification du monde invalide la pagination : actualiser la recherche.
+Les recherches précédentes sont annulées lors d’une nouvelle saisie.
+Localiser un point fonctionne même s’il n’avait pas encore été chargé sur la
+carte. Si l’édition ou l’accueil a déjà chargé le monde complet, l’Atlas
+utilise cette liste locale. L’édition et l’accueil restent à optimiser.

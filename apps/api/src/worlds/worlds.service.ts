@@ -151,6 +151,22 @@ export class WorldsService {
     return this.get(userId,id);
   }
 
+  async atlas(userId: string, id: string, input: { q: string; geometry?: string; cursor?: string; revision?: number; limit: number }): Promise<{ revision: number; objects: MapObject[]; nextCursor: string | null }> {
+    const result = await this.pool.query<{ revision: number; documents: unknown[] }>(`WITH allowed AS (
+      SELECT w.id,w.revision FROM worlds w LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2 WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)
+    ), page AS (
+      SELECT o.* FROM map_objects o JOIN allowed a ON a.id=o.world_id
+      WHERE ($3::uuid IS NULL OR o.id>$3) AND ($4::text IS NULL OR GeometryType(o.geometry)=upper($4))
+      AND strpos(lower(unaccent(o.name)),lower(unaccent($5)))>0 ORDER BY o.id LIMIT $6
+    ) SELECT a.revision,COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+      'id',p.id,'layerId',p.layer_id,'name',p.name,'kind',p.kind,'geometry',ST_AsGeoJSON(p.geometry)::jsonb,
+      'style',p.style,'properties',p.properties,'startYear',p.start_year,'endYear',p.end_year)) ORDER BY p.id) FROM page p),'[]'::jsonb) AS documents FROM allowed a`,[id,userId,input.cursor??null,input.geometry??null,input.q,input.limit+1]);
+    const row = result.rows[0]; if (!row) throw new NotFoundException('Monde introuvable.');
+    if (input.revision !== undefined && input.revision !== row.revision) throw new ConflictException('Le monde a changé. Recommencez la recherche.');
+    const objects = row.documents.slice(0,input.limit).map(object => objectSchema.parse(object));
+    return { revision: row.revision, objects, nextCursor: row.documents.length>input.limit ? objects.at(-1)!.id : null };
+  }
+
   async tiles(userId: string, id: string, bounds: { west: number; east: number; south: number; north: number; detailKm: number }): Promise<{ revision: number; objects: MapObject[]; total: number; reduced: boolean }> {
     const result = await this.pool.query<{ revision: number; total: number; documents: unknown[] }>(`WITH allowed AS (
       SELECT w.id,w.revision,w.radius_km FROM worlds w LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2

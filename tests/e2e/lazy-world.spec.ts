@@ -1,12 +1,13 @@
 import { expect,test } from '@playwright/test';
 import { createDemoWorld } from '../../packages/map-model/src/index';
-test('ouvrir sans objets puis charger la liste complète uniquement pour l’Atlas',async({page})=>{
+test('ouvrir sans objets puis parcourir l’Atlas par pages sans chargement complet',async({page})=>{
   const world = createDemoWorld(); let fullLoads=0; let summaries=0;
   const user={id:'00000000-0000-4000-8000-000000000050',email:'alice@example.test',displayName:'Alice',isAdmin:false};
   await page.route('**/api/v1/**',async route=>{
     const url=new URL(route.request().url()); let body:unknown={initialized:true,status:'ok'};
     if(url.pathname.endsWith('/auth/refresh')) body={user,accessToken:'test'};
     else if(url.pathname.endsWith('/worlds')) body=[{...world,role:'owner'}];
+    else if(url.pathname.endsWith('/atlas')) body={revision:world.revision,objects:url.searchParams.get('cursor')?[]:[world.objects[0]],nextCursor:url.searchParams.get('cursor')?null:world.objects[0]!.id};
     else if(url.pathname.endsWith('/tiles')) body={revision:world.revision,objects:[world.objects[0]],total:1,reduced:false};
     else if(url.pathname.endsWith('/'+world.id)) {
       const summary=url.searchParams.get('summary')==='1'; if(summary) summaries++; else fullLoads++;
@@ -24,5 +25,12 @@ test('ouvrir sans objets puis charger la liste complète uniquement pour l’Atl
   expect(fullLoads).toBe(0);
   await page.getByRole('link',{name:'Atlas',exact:true}).click();
   await expect(page.getByRole('button',{name:'Localiser Origine',exact:true})).toBeVisible();
-  expect(fullLoads).toBe(1);
+  expect(fullLoads).toBe(0);
+  await page.getByRole('button',{name:'Page suivante',exact:true}).click();
+  await expect(page.getByText('Page 2 · 0 résultat(s)',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Page précédente',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Localiser Origine',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Localiser Origine',exact:true}).click();
+  await expect(page.getByRole('region',{name:'Lieu sélectionné'})).toContainText('Origine');
+  expect(fullLoads).toBe(0);
 });

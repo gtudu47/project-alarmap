@@ -219,3 +219,10 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
   demandés ensuite. Sélection des points reçus par zone.
 - [x] Chargement complet explicite avant les pages de synthèse et l’édition.
 - [ ] Atlas paginé, réponses de mutation partielles et édition sans liste complète.
+
+### Atlas à la demande
+
+- [x] Pagination par identifiant, recherche serveur sans accents et filtre
+  géométrique pour les mondes ouverts sans chargement complet.
+- [x] Révision contrôlée, localisation depuis les résultats et messages d’erreur.
+- [ ] Édition/résumés sans chargement complet ; index de recherche pour 100k objets.

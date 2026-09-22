@@ -381,3 +381,17 @@ Windows était annulé par la matrice. Cause reproduite localement en masquant
 temporairement le dossier dist du modèle. Vitest résout maintenant les quatre
 packages internes vers leurs sources TypeScript. Sans dist, les 29 tests
 passent après correction ; lint validé. Exports de production inchangés.
+
+## Atlas paginé (22 septembre 2026)
+
+GET worlds/:id/atlas : curseur UUID stable, 50 objets par défaut (100 max),
+recherche littérale sans accents et filtre de géométrie. Droits du monde et
+révision contrôlés. Migration 003 : extension unaccent et index world_id/id.
+Pour les mondes ouverts en mode léger, l’Atlas utilise le serveur et ne
+charge plus la liste entière. Recherches différées et annulables, navigation
+précédente/suivante et actualisation. Localiser transmet l’objet au moteur.
+Si le monde est déjà complet en mémoire, la consultation locale est conservée.
+Validation avant pause : types/lint, deux tests API/PostGIS et build Docker
+réussis. Reprise : cinq parcours Edge réussis (Atlas paginé, navigation, mobile,
+localisation et édition de lieux). L’édition et l’accueil chargent encore le
+monde complet ; optimisation restante, sans prétendre livrer toute la V0.9.

@@ -1,5 +1,7 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import type { World } from '@alarmap/map-model';
+import { Component, EventEmitter, Input, Output, signal, inject, OnChanges, OnDestroy } from '@angular/core';
+import { objectSchema, type MapObject, type World } from '@alarmap/map-model';
+
+import { AccountsClient } from './accounts.client';
 
 export type WorkspacePage = 'carte' | 'accueil' | 'atlas' | 'guide';
 export const pageText = {
@@ -32,9 +34,10 @@ export const pageText = {
         <div class="page-cards"><button class="page-card" (click)="navigate.emit('atlas')"><span>01 · CONSULTER</span><h2>Parcourir l’Atlas</h2><p>Retrouvez les lieux et les tracés de votre monde.</p><b aria-hidden="true">→</b></button><button class="page-card" (click)="navigate.emit('guide')"><span>02 · APPRENDRE</span><h2>Prendre ses repères</h2><p>Découvrez la carte, les comptes et la création de lieux.</p><b aria-hidden="true">→</b></button></div>
       } @else if (page === 'atlas') {
         <div class="page-eyebrow">{{ world.name }}</div><h1 id="page-title" tabindex="-1">{{ text.catalog }}</h1><p class="page-lead">Le catalogue des objets du monde actuellement ouvert.</p>
-        <div class="atlas-filters"><label>{{ text.search }}<input type="search" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="Nom d’un lieu ou d’un tracé"></label><label>Géométrie<select [value]="geometry()" (change)="geometry.set($any($event.target).value)"><option value="">Toutes les géométries</option><option value="Point">Points</option><option value="LineString">Lignes</option><option value="Polygon">Polygones</option><option value="MultiPolygon">Multipolygones</option></select></label></div>
-        <p class="result-count" role="status">{{ objects().length }} résultat(s) sur {{ world.objects.length }}</p>
-        <ul class="atlas-list">@for (object of objects(); track object.id) { <li><span class="object-symbol" [style.color]="object.style.color" aria-hidden="true">{{ object.geometry.type === 'Point' ? '●' : '⌁' }}</span><div><h2>{{ object.name || text.unnamed }}</h2><p>{{ geometryName(object.geometry.type) }} · {{ layerName(object.layerId) }}</p>@if (object.geometry.type === 'Point') { <p>Longitude {{ object.geometry.coordinates[0] }}° · Latitude {{ object.geometry.coordinates[1] }}°</p><button class="account-secondary" (click)="locate.emit(object.id)" [attr.aria-label]="'Localiser ' + object.name">Localiser sur la carte →</button> }</div></li> } @empty { <li class="empty-atlas">{{ text.empty }}</li> }</ul>
+        <div class="atlas-filters"><label>{{ text.search }}<input type="search" [value]="query()" (input)="query.set($any($event.target).value); filterChanged()" placeholder="Nom d’un lieu ou d’un tracé"></label><label>Géométrie<select [value]="geometry()" (change)="geometry.set($any($event.target).value); filterChanged()"><option value="">Toutes les géométries</option><option value="Point">Points</option><option value="LineString">Lignes</option><option value="Polygon">Polygones</option><option value="MultiPolygon">Multipolygones</option></select></label></div>
+        <p class="result-count" role="status">{{ remote ? atlasMessage() : objects().length + ' résultat(s) sur ' + world.objects.length }}</p>
+        @if (remote) { <div class="page-actions"><button class="account-secondary" [disabled]="atlasBusy() || cursors.length < 2" (click)="previousPage()">Page précédente</button><button class="account-secondary" [disabled]="atlasBusy() || !nextCursor()" (click)="nextPage()">Page suivante</button><button class="account-link" [disabled]="atlasBusy()" (click)="restartAtlas()">Actualiser la recherche</button></div> }
+        <ul class="atlas-list">@for (object of objects(); track object.id) { <li><span class="object-symbol" [style.color]="object.style.color" aria-hidden="true">{{ object.geometry.type === 'Point' ? '●' : '⌁' }}</span><div><h2>{{ object.name || text.unnamed }}</h2><p>{{ geometryName(object.geometry.type) }} · {{ layerName(object.layerId) }}</p>@if (object.geometry.type === 'Point') { <p>Longitude {{ object.geometry.coordinates[0] }}° · Latitude {{ object.geometry.coordinates[1] }}°</p><button class="account-secondary" (click)="locate.emit(object)" [attr.aria-label]="'Localiser ' + object.name">Localiser sur la carte →</button> }</div></li> } @empty { <li class="empty-atlas">{{ text.empty }}</li> }</ul>
         <button class="account-secondary" (click)="navigate.emit('carte')">Retour à la carte</button>
       } @else {
         <div class="page-eyebrow">GUIDE DE PRISE EN MAIN</div><h1 id="page-title" tabindex="-1">{{ text.guideTitle }}</h1>
@@ -45,17 +48,61 @@ export const pageText = {
     </section>
   `,
 })
-export class WorkspacePages {
+export class WorkspacePages implements OnChanges, OnDestroy {
   @Input({ required: true }) world!: World;
   @Input() personal = false;
+  @Input() remote = false;
   @Input() page: WorkspacePage = 'accueil';
   @Output() readonly navigate = new EventEmitter<WorkspacePage>();
-  @Output() readonly locate = new EventEmitter<string>();
+  @Output() readonly locate = new EventEmitter<MapObject>();
   @Output() readonly account = new EventEmitter<void>();
   readonly text = pageText;
   readonly query = signal('');
   readonly geometry = signal('');
+  private readonly accounts = inject(AccountsClient);
+  readonly atlasObjects = signal<MapObject[]>([]);
+  readonly atlasMessage = signal('Chargement…');
+  readonly atlasBusy = signal(false);
+  readonly nextCursor = signal<string | null>(null);
+  cursors: (string | null)[] = [null];
+  private atlasRevision?: number;
+  private atlasKey = '';
+  private timer?: ReturnType<typeof setTimeout>;
+  private abort?: AbortController;
+  private requestId = 0;
+  ngOnChanges(): void {
+    const key = this.world.id + ':' + this.world.revision + ':' + this.page + ':' + this.remote;
+    if (key !== this.atlasKey) { this.atlasKey = key; this.restartAtlas(); }
+  }
+  ngOnDestroy(): void { clearTimeout(this.timer); this.abort?.abort(); ++this.requestId; }
+  filterChanged(): void {
+    if (!this.remote) return;
+    clearTimeout(this.timer); this.abort?.abort(); ++this.requestId;
+    this.atlasObjects.set([]); this.nextCursor.set(null); this.atlasBusy.set(true); this.atlasMessage.set('Recherche…');
+    this.timer = setTimeout(()=>this.restartAtlas(),250);
+  }
+  restartAtlas(): void { this.cursors=[null]; this.atlasRevision=undefined; void this.loadAtlas(); }
+  nextPage(): void { if (this.nextCursor()) { this.cursors.push(this.nextCursor()); void this.loadAtlas(); } }
+  previousPage(): void { if(this.cursors.length>1) { this.cursors.pop(); void this.loadAtlas(); } }
+  private async loadAtlas(): Promise<void> {
+    if (!this.remote || this.page !== 'atlas') return;
+    this.abort?.abort(); const abort = new AbortController(); this.abort=abort; const request=++this.requestId;
+    this.atlasBusy.set(true); this.atlasObjects.set([]); this.nextCursor.set(null); this.atlasMessage.set('Chargement…');
+    try {
+      const query = new URLSearchParams({q:this.query(),limit:'50'});
+      if(this.geometry()) query.set('geometry',this.geometry());
+      const cursor=this.cursors.at(-1); if(cursor) query.set('cursor',cursor);
+      if(this.atlasRevision!==undefined) query.set('revision',String(this.atlasRevision));
+      const result=await this.accounts.request<{revision:number;objects:MapObject[];nextCursor:string|null}>('/worlds/'+this.world.id+'/atlas?'+query,{signal:abort.signal});
+      if(request!==this.requestId) return;
+      const objects=result.objects.map(object=>objectSchema.parse(object));
+      this.atlasRevision=result.revision; this.atlasObjects.set(objects); this.nextCursor.set(result.nextCursor);
+      this.atlasMessage.set('Page '+this.cursors.length+' · '+objects.length+' résultat(s)');
+    } catch(error) { if(request===this.requestId && !abort.signal.aborted) this.atlasMessage.set(error instanceof Error ? error.message : 'Recherche indisponible.'); }
+    finally { if(request===this.requestId) this.atlasBusy.set(false); }
+  }
   objects() {
+    if(this.remote) return this.atlasObjects();
     const query = this.query().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
     return this.world.objects.filter(object => (!this.geometry() || object.geometry.type === this.geometry()) && object.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').includes(query));
   }

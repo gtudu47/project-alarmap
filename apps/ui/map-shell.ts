@@ -20,8 +20,8 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
       <span class="version">v0.1 · {{ text.demo }}</span>
     </header>
     @if (mode === 'editor') { <nav class="workspace-nav" aria-label="Navigation principale">@for (item of pages; track item) { <a [href]="'?page=' + item" [attr.aria-current]="page() === item ? 'page' : null" (click)="navigate(item, $event)">{{ labels[item] }}</a> }</nav> }
-    @if (mode === 'editor' && page() !== 'carte' && !objectsPartial()) { <alarmap-workspace-page [world]="world" [personal]="personal()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
-    @if (page() !== 'carte' && objectsPartial()) { <section class="workspace-page"><p role="status">{{ fullLoadMessage() }}</p><button class="account-secondary" (click)="ensureComplete()">Charger les objets du monde</button></section> }
+    @if (mode === 'editor' && page() !== 'carte' && (!objectsPartial() || page() === 'atlas')) { <alarmap-workspace-page [world]="world" [personal]="personal()" [remote]="personal() && objectsPartial()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
+    @if (page() !== 'carte' && page() !== 'atlas' && objectsPartial()) { <section class="workspace-page"><p role="status">{{ fullLoadMessage() }}</p><button class="account-secondary" (click)="ensureComplete()">Charger les objets du monde</button></section> }
     <main [hidden]="page() !== 'carte'">
       <aside class="sidebar">
         <div class="eyebrow">{{ personal() ? 'Mon monde privé' : text.demo }}</div>
@@ -158,11 +158,11 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const value = new URLSearchParams(location.search).get('page');
     return this.mode === 'editor' && (value === 'accueil' || value === 'atlas' || value === 'guide') ? value : 'carte';
   }
-  private readonly onPopState = () => { this.page.set(this.readPage()); if (this.page() !== 'carte') void this.ensureComplete(); };
+  private readonly onPopState = () => { this.page.set(this.readPage()); if (this.page() !== 'carte' && this.page() !== 'atlas') void this.ensureComplete(); };
   navigate(page: WorkspacePage, event?: Event): void {
     if (event instanceof MouseEvent && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     event?.preventDefault();
-    this.page.set(page); if (page !== 'carte') void this.ensureComplete();
+    this.page.set(page); if (page !== 'carte' && page !== 'atlas') void this.ensureComplete();
     const url = new URL(location.href); url.searchParams.set('page', page);
     history.pushState(null, '', url);
     requestAnimationFrame(() => { document.querySelector<HTMLElement>('#page-title')?.focus(); window.dispatchEvent(new Event('resize')); });
@@ -270,8 +270,9 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly selectedId = signal<string | null>(null);
   readonly deleteConfirm = signal<string | null>(null);
   selectedObject(): MapObject | undefined { return this.world.objects.find(object => object.id === this.selectedId()); }
-  locateObject(id: string): void {
-    const object = this.world.objects.find(item => item.id === id);
+  locateObject(object: MapObject): void {
+    const id = object.id;
+    if (!this.world.objects.some(item => item.id === id)) { this.world = { ...this.world, objects: [...this.world.objects,object] }; this.syncScene(); }
     if (!object || object.geometry.type !== 'Point') return;
     this.deleteConfirm.set(null); this.selectedId.set(id);
     this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));

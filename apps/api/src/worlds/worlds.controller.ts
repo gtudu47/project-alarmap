@@ -86,6 +86,13 @@ export class WorldsController {
     return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'delete', layerId });
   }
 
+  @Get(':id/atlas')
+  @Header('Cache-Control', 'no-store')
+  atlas(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ q: z.string().max(200).default(''), geometry: z.enum(['Point','LineString','Polygon','MultiPolygon']).optional(), cursor: z.uuid().optional(), revision: z.coerce.number().int().nonnegative().optional(), limit: z.coerce.number().int().min(1).max(100).default(50) }).strict(),query);
+    return this.worlds.atlas(request.account.id,id,input);
+  }
+
   @Get(':id/tiles')
   @Header('Cache-Control', 'no-store')
   tiles(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Req() request: AuthRequest) {

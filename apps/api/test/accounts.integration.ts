@@ -162,6 +162,18 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal(complete.objectsComplete,true); assert.equal(complete.world.objects.length,1);
     assert.equal((await request('/worlds/' + other.world.id + '?summary=1')).status,401);
     assert.equal((await request('/worlds/' + other.world.id + '?summary=bad',tokens[0])).status,400);
+    for (const name of ['École A','École B','École %']) await infra.pool.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style) VALUES($1,$2,$3,'city',$4,ST_SetSRID(ST_MakePoint(0,0),4326),' {"color":"#e6b96c","opacity":1}'::jsonb)`,[randomUUID(),other.world.id,line.layerId,name]);
+    const atlasPath='/worlds/'+other.world.id+'/atlas';
+    assert.equal((await request(atlasPath)).status,401);
+    assert.equal((await request('/worlds/'+randomUUID()+'/atlas',tokens[1])).status,404);
+    assert.equal((await request(atlasPath+'?limit=101',tokens[0])).status,400);
+    const atlasFirst=await (await request(atlasPath+'?q=ecole&geometry=Point&limit=1',tokens[1])).json() as {objects:World['objects'];nextCursor:string;revision:number};
+    assert.equal(atlasFirst.objects.length,1); assert.ok(atlasFirst.objects[0]!.name.startsWith('École'));
+    assert.ok(atlasFirst.nextCursor);
+    const atlasNext=await (await request(atlasPath+'?q=ecole&geometry=Point&limit=1&cursor='+atlasFirst.nextCursor+'&revision='+atlasFirst.revision,tokens[1])).json() as {objects:World['objects']};
+    assert.notEqual(atlasNext.objects[0]!.id,atlasFirst.objects[0]!.id);
+    const literal=await (await request(atlasPath+'?q=%25',tokens[0])).json() as {objects:World['objects']}; assert.equal(literal.objects.length,1);
+    assert.equal((await request(atlasPath+'?revision=0',tokens[0])).status,409);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

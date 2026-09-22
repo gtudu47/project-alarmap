@@ -226,3 +226,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
   géométrique pour les mondes ouverts sans chargement complet.
 - [x] Révision contrôlée, localisation depuis les résultats et messages d’erreur.
 - [ ] Édition/résumés sans chargement complet ; index de recherche pour 100k objets.
+
+- Chargement progressif : Accueil et Guide accessibles sans récupération intégrale des objets ; compteur total autorisé fourni avec les métadonnées. L’édition reste à optimiser.

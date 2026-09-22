@@ -11,7 +11,7 @@ test('ouvrir sans objets puis parcourir l’Atlas par pages sans chargement comp
     else if(url.pathname.endsWith('/tiles')) body={revision:world.revision,objects:[world.objects[0]],total:1,reduced:false};
     else if(url.pathname.endsWith('/'+world.id)) {
       const summary=url.searchParams.get('summary')==='1'; if(summary) summaries++; else fullLoads++;
-      body={world:summary?{...world,objects:[]}:world,role:'owner',objectsComplete:!summary};
+      body={world:summary?{...world,objects:[]}:world,role:'owner',objectsComplete:!summary,objectCount:world.objects.length};
     }
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
@@ -19,6 +19,12 @@ test('ouvrir sans objets puis parcourir l’Atlas par pages sans chargement comp
   await page.getByRole('dialog').getByRole('button',{name:/Monde de démonstration/}).click();
   await expect(page.getByText('1 objet(s) chargé(s) dans cette zone',{exact:true})).toBeVisible();
   expect(summaries).toBe(1); expect(fullLoads).toBe(0);
+  await page.getByRole('link',{name:'Accueil',exact:true}).click();
+  await expect(page.getByTestId('world-object-count')).toHaveText(String(world.objects.length));
+  await page.getByRole('link',{name:'Guide',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Vos premiers pas dans AlarMap'})).toBeVisible();
+  expect(fullLoads).toBe(0);
+  await page.getByRole('link',{name:'Carte',exact:true}).click();
   const box=(await page.getByTestId('map-host').locator('canvas').boundingBox())!;
   await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
   await expect(page.getByRole('region',{name:'Lieu sélectionné'})).toContainText('Origine');
@@ -32,5 +38,7 @@ test('ouvrir sans objets puis parcourir l’Atlas par pages sans chargement comp
   await expect(page.getByRole('button',{name:'Localiser Origine',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Localiser Origine',exact:true}).click();
   await expect(page.getByRole('region',{name:'Lieu sélectionné'})).toContainText('Origine');
+  await page.getByRole('link',{name:'Accueil',exact:true}).click();
+  await expect(page.getByTestId('world-object-count')).toHaveText(String(world.objects.length));
   expect(fullLoads).toBe(0);
 });

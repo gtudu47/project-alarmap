@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import type { World, MemberRole } from '@alarmap/map-model';
 
 export interface Account { id: string; email: string; displayName: string; isAdmin: boolean }
-export interface WorldAccess { world: World; role: MemberRole; objectsComplete?: boolean }
+export interface WorldAccess { world: World; role: MemberRole; objectsComplete?: boolean; objectCount?: number }
 export interface WorldSummary { id: string; name: string; radiusKm: number; revision: number; role: MemberRole }
 export interface Invitation { id: string; email: string; expiresAt: string; usedAt?: string; revokedAt?: string }
 interface AuthResponse { user: Account; accessToken: string }

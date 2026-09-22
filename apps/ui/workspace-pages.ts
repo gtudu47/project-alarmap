@@ -30,7 +30,7 @@ export const pageText = {
         <p class="page-lead">{{ text.introduction }}</p>
         <div class="page-actions"><button class="account-primary" (click)="navigate.emit('carte')">{{ text.open }} →</button><button class="account-secondary" (click)="account.emit()">{{ text.account }}</button></div>
         <div class="world-overview"><div><span class="page-eyebrow">MONDE OUVERT</span><h2>{{ world.name }}</h2><p>{{ personal ? 'Votre espace personnel' : 'Une scène de démonstration pour découvrir les outils' }}</p></div><div class="planet-illustration" aria-hidden="true">◎</div></div>
-        <dl class="world-metrics"><div><dt>Rayon planétaire</dt><dd>{{ world.radiusKm }} <small>km</small></dd></div><div><dt>Objets</dt><dd>{{ world.objects.length }}</dd></div><div><dt>Calques</dt><dd>{{ world.layers.length }}</dd></div></dl>
+        <dl class="world-metrics"><div><dt>Rayon planétaire</dt><dd>{{ world.radiusKm }} <small>km</small></dd></div><div><dt>Objets</dt><dd data-testid="world-object-count">{{ remote ? (objectCount ?? '—') : world.objects.length }}</dd></div><div><dt>Calques</dt><dd>{{ world.layers.length }}</dd></div></dl>
         <div class="page-cards"><button class="page-card" (click)="navigate.emit('atlas')"><span>01 · CONSULTER</span><h2>Parcourir l’Atlas</h2><p>Retrouvez les lieux et les tracés de votre monde.</p><b aria-hidden="true">→</b></button><button class="page-card" (click)="navigate.emit('guide')"><span>02 · APPRENDRE</span><h2>Prendre ses repères</h2><p>Découvrez la carte, les comptes et la création de lieux.</p><b aria-hidden="true">→</b></button></div>
       } @else if (page === 'atlas') {
         <div class="page-eyebrow">{{ world.name }}</div><h1 id="page-title" tabindex="-1">{{ text.catalog }}</h1><p class="page-lead">Le catalogue des objets du monde actuellement ouvert.</p>
@@ -51,6 +51,7 @@ export const pageText = {
 export class WorkspacePages implements OnChanges, OnDestroy {
   @Input({ required: true }) world!: World;
   @Input() personal = false;
+  @Input() objectCount: number | null = null;
   @Input() remote = false;
   @Input() page: WorkspacePage = 'accueil';
   @Output() readonly navigate = new EventEmitter<WorkspacePage>();

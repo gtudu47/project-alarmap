@@ -28,9 +28,10 @@ export class WorldsService {
     finally { client.release(); }
     return this.get(userId, id);
   }
-  async get(userId: string, id: string, summary = false): Promise<{ world: World; role: MemberRole; objectsComplete: boolean }> {
-    const result = await this.pool.query<{ document: unknown; role: MemberRole }>(`SELECT
+  async get(userId: string, id: string, summary = false): Promise<{ world: World; role: MemberRole; objectsComplete: boolean; objectCount: number }> {
+    const result = await this.pool.query<{ document: unknown; role: MemberRole; objectCount: number }>(`SELECT
       CASE WHEN w.owner_id=$2 THEN 'owner' ELSE m.role END AS role,
+      (SELECT count(*)::integer FROM map_objects o WHERE o.world_id=w.id) AS "objectCount",
       jsonb_build_object('schemaVersion',w.schema_version,'id',w.id,'name',w.name,'slug',w.slug,
         'radiusKm',w.radius_km,'revision',w.revision,'status',w.status,
         'layers',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',l.id,'name',l.name,'visible',l.visible,
@@ -42,7 +43,7 @@ export class WorldsService {
       FROM worlds w LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
       WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)`, [id, userId, summary]);
     if (!result.rows[0]) throw new NotFoundException('Monde introuvable.');
-    return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary };
+    return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary, objectCount: result.rows[0].objectCount };
   }
   async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();

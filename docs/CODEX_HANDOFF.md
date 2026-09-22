@@ -395,3 +395,8 @@ Validation avant pause : types/lint, deux tests API/PostGIS et build Docker
 réussis. Reprise : cinq parcours Edge réussis (Atlas paginé, navigation, mobile,
 localisation et édition de lieux). L’édition et l’accueil chargent encore le
 monde complet ; optimisation restante, sans prétendre livrer toute la V0.9.
+
+## Accueil et Guide légers (22 septembre 2026)
+
+Les métadonnées autorisées incluent objectCount, calculé dans la même requête que la révision. Accueil et Guide ne déclenchent plus ensureComplete, y compris via l’historique du navigateur. Le total reste indépendant des objets des tuiles et est recalculé après une édition complète. Ancien serveur sans compteur : valeur inconnue affichée par un tiret.
+Validation : npm run check (29 tests), build Docker et contrôles de santé réussis ; deux tests API/PostGIS et cinq parcours Edge validés. Lors du premier passage sous compilation simultanée, un test SQL et deux initialisations du globe ont dépassé leur délai ; relance isolée réussie sans modification des délais. Contrôle des secrets et diff réussis. L’édition charge encore les objets complets : prochaine optimisation à traiter séparément.

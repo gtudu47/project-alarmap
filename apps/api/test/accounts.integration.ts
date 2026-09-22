@@ -155,11 +155,11 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(linePath.replace('/lines/','/points/'), tokens[0], { revision: 1 }, 'DELETE')).status, 404);
     assert.equal((await request(linePath, tokens[0], { revision: 1 }, 'DELETE')).status, 200);
     assert.equal((await request(linePath, tokens[0], { revision: 2, point: line }, 'PUT')).status, 200);
-    const summary = await (await request('/worlds/' + other.world.id + '?summary=1', tokens[0])).json() as { world: World; objectsComplete: boolean };
-    assert.equal(summary.objectsComplete,false); assert.deepEqual(summary.world.objects,[]);
+    const summary = await (await request('/worlds/' + other.world.id + '?summary=1', tokens[0])).json() as { world: World; objectsComplete: boolean; objectCount: number };
+    assert.equal(summary.objectCount,1); assert.equal(summary.objectsComplete,false); assert.deepEqual(summary.world.objects,[]);
     assert.equal(summary.world.layers.length,1); assert.equal(summary.world.revision,3);
-    const complete = await (await request('/worlds/' + other.world.id, tokens[0])).json() as { world: World; objectsComplete: boolean };
-    assert.equal(complete.objectsComplete,true); assert.equal(complete.world.objects.length,1);
+    const complete = await (await request('/worlds/' + other.world.id, tokens[0])).json() as { world: World; objectsComplete: boolean; objectCount: number };
+    assert.equal(complete.objectCount,complete.world.objects.length); assert.equal(complete.objectsComplete,true); assert.equal(complete.world.objects.length,1);
     assert.equal((await request('/worlds/' + other.world.id + '?summary=1')).status,401);
     assert.equal((await request('/worlds/' + other.world.id + '?summary=bad',tokens[0])).status,400);
     for (const name of ['École A','École B','École %']) await infra.pool.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style) VALUES($1,$2,$3,'city',$4,ST_SetSRID(ST_MakePoint(0,0),4326),' {"color":"#e6b96c","opacity":1}'::jsonb)`,[randomUUID(),other.world.id,line.layerId,name]);

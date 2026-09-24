@@ -400,3 +400,8 @@ monde complet ; optimisation restante, sans prétendre livrer toute la V0.9.
 
 Les métadonnées autorisées incluent objectCount, calculé dans la même requête que la révision. Accueil et Guide ne déclenchent plus ensureComplete, y compris via l’historique du navigateur. Le total reste indépendant des objets des tuiles et est recalculé après une édition complète. Ancien serveur sans compteur : valeur inconnue affichée par un tiret.
 Validation : npm run check (29 tests), build Docker et contrôles de santé réussis ; deux tests API/PostGIS et cinq parcours Edge validés. Lors du premier passage sous compilation simultanée, un test SQL et deux initialisations du globe ont dépassé leur délai ; relance isolée réussie sans modification des délais. Contrôle des secrets et diff réussis. L’édition charge encore les objets complets : prochaine optimisation à traiter séparément.
+
+## Édition légère validée (24 septembre 2026)
+
+PATCH/DELETE/PUT des points et PUT/DELETE des lignes acceptent compact=1 : métadonnées avec zéro ou un objet, compteur et révision capturés dans la transaction. Sans cette option, le contrat complet reste disponible. Le client fusionne la réponse ciblée ; modifier/supprimer un lieu et Annuler/Rétablir ne déclenchent plus ensureComplete. Le chargement complet reste utilisé pour la création et les calques.
+Validation : npm run check réussi (lint, types, 29 tests, builds), build Docker et santé des services réussis, deux tests API/PostGIS, quatre parcours Edge (édition complète et partielle, navigation légère, tracés avec historique), contrôle des secrets et diff réussis.

@@ -262,3 +262,8 @@ utilise cette liste locale. L’édition et l’accueil restent à optimiser.
 ## Accueil et Guide sans chargement intégral
 
 L’Accueil affiche le nombre total d’objets de la révision ouverte, fourni par le serveur avec les métadonnées du monde. Il ne compte pas seulement les objets visibles à l’écran. L’Accueil et le Guide restent accessibles sans télécharger toutes les géométries. Si le serveur ne fournit pas encore ce compteur, un tiret indique une valeur inconnue. Les opérations d’édition continuent à charger le monde complet.
+
+## Modification légère des lieux
+
+Modifier ou supprimer un lieu, puis annuler ou rétablir cette action, ne nécessite plus de charger tous les objets du monde. Le serveur renvoie seulement l’objet concerné (aucun après suppression), avec les métadonnées, le compteur et la révision issus de la même transaction. Les droits et verrous de calque restent contrôlés. Une révision périmée exige un rechargement.
+La création des lieux et des tracés ainsi que les changements de calques utilisent encore le chargement complet.

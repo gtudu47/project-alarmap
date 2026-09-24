@@ -1,3 +1,4 @@
+import type { Pool, PoolClient } from 'pg';
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { objectSchema, worldSchema, type World, type MapObject, type MemberRole } from '@alarmap/map-model';
@@ -28,8 +29,8 @@ export class WorldsService {
     finally { client.release(); }
     return this.get(userId, id);
   }
-  async get(userId: string, id: string, summary = false): Promise<{ world: World; role: MemberRole; objectsComplete: boolean; objectCount: number }> {
-    const result = await this.pool.query<{ document: unknown; role: MemberRole; objectCount: number }>(`SELECT
+  async get(userId: string, id: string, summary = false, objectId?: string, connection: Pool | PoolClient = this.pool): Promise<{ world: World; role: MemberRole; objectsComplete: boolean; objectCount: number }> {
+    const result = await connection.query<{ document: unknown; role: MemberRole; objectCount: number }>(`SELECT
       CASE WHEN w.owner_id=$2 THEN 'owner' ELSE m.role END AS role,
       (SELECT count(*)::integer FROM map_objects o WHERE o.world_id=w.id) AS "objectCount",
       jsonb_build_object('schemaVersion',w.schema_version,'id',w.id,'name',w.name,'slug',w.slug,
@@ -39,11 +40,11 @@ export class WorldsService {
         'objects',CASE WHEN $3::boolean THEN '[]'::jsonb ELSE COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object('id',o.id,'layerId',o.layer_id,
           'name',o.name,'kind',o.kind,'geometry',ST_AsGeoJSON(o.geometry)::jsonb,'style',o.style,
           'properties',o.properties,'startYear',o.start_year,'endYear',o.end_year)) ORDER BY o.id)
-          FROM map_objects o WHERE o.world_id=w.id),'[]'::jsonb) END) AS document
+          FROM map_objects o WHERE o.world_id=w.id AND ($4::uuid IS NULL OR o.id=$4)),'[]'::jsonb) END) AS document
       FROM worlds w LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
-      WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)`, [id, userId, summary]);
+      WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2)`, [id, userId, summary, objectId ?? null]);
     if (!result.rows[0]) throw new NotFoundException('Monde introuvable.');
-    return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary, objectCount: result.rows[0].objectCount };
+    return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary && !objectId, objectCount: result.rows[0].objectCount };
   }
   async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
@@ -68,7 +69,7 @@ export class WorldsService {
     return this.get(userId, id);
   }
 
-  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number }, geometryType = 'ST_Point'): Promise<{ world: World; role: MemberRole }> {
+  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number }, geometryType = 'ST_Point', compact = false): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -86,13 +87,15 @@ export class WorldsService {
       if (update) await client.query('UPDATE map_objects SET name=$3,geometry=ST_SetSRID(ST_MakePoint($4,$5),4326) WHERE id=$1 AND world_id=$2', [pointId, id, update.name, update.longitude, update.latitude]);
       else await client.query('DELETE FROM map_objects WHERE id=$1 AND world_id=$2', [pointId, id]);
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
+      const result = compact ? await this.get(userId, id, false, pointId, client) : undefined;
       await client.query('COMMIT');
+      if (result) return result;
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
     return this.get(userId, id);
   }
 
-  async restorePoint(userId: string, id: string, revision: number, point: MapObject, geometryType = 'ST_Point'): Promise<{ world: World; role: MemberRole }> {
+  async restorePoint(userId: string, id: string, revision: number, point: MapObject, geometryType = 'ST_Point', compact = false): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -115,7 +118,9 @@ export class WorldsService {
         WHERE map_objects.world_id=EXCLUDED.world_id`, [point.id,id,point.layerId,point.kind,point.name,JSON.stringify(point.geometry),JSON.stringify(point.style),JSON.stringify(point.properties),point.startYear ?? null,point.endYear ?? null]);
       if (saved.rowCount !== 1) throw new ConflictException('Ce lieu ne peut pas être restauré.');
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
+      const result = compact ? await this.get(userId, id, false, point.id, client) : undefined;
       await client.query('COMMIT');
+      if (result) return result;
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
     return this.get(userId, id);

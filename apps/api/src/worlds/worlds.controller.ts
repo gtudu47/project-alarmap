@@ -36,35 +36,40 @@ export class WorldsController {
 
   @Patch(':id/points/:pointId')
   @Header('Cache-Control', 'no-store')
-  updatePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+  updatePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
     const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90), revision: z.number().int().nonnegative() }).strict(), body);
-    return this.worlds.changePoint(request.account.id, id, pointId, input.revision, input);
+    return this.worlds.changePoint(request.account.id, id, pointId, input.revision, input, 'ST_Point', compact);
   }
   @Delete(':id/points/:pointId')
   @Header('Cache-Control', 'no-store')
-  deletePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+  deletePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
     const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
-    return this.worlds.changePoint(request.account.id, id, pointId, input.revision);
+    return this.worlds.changePoint(request.account.id, id, pointId, input.revision, undefined, 'ST_Point', compact);
   }
 
   @Put(':id/points/:pointId')
   @Header('Cache-Control', 'no-store')
-  restorePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+  restorePoint(@Param('id', ParseUUIDPipe) id: string, @Param('pointId', ParseUUIDPipe) pointId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
     const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: objectSchema.refine(point => point.geometry.type === 'Point' && point.id === pointId, 'Point invalide.') }).strict(), body);
-    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point);
+    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point, 'ST_Point', compact);
   }
 
   @Put(':id/lines/:lineId')
   @Header('Cache-Control', 'no-store')
-  saveLine(@Param('id', ParseUUIDPipe) id: string, @Param('lineId', ParseUUIDPipe) lineId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+  saveLine(@Param('id', ParseUUIDPipe) id: string, @Param('lineId', ParseUUIDPipe) lineId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
     const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: lineObjectSchema.refine(line => line.id === lineId, 'Identifiant invalide.') }).strict(), body);
-    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point, 'ST_LineString');
+    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point, 'ST_LineString', compact);
   }
   @Delete(':id/lines/:lineId')
   @Header('Cache-Control', 'no-store')
-  deleteLine(@Param('id', ParseUUIDPipe) id: string, @Param('lineId', ParseUUIDPipe) lineId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+  deleteLine(@Param('id', ParseUUIDPipe) id: string, @Param('lineId', ParseUUIDPipe) lineId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
     const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
-    return this.worlds.changePoint(request.account.id, id, lineId, input.revision, undefined, 'ST_LineString');
+    return this.worlds.changePoint(request.account.id, id, lineId, input.revision, undefined, 'ST_LineString', compact);
   }
 
   @Post(':id/layers')

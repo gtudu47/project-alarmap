@@ -228,3 +228,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [ ] Édition/résumés sans chargement complet ; index de recherche pour 100k objets.
 
 - Chargement progressif : Accueil et Guide accessibles sans récupération intégrale des objets ; compteur total autorisé fourni avec les métadonnées. L’édition reste à optimiser.
+
+- Édition progressive : modification/suppression des lieux et historique avec réponses compactes transactionnelles ; création et calques encore à optimiser.

@@ -250,15 +250,15 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private clearHistory(): void { this.history.clear(); this.refreshHistory(); }
   private recordHistory(change: PointChange): void { this.history.record(change); this.refreshHistory(); }
   async applyHistory(direction: 'undo' | 'redo'): Promise<void> {
-    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !await this.ensureComplete() || this.pointBusy()) return;
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer') return;
     const change = this.history.peek(direction); if (!change) return;
     const target = direction === 'undo' ? change.before : change.after;
     const pointId = (change.before ?? change.after)!.id; const worldId = this.world.id; const previousRevision = this.world.revision;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : '/points/') + pointId, { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : '/points/') + pointId + '?compact=1', { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
-        this.world = worldSchema.parse(result.world); this.syncScene(); this.deleteConfirm.set(null);
+        this.applyObjectResult(result, pointId, previousRevision); this.deleteConfirm.set(null);
         if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
         if (!target && this.selectedId() === pointId) this.selectedId.set(null);
         this.pointMessage.set(direction === 'undo' ? 'Action annulée.' : 'Action rétablie.');
@@ -329,18 +329,29 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private async changePoint(update?: { name: FormDataEntryValue | null; longitude: number; latitude: number }): Promise<void> {
     const id = this.selectedId(); const worldId = this.world.id; const previousRevision = this.world.revision;
     const before = this.world.objects.find(object => object.id === id);
-    if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy() || !await this.ensureComplete() || this.pointBusy()) return;
+    if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy()) return;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + id, { method: update ? 'PATCH' : 'DELETE', body: JSON.stringify({ ...update, revision: this.world.revision }) });
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points/' + id + '?compact=1', { method: update ? 'PATCH' : 'DELETE', body: JSON.stringify({ ...update, revision: this.world.revision }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
-        this.world = worldSchema.parse(result.world); this.syncScene(); this.deleteConfirm.set(null);
+        this.applyObjectResult(result, id, previousRevision); this.deleteConfirm.set(null);
         if (before && this.world.revision === previousRevision + 1) this.recordHistory({ before, after: this.world.objects.find(object => object.id === id) ?? null }); else this.clearHistory();
         if (!update) { if (this.selectedId() === id) this.selectedId.set(null); this.pointMessage.set('Lieu supprimé.'); }
         else { this.pointMessage.set('Lieu modifié.'); if (this.selectedId() === id) this.engine?.focus([update.longitude, update.latitude]); }
       }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Modification impossible.'); }
     finally { this.pointBusy.set(false); }
+  }
+  private applyObjectResult(access: WorldAccess, id: string, revision: number): void {
+    const world = worldSchema.parse(access.world);
+    if (world.id !== this.world.id || world.revision !== revision + 1) {
+      this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.');
+    }
+    if (access.objectsComplete === false) {
+      this.world = { ...world, objects: [...this.world.objects.filter(object => object.id !== id), ...world.objects] };
+    } else { this.world = world; this.objectsPartial.set(false); }
+    this.objectCount.set(access.objectCount ?? null);
+    this.syncScene();
   }
   readonly view = signal<ViewMode>('plane');
   readonly loading = signal(true);

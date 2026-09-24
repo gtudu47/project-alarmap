@@ -1,34 +1,38 @@
 import { expect, test } from '@playwright/test';
 import { createDemoWorld } from '../../packages/map-model/src/index';
 
-test('modifier puis supprimer un lieu avec confirmation', async ({ page }) => {
+for (const partial of [false, true]) test('modifier puis supprimer un lieu avec confirmation, chargement partiel : ' + partial, async ({ page }) => {
   const world = createDemoWorld();
   const user = { id: '00000000-0000-4000-8000-000000000050', email: 'alice@example.test', displayName: 'Alice', isAdmin: false };
-  let deletions = 0;
+  let deletions = 0; let fullLoads = 0;
+  const response = (objects = world.objects) => ({ world: { ...world, objects: partial ? objects : world.objects }, role: 'owner', objectsComplete: !partial, objectCount: world.objects.length });
   await page.route('**/api/v1/**', async route => {
-    const path = new URL(route.request().url()).pathname;
+    const url = new URL(route.request().url()); const path = url.pathname;
     const method = route.request().method();
+    if (path.includes('/points/')) expect(url.searchParams.get('compact')).toBe('1');
     let body: unknown = { initialized: true, status: 'ok' };
     if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'ui-test' };
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
+    else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: world.objects, total: world.objects.length, reduced: false };
+    else if (path.endsWith('/atlas')) body = { revision: world.revision, objects: world.objects, nextCursor: null };
     else if (path.includes('/points/') && method === 'PATCH') {
       const input = route.request().postDataJSON();
       expect(input).toEqual({ name: 'Nouvelle capitale', longitude: 30, latitude: -15, revision: 0 });
       world.objects[0]!.name = input.name;
       world.objects[0]!.geometry = { type: 'Point', coordinates: [input.longitude, input.latitude] };
       world.revision++;
-      body = { world, role: 'owner' };
+      body = response(world.objects.filter(object => object.id === path.split('/').at(-1)));
     } else if (path.includes('/points/') && method === 'DELETE') {
       expect(route.request().postDataJSON()).toEqual({ revision: world.revision });
       deletions++; world.objects = world.objects.filter(object => object.geometry.type !== 'Point'); world.revision++;
-      body = { world, role: 'owner' };
+      body = response(world.objects.filter(object => object.id === path.split('/').at(-1)));
     } else if (path.includes('/points/') && method === 'PUT') {
       const input = route.request().postDataJSON();
       expect(input.revision).toBe(world.revision);
       world.objects = world.objects.filter(object => object.id !== input.point.id);
       world.objects.push(input.point); world.revision++;
-      body = { world, role: 'owner' };
-    } else if (path.endsWith('/' + world.id)) body = { world, role: 'owner' };
+      body = response(world.objects.filter(object => object.id === path.split('/').at(-1)));
+    } else if (path.endsWith('/' + world.id)) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/');
@@ -62,4 +66,7 @@ test('modifier puis supprimer un lieu avec confirmation', async ({ page }) => {
   await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Rétablir l’action', exact: true })).toBeDisabled();
   expect(world.objects.some(object => object.geometry.type === 'Point')).toBe(false);
+  expect(fullLoads).toBe(0);
+  await page.getByRole('link', { name: 'Accueil', exact: true }).click();
+  await expect(page.getByTestId('world-object-count')).toHaveText(String(world.objects.length));
 });

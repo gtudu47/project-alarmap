@@ -174,6 +174,20 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.notEqual(atlasNext.objects[0]!.id,atlasFirst.objects[0]!.id);
     const literal=await (await request(atlasPath+'?q=%25',tokens[0])).json() as {objects:World['objects']}; assert.equal(literal.objects.length,1);
     assert.equal((await request(atlasPath+'?revision=0',tokens[0])).status,409);
+    const compactId = literal.objects[0]!.id;
+    const compactPath = '/worlds/'+other.world.id+'/points/'+compactId+'?compact=1';
+    const compactUpdate = { name: 'École renommée', longitude: 12, latitude: 4, revision: 3 };
+    assert.equal((await request(compactPath, undefined, compactUpdate, 'PATCH')).status,401);
+    assert.equal((await request(compactPath.replace('compact=1','compact=bad'), tokens[0], compactUpdate, 'PATCH')).status,400);
+    const compactResult = await (await request(compactPath,tokens[0],compactUpdate,'PATCH')).json() as { world: World; objectsComplete: boolean; objectCount: number };
+    assert.equal(compactResult.objectsComplete,false); assert.equal(compactResult.objectCount,4);
+    assert.equal(compactResult.world.objects.length,1); assert.equal(compactResult.world.objects[0]!.name,compactUpdate.name);
+    assert.equal(compactResult.world.revision,4);
+    assert.equal((await request(compactPath,tokens[0],compactUpdate,'PATCH')).status,409);
+    const compactDeleted = await (await request(compactPath,tokens[0],{revision:4},'DELETE')).json() as typeof compactResult;
+    assert.deepEqual(compactDeleted.world.objects,[]); assert.equal(compactDeleted.objectCount,3); assert.equal(compactDeleted.world.revision,5);
+    const compactRestored = await (await request(compactPath,tokens[0],{revision:5,point:compactResult.world.objects[0]},'PUT')).json() as typeof compactResult;
+    assert.equal(compactRestored.world.objects.length,1); assert.equal(compactRestored.objectCount,4); assert.equal(compactRestored.world.revision,6);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

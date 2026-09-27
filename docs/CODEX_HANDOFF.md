@@ -405,3 +405,7 @@ Validation : npm run check (29 tests), build Docker et contrôles de santé réu
 
 PATCH/DELETE/PUT des points et PUT/DELETE des lignes acceptent compact=1 : métadonnées avec zéro ou un objet, compteur et révision capturés dans la transaction. Sans cette option, le contrat complet reste disponible. Le client fusionne la réponse ciblée ; modifier/supprimer un lieu et Annuler/Rétablir ne déclenchent plus ensureComplete. Le chargement complet reste utilisé pour la création et les calques.
 Validation : npm run check réussi (lint, types, 29 tests, builds), build Docker et santé des services réussis, deux tests API/PostGIS, quatre parcours Edge (édition complète et partielle, navigation légère, tracés avec historique), contrôle des secrets et diff réussis.
+
+## Reprise du stockage (27 septembre 2026)
+
+Les images officielles MinIO/mc utilisées par Compose refusent le téléchargement sur Quay et Docker Hub. Ajout de docker/Minio.Dockerfile : compilation des mêmes tags officiels via Go, images serveur et client séparées. Compose conserve les noms de services, volumes et paramètres S3. Validation locale réussie : construction des deux images depuis les sources, redémarrage sur le volume existant, initialisation du bucket (code 0), écriture/lecture/nettoyage S3 et API ready. Lint et diff vérifiés. Images de base figées par digest et licences incluses. Le contrôle S3 est ajouté à la CI ; sa validation distante reste à suivre après push.

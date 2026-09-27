@@ -30,6 +30,7 @@ jobs:
       - run: npm run config:init
       - run: docker compose up -d --build --wait --wait-timeout 240
       - run: curl --fail http://localhost:8080/api/v1/health/ready
+      - run: docker compose exec -T alarmap-api node --input-type=module < scripts/check-storage.mjs
       - run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d alarmap-postgres
       - run: npm run test:integration
       - run: npx playwright install --with-deps chromium

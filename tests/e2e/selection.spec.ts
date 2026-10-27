@@ -29,3 +29,29 @@ test('sélection directe sur le globe', async ({ page }) => {
   await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await expect(page.getByRole('region', { name: 'Lieu sélectionné' })).toContainText('Origine');
 });
+
+test('sélectionner un tracé aux deux côtés de l’antiméridien', async ({ page }) => {
+  await page.goto('/?page=carte');
+  await expect(page.getByRole('button', { name: 'Carte plane', exact: true })).toBeEnabled();
+  const canvas = page.getByTestId('map-host').locator('canvas');
+  const bounds = (await canvas.boundingBox())!;
+  const scale = Math.min(bounds.width / 400, bounds.height / 220);
+  const click = async (lon: number, lat: number) => page.mouse.click(bounds.x + bounds.width / 2 + lon * scale, bounds.y + bounds.height / 2 - lat * scale);
+  for (const [lon, lat] of [[175, 22.5], [-175, 27.5]]) {
+    await click(lon!, lat!);
+    await expect(page.getByRole('region', { name: 'Tracé sélectionné' })).toContainText('Passage de l’antiméridien');
+    await page.getByRole('button', { name: 'Fermer la fiche' }).click();
+  }
+  await click(0, 25);
+  await expect(page.getByRole('region', { name: 'Tracé sélectionné' })).toHaveCount(0);
+  await page.getByRole('checkbox').uncheck();
+  await click(175, 22.5);
+  await expect(page.getByRole('region', { name: 'Tracé sélectionné' })).toHaveCount(0);
+});
+
+test('localiser un tracé depuis l’Atlas', async ({ page }) => {
+  await page.goto('/?page=atlas');
+  await page.getByRole('button', { name: 'Localiser Passage de l’antiméridien' }).click();
+  await expect(page.getByRole('region', { name: 'Tracé sélectionné' })).toContainText('Passage de l’antiméridien');
+  await expect(page.getByTestId('map-host').locator('canvas')).toBeVisible();
+});

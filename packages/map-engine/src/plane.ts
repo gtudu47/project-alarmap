@@ -3,7 +3,7 @@ import { DEFAULT_GRID, visibleGrid, type GridOptions, type GridStats, type GridV
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import type { Coordinate, World } from '@alarmap/map-model';
 import type { RendererAdapter } from './types.js';
-import { splitAntimeridian } from './geography.js';
+import { distanceToSegment, splitAntimeridian } from './geography.js';
 
 export class PlaneRenderer implements RendererAdapter {
   private readonly app = new Application();
@@ -52,10 +52,18 @@ export class PlaneRenderer implements RendererAdapter {
       for (const layer of [...(this.world?.layers ?? [])].sort((a, b) => a.order - b.order)) {
         if (!layer.visible || layer.opacity === 0) continue;
         for (const object of this.world?.objects ?? []) {
-          if (object.layerId !== layer.id || object.geometry.type !== 'Point' || object.style.opacity === 0) continue;
-          const [longitude, latitude] = object.geometry.coordinates;
-          const delta = Math.hypot(x - (this.scene.x + longitude * this.scene.scale.x), y - (this.scene.y - latitude * this.scene.scale.y));
-          if (delta <= distance) { distance = delta; nearest = object.id; }
+          if (object.layerId !== layer.id || object.style.opacity === 0) continue;
+          if (object.geometry.type === 'Point') {
+            const [longitude, latitude] = object.geometry.coordinates;
+            const delta = Math.hypot(x - (this.scene.x + longitude * this.scene.scale.x), y - (this.scene.y - latitude * this.scene.scale.y));
+            if (delta <= distance) { distance = delta; nearest = object.id; }
+          } else if (object.geometry.type === 'LineString') {
+            const pixel = ([lon, lat]: Coordinate): [number, number] => [this.scene.x + lon * this.scene.scale.x, this.scene.y - lat * this.scene.scale.y];
+            for (const segment of splitAntimeridian(object.geometry.coordinates)) for (let i = 1; i < segment.length; i++) {
+              const delta = distanceToSegment([x, y], pixel(segment[i - 1]!), pixel(segment[i]!));
+              if (delta < distance) { distance = delta; nearest = object.id; }
+            }
+          }
         }
       }
       onSelect(nearest);

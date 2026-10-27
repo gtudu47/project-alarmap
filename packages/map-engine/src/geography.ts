@@ -41,3 +41,11 @@ export function splitAntimeridian(points: Coordinate[]): Coordinate[][] {
   }
   return segments;
 }
+
+/** Distance en pixels entre un clic et un segment, bornée aux extrémités. */
+export function distanceToSegment(point: [number, number], a: [number, number], b: [number, number]): number {
+  const dx = b[0] - a[0]; const dy = b[1] - a[1];
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared)) : 0;
+  return Math.hypot(point[0] - (a[0] + t * dx), point[1] - (a[1] + t * dy));
+}

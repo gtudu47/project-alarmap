@@ -155,7 +155,7 @@ L’historique durable et l’annulation des autres géométries restent à dév
 
 Sélection des points visibles par clic dans la carte plane et le globe,
 ouverture de la fiche existante et distinction avec le déplacement de caméra.
-La sélection directe des lignes et polygones reste à développer.
+La sélection directe des lignes est disponible en vue plane ; celle des lignes sur globe et des polygones reste à développer.
 
 ### Gestion des calques
 
@@ -232,3 +232,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - Édition progressive : modification/suppression des lieux et historique avec réponses compactes transactionnelles ; création et calques encore à optimiser.
 
 - Création progressive : ajout des lieux et tracés sans téléchargement préalable du monde complet ; historique et compteurs conservés.
+
+- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Sélection directe des tracés sur le globe et édition des sommets à réaliser.

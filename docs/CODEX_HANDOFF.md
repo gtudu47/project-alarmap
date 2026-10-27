@@ -415,3 +415,8 @@ Les images officielles MinIO/mc utilisées par Compose refusent le téléchargem
 Dépôt de travail déplacé vers C:/Users/fred/OneDrive/Documents/GitHub/project-alarmap. Les jonctions npm des sept workspaces ont été réparées localement après le déplacement (elles visaient encore l’ancien dossier).
 POST points accepte compact=1 et renvoie le seul objet créé avec révision/compteur dans la transaction. Ajout des lieux et création des lignes ne chargent plus le monde complet ; les opérations de calque restent à optimiser. Historique conservé.
 Validation : lint, types, 29 tests unitaires, builds natifs et Docker réussis ; deux tests API/PostGIS, six parcours navigateur validés. Un test d’édition attend désormais la fin effective de la mutation plutôt que le bouton désactivé pendant la requête. Santé API et contrôle des secrets réussis.
+
+## Sélection des tracés (27 octobre 2026)
+
+Après demande utilisateur, optimisation des calques abandonnée au profit de la roadmap. La vue plane détecte les clics à dix pixels des segments affichés, en utilisant le découpage à l’antiméridien et en ignorant les calques ou objets invisibles. L’Atlas localise les lignes à leur premier sommet, avec fiche dédiée. Sélection directe des lignes sur globe, modification des sommets et polygones restent à faire.
+Validation : lint, types, 30 tests unitaires et build Docker réussis ; huit parcours navigateur validés, dont le chargement partiel relancé après un délai au premier démarrage. La CI du commit 65110df a réussi sur Windows, Linux et Docker.

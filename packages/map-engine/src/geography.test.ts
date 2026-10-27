@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { distanceKm, fromSphere, splitAntimeridian, toSphere } from './geography.js';
+import { distanceKm, distanceToSegment, fromSphere, splitAntimeridian, toSphere } from './geography.js';
 
 it('traverse l’antiméridien par deux segments courts', () => {
   expect(splitAntimeridian([[170, 20], [-170, 30]])).toEqual([[[170, 20], [180, 25]], [[-180, 25], [-170, 30]]]);
@@ -16,4 +16,10 @@ it('convertit les coordonnées du globe dans les deux sens', () => {
     expect(result[0]).toBeCloseTo(coordinate[0]);
     expect(result[1]).toBeCloseTo(coordinate[1]);
   }
+});
+
+it('mesure la distance au segment, y compris aux extrémités', () => {
+  expect(distanceToSegment([5, 3], [0, 0], [10, 0])).toBe(3);
+  expect(distanceToSegment([13, 4], [0, 0], [10, 0])).toBe(5);
+  expect(distanceToSegment([3, 4], [0, 0], [0, 0])).toBe(5);
 });

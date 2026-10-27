@@ -105,7 +105,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
-        @if (selectedObject(); as object) { <section class="selected-place" aria-label="Lieu sélectionné"><h2>{{ object.name }}</h2><p>Lieu sélectionné.</p>
+        @if (selectedObject(); as object) { <section class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? 'Lieu sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? 'Lieu sélectionné.' : 'Tracé sélectionné.' }}</p>
           @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
             <form class="point-form" (submit)="updatePoint($event)">
               <label>Nom du lieu sélectionné<input name="name" [value]="object.name" required maxlength="200"></label>
@@ -272,12 +272,12 @@ export class MapShell implements AfterViewInit, OnDestroy {
   locateObject(object: MapObject): void {
     const id = object.id;
     if (!this.world.objects.some(item => item.id === id)) { this.world = { ...this.world, objects: [...this.world.objects,object] }; this.syncScene(); }
-    if (!object || object.geometry.type !== 'Point') return;
+    if (object.geometry.type !== 'Point' && object.geometry.type !== 'LineString') return;
     this.deleteConfirm.set(null); this.selectedId.set(id);
     this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));
     this.engine?.setLayerVisible(object.layerId, true);
     this.navigate('carte');
-    const coordinate = object.geometry.coordinates;
+    const coordinate = object.geometry.type === 'Point' ? object.geometry.coordinates : object.geometry.coordinates[0]!;
     requestAnimationFrame(() => { if (this.selectedId() === id) this.engine?.focus(coordinate); });
   }
   readonly pointBusy = signal(false);

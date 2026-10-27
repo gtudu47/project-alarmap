@@ -271,3 +271,7 @@ La création des lieux et des tracés ainsi que les changements de calques utili
 ## Création sans chargement intégral
 
 L’ajout d’un lieu et l’enregistrement d’un tracé utilisent maintenant une réponse limitée à l’objet créé. Le compteur et la révision sont mis à jour, et Annuler/Rétablir conserve ce fonctionnement léger. Seules les opérations sur les calques exigent encore le chargement complet dans ces parcours d’édition.
+
+## Sélection des tracés
+
+En vue plane, cliquez près d’une route ou d’une rivière visible pour ouvrir sa fiche. Les tracés coupés à l’antiméridien se sélectionnent aux deux bords de la carte. Dans l’Atlas, le bouton Localiser centre la carte sur le début d’un tracé et ouvre sa fiche. La sélection directe des tracés sur le globe reste à développer.

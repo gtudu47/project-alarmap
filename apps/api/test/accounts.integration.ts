@@ -188,6 +188,17 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.deepEqual(compactDeleted.world.objects,[]); assert.equal(compactDeleted.objectCount,3); assert.equal(compactDeleted.world.revision,5);
     const compactRestored = await (await request(compactPath,tokens[0],{revision:5,point:compactResult.world.objects[0]},'PUT')).json() as typeof compactResult;
     assert.equal(compactRestored.world.objects.length,1); assert.equal(compactRestored.objectCount,4); assert.equal(compactRestored.world.revision,6);
+    const compactCreatePath = '/worlds/'+other.world.id+'/points?compact=1';
+    const compactNew = { name: 'Nouveau lieu léger', longitude: 10, latitude: 20, revision: 6 };
+    assert.equal((await request(compactCreatePath,undefined,compactNew)).status,401);
+    assert.equal((await request(compactCreatePath.replace('compact=1','compact=bad'),tokens[0],compactNew)).status,400);
+    const compactCreatedResponse = await request(compactCreatePath,tokens[0],compactNew);
+    assert.equal(compactCreatedResponse.status,201);
+    const compactCreated = await compactCreatedResponse.json() as typeof compactResult;
+    assert.equal(compactCreated.objectsComplete,false); assert.equal(compactCreated.objectCount,5);
+    assert.equal(compactCreated.world.revision,7); assert.equal(compactCreated.world.objects.length,1);
+    assert.equal(compactCreated.world.objects[0]!.name,compactNew.name);
+    assert.equal((await request(compactCreatePath,tokens[0],compactNew)).status,409);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

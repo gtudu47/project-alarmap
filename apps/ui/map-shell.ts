@@ -308,13 +308,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
     finally { this.pointBusy.set(false); }
   }
   async addPoint(event: Event): Promise<void> {
-    event.preventDefault(); if (this.pointBusy() || !await this.ensureComplete() || this.pointBusy()) return;
+    event.preventDefault(); if (this.pointBusy() || !this.personal() || this.role === 'viewer') return;
     const form = event.target as HTMLFormElement; const fields = new FormData(form); const worldId = this.world.id; const previousRevision = this.world.revision;
     const existingIds = new Set(this.world.objects.map(object => object.id));
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision, layerId: fields.get('layerId') }) });
-      if (this.personal() && this.world.id === worldId && this.accounts.user()) { this.world = worldSchema.parse(result.world); this.syncScene(); const added = this.world.objects.filter(object => !existingIds.has(object.id)); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.placingPoint.set(false); this.pointMessage.set('Lieu enregistré.'); }
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points?compact=1', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision, layerId: fields.get('layerId') }) });
+      if (this.personal() && this.world.id === worldId && this.accounts.user()) { const saved = worldSchema.parse(result.world); const added = saved.objects.filter(object => !existingIds.has(object.id)); if (added.length !== 1) throw new Error('Réponse de création invalide. Rechargez le monde.'); this.applyObjectResult(result, added[0]!.id, previousRevision); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.placingPoint.set(false); this.pointMessage.set('Lieu enregistré.'); }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
     finally { this.pointBusy.set(false); }
   }
@@ -370,15 +370,15 @@ export class MapShell implements AfterViewInit, OnDestroy {
   removeLineVertex(): void { this.linePoints.update(points => points.slice(0,-1)); this.engine?.setDraftLine(this.linePoints()); }
   async saveLine(event: Event): Promise<void> {
     event.preventDefault();
-    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !this.drawingLine() || !await this.ensureComplete() || this.pointBusy()) return;
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !this.drawingLine()) return;
     const form = event.target as HTMLFormElement; const fields = new FormData(form);
     const worldId = this.world.id; const revision = this.world.revision;
     this.pointBusy.set(true);
     try {
       const line = lineObjectSchema.parse({ id: crypto.randomUUID(), layerId: fields.get('layerId'), name: String(fields.get('name')).trim(), kind: fields.get('kind'), geometry: { type: 'LineString', coordinates: this.linePoints() }, style: { color: fields.get('kind') === 'river' ? '#69bdd5' : '#e6b96c', opacity: 1 }, properties: {} });
-      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/lines/' + line.id, { method: 'PUT', body: JSON.stringify({ revision, point: line }) });
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/lines/' + line.id + '?compact=1', { method: 'PUT', body: JSON.stringify({ revision, point: line }) });
       if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
-      this.world = worldSchema.parse(access.world); this.cancelLine(); this.syncScene();
+      this.applyObjectResult(access, line.id, revision); this.cancelLine();
       if (this.world.revision === revision + 1) this.recordHistory({ before: null, after: line }); else this.clearHistory();
       form.reset(); this.pointMessage.set('Tracé enregistré.');
     } catch { this.pointMessage.set('Tracé non enregistré : vérifiez les sommets, les droits, le calque et la révision. Le dessin est conservé.'); }

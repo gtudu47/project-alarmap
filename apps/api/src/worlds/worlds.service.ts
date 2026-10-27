@@ -46,7 +46,8 @@ export class WorldsService {
     if (!result.rows[0]) throw new NotFoundException('Monde introuvable.');
     return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary && !objectId, objectCount: result.rows[0].objectCount };
   }
-  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }): Promise<{ world: World; role: MemberRole }> {
+  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
+    const pointId = randomUUID();
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -61,9 +62,11 @@ export class WorldsService {
       if (!layer.rows[0]) throw new ConflictException('Aucun calque modifiable.');
       await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style)
         VALUES($1,$2,$3,'city',$4,ST_SetSRID(ST_MakePoint($5,$6),4326),$7::jsonb)`,
-      [randomUUID(), id, layer.rows[0].id, input.name, input.longitude, input.latitude, JSON.stringify({ color: '#e6b96c', opacity: 1 })]);
+      [pointId, id, layer.rows[0].id, input.name, input.longitude, input.latitude, JSON.stringify({ color: '#e6b96c', opacity: 1 })]);
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
+      const result = compact ? await this.get(userId, id, false, pointId, client) : undefined;
       await client.query('COMMIT');
+      if (result) return result;
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
     return this.get(userId, id);

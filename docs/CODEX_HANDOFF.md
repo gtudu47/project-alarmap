@@ -409,3 +409,9 @@ Validation : npm run check réussi (lint, types, 29 tests, builds), build Docker
 ## Reprise du stockage (27 septembre 2026)
 
 Les images officielles MinIO/mc utilisées par Compose refusent le téléchargement sur Quay et Docker Hub. Ajout de docker/Minio.Dockerfile : compilation des mêmes tags officiels via Go, images serveur et client séparées. Compose conserve les noms de services, volumes et paramètres S3. Validation locale réussie : construction des deux images depuis les sources, redémarrage sur le volume existant, initialisation du bucket (code 0), écriture/lecture/nettoyage S3 et API ready. Lint et diff vérifiés. Images de base figées par digest et licences incluses. Le contrôle S3 est ajouté à la CI ; sa validation distante reste à suivre après push.
+
+## Création légère (27 octobre 2026)
+
+Dépôt de travail déplacé vers C:/Users/fred/OneDrive/Documents/GitHub/project-alarmap. Les jonctions npm des sept workspaces ont été réparées localement après le déplacement (elles visaient encore l’ancien dossier).
+POST points accepte compact=1 et renvoie le seul objet créé avec révision/compteur dans la transaction. Ajout des lieux et création des lignes ne chargent plus le monde complet ; les opérations de calque restent à optimiser. Historique conservé.
+Validation : lint, types, 29 tests unitaires, builds natifs et Docker réussis ; deux tests API/PostGIS, six parcours navigateur validés. Un test d’édition attend désormais la fin effective de la mutation plutôt que le bouton désactivé pendant la requête. Santé API et contrôle des secrets réussis.

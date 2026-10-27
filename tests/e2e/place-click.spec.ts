@@ -1,22 +1,26 @@
 import { expect, test } from '@playwright/test';
 import { createDemoWorld } from '../../packages/map-model/src/index';
-test('placer un lieu par clic, enregistrer puis annuler', async ({ page }) => {
+for (const partial of [false, true]) test('placer un lieu par clic, enregistrer puis annuler — partiel : ' + partial, async ({ page }) => {
   const world = createDemoWorld(); let created = false;
+  let fullLoads = 0;
+  const response = (objects = world.objects) => ({ world: { ...world, objects: partial ? objects : world.objects }, role: 'owner', objectsComplete: !partial, objectCount: world.objects.length });
   const user = { id: '00000000-0000-4000-8000-000000000050', email: 'alice@example.test', displayName: 'Alice', isAdmin: false };
   await page.route('**/api/v1/**', async route => {
-    const path = new URL(route.request().url()).pathname; const method = route.request().method();
+    const url = new URL(route.request().url()); const path = url.pathname; const method = route.request().method();
     let body: unknown = { initialized: true, status: 'ok' };
     if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'test' };
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
+    else if (path.endsWith('/atlas')) body = { revision: world.revision, objects: world.objects, nextCursor: null };
     else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: world.objects, total: world.objects.length, reduced: false };
     else if (path.endsWith('/points') && method === 'POST') {
+      expect(url.searchParams.get('compact')).toBe('1');
       const input = route.request().postDataJSON();
       expect(input.longitude).toBeCloseTo(0); expect(input.latitude).toBeCloseTo(0); expect(input.name).toBe('Ville nouvelle');
       world.objects.push({ ...world.objects[0]!, id: '00000000-0000-4000-8000-000000000099', name: input.name, geometry: { type: 'Point', coordinates: [input.longitude,input.latitude] } });
-      world.revision++; created = true; body = { world, role: 'owner' };
+      world.revision++; created = true; body = response([world.objects.at(-1)!]);
     } else if (path.includes('/points/') && method === 'DELETE') {
-      world.objects = world.objects.filter(o => o.id !== '00000000-0000-4000-8000-000000000099'); world.revision++; body = { world, role: 'owner' };
-    } else if (path.endsWith('/' + world.id)) body = { world, role: 'owner' };
+      world.objects = world.objects.filter(o => o.id !== '00000000-0000-4000-8000-000000000099'); world.revision++; body = response([]);
+    } else if (path.endsWith('/' + world.id)) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
@@ -37,4 +41,5 @@ test('placer un lieu par clic, enregistrer puis annuler', async ({ page }) => {
   await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
   await expect(page.getByText('Action annulée.', { exact: true })).toBeVisible();
   expect(world.objects.some(o => o.name === 'Ville nouvelle')).toBe(false);
+  expect(fullLoads).toBe(0);
 });

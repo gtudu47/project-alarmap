@@ -230,3 +230,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - Chargement progressif : Accueil et Guide accessibles sans récupération intégrale des objets ; compteur total autorisé fourni avec les métadonnées. L’édition reste à optimiser.
 
 - Édition progressive : modification/suppression des lieux et historique avec réponses compactes transactionnelles ; création et calques encore à optimiser.
+
+- Création progressive : ajout des lieux et tracés sans téléchargement préalable du monde complet ; historique et compteurs conservés.

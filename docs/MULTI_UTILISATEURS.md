@@ -267,3 +267,7 @@ L’Accueil affiche le nombre total d’objets de la révision ouverte, fourni p
 
 Modifier ou supprimer un lieu, puis annuler ou rétablir cette action, ne nécessite plus de charger tous les objets du monde. Le serveur renvoie seulement l’objet concerné (aucun après suppression), avec les métadonnées, le compteur et la révision issus de la même transaction. Les droits et verrous de calque restent contrôlés. Une révision périmée exige un rechargement.
 La création des lieux et des tracés ainsi que les changements de calques utilisent encore le chargement complet.
+
+## Création sans chargement intégral
+
+L’ajout d’un lieu et l’enregistrement d’un tracé utilisent maintenant une réponse limitée à l’objet créé. Le compteur et la révision sont mis à jour, et Annuler/Rétablir conserve ce fonctionnement léger. Seules les opérations sur les calques exigent encore le chargement complet dans ces parcours d’édition.

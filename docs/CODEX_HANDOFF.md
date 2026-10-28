@@ -428,3 +428,8 @@ Le raycaster détecte les lignes rendues avec une tolérance de 10 pixels conver
 ## Chargement à l’ouverture d’un monde (28 octobre 2026)
 
 La CI a révélé une course : quand la scène de démonstration et le monde ouvert avaient le même identifiant, la même révision et la même vue, la clé des tuiles pouvait être réutilisée et empêcher le chargement des détails. L’ouverture annule maintenant les anciennes demandes et réinitialise cette clé. Le test attend la fin du chargement de la démonstration avant l’ouverture pour vérifier le cas. Validation : lint, types, builds Docker et six parcours navigateur réussis.
+
+## Édition des sommets de tracés (28 octobre 2026)
+
+Nouvelle route GET worlds/:id/objects/:objectId : accès membre, géométrie non simplifiée et révision cohérente, 404 si objet absent ou hors monde. Depuis une fiche de tracé, éditeur du nom et des coordonnées longitude/latitude (2 à 2 000 sommets) ; propriétés et identité conservées, calque verrouillé et révisions contrôlés par le serveur, Undo/Redo sur le tracé complet. Modification directe des sommets sur la carte encore à faire.
+Validation : npm run check (30 tests), build Docker, deux tests API/PostGIS et huit parcours Edge réussis, dont un tracé simplifié chargé intégralement avant sauvegarde, erreur de saisie et Undo/Redo.

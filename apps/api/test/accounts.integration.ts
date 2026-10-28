@@ -148,6 +148,13 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(linePath, tokens[0], { revision: 0, point: line }, 'PUT')).status, 409);
     await infra.pool.query('UPDATE layers SET locked=false WHERE world_id=$1',[other.world.id]);
     assert.equal((await request(linePath, tokens[0], { revision: 0, point: line }, 'PUT')).status, 200);
+    const objectPath = '/worlds/' + other.world.id + '/objects/' + line.id;
+    assert.equal((await request(objectPath)).status, 401);
+    assert.equal((await request('/worlds/' + world.id + '/objects/' + line.id, tokens[0])).status, 404);
+    assert.equal((await request('/worlds/' + other.world.id + '/objects/' + randomUUID(), tokens[1])).status, 404);
+    const objectAccess = await (await request(objectPath, tokens[1])).json() as { world: World; objectsComplete: boolean };
+    assert.equal(objectAccess.world.revision, 1); assert.equal(objectAccess.objectsComplete, false);
+    assert.deepEqual(objectAccess.world.objects[0]!.geometry, line.geometry);
     const lineWorld = await (await request('/worlds/' + other.world.id, tokens[0])).json() as { world: World };
     assert.deepEqual(lineWorld.world.objects[0]!.geometry, line.geometry);
     assert.equal((await request(linePath, tokens[0], { revision: 0 }, 'DELETE')).status, 409);

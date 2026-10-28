@@ -193,7 +193,7 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Dessin de routes/rivières par sommets en vue plane, aperçu, retrait du
   dernier sommet, abandon et sauvegarde ; rendu plane/globe et Undo/Redo.
-- [ ] Sélection/édition des sommets des lignes existantes ; dessin de polygones.
+- [-] Édition des sommets des lignes existantes par coordonnées ; déplacement à la souris et dessin de polygones à réaliser.
 
 ### Échelle du globe
 
@@ -233,6 +233,8 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - Création progressive : ajout des lieux et tracés sans téléchargement préalable du monde complet ; historique et compteurs conservés.
 
-- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Édition des sommets et sélection des polygones à réaliser.
+- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Édition des sommets par coordonnées disponible ; déplacement direct sur la carte et sélection des polygones à réaliser.
 
 - V0.1 globe : sélection directe des routes et rivières visibles, avec tolérance adaptée au zoom et masquage par la planète.
+
+- V0.1 tracés : édition du nom et des sommets par coordonnées, lecture de la géométrie complète, contrôle des révisions et historique.

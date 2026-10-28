@@ -277,3 +277,7 @@ L’ajout d’un lieu et l’enregistrement d’un tracé utilisent maintenant u
 En vue plane, cliquez près d’une route ou d’une rivière visible pour ouvrir sa fiche. Les tracés coupés à l’antiméridien se sélectionnent aux deux bords de la carte. Dans l’Atlas, le bouton Localiser centre la carte sur le début d’un tracé et ouvre sa fiche. La sélection directe des tracés sur le globe reste à développer.
 
 Sur le globe, cliquez également près d’une route ou rivière pour ouvrir sa fiche. Un tracé masqué par la planète ou par son calque ne peut pas être sélectionné ; la tolérance de clic s’adapte au zoom.
+
+## Modifier un tracé
+
+Sélectionnez une route ou une rivière puis choisissez « Modifier le tracé ». Modifiez le nom et les coordonnées, une paire longitude, latitude par ligne, puis enregistrez. Le tracé complet est chargé avant l’édition pour conserver les sommets qui ne sont pas visibles à l’échelle courante. Les boutons Annuler et Rétablir permettent de revenir sur la modification. Le déplacement direct des sommets à la souris reste à développer.

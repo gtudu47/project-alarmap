@@ -72,7 +72,7 @@ input { accent-color: #487c67; }
 .account-dialog p { font-size: 13px; line-height: 1.7; }
 .account-form { display: grid; gap: 15px; margin: 20px 0; }
 .account-form label, .point-form label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
-.account-form input, .point-form input, .invite-link input { border: 1px solid #bbc8ba; background: #fff; color: #243a3b; padding: 10px 12px; border-radius: 5px; width: 100%; font: inherit; font-weight: 400; }
+.account-form input, .point-form input, .point-form textarea, .invite-link input { border: 1px solid #bbc8ba; background: #fff; color: #243a3b; padding: 10px 12px; border-radius: 5px; width: 100%; font: inherit; font-weight: 400; }
 .account-form small { color: #66756c; }
 .account-link { background: transparent; border: 0; color: #326452; padding: 8px 0; text-decoration: underline; font-size: 12px; }
 .account-error { padding: 12px; background: #f5e5df; border-left: 3px solid #a84830; color: #793c2b; }

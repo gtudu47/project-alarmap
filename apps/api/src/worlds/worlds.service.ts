@@ -46,6 +46,11 @@ export class WorldsService {
     if (!result.rows[0]) throw new NotFoundException('Monde introuvable.');
     return { world: worldSchema.parse(result.rows[0].document), role: result.rows[0].role, objectsComplete: !summary && !objectId, objectCount: result.rows[0].objectCount };
   }
+  async getObject(userId: string, id: string, objectId: string) {
+    const access = await this.get(userId, id, false, objectId);
+    if (!access.world.objects.length) throw new NotFoundException('Objet introuvable.');
+    return access;
+  }
   async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
     const pointId = randomUUID();
     const client = await this.pool.connect();

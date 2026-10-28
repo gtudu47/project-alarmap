@@ -27,6 +27,11 @@ export class WorldsController {
     const input = parseInput(z.object({ summary: z.enum(['1']).optional() }).strict(),query);
     return this.worlds.get(request.account.id, id, input.summary === '1');
   }
+  @Get(':id/objects/:objectId')
+  @Header('Cache-Control', 'no-store')
+  getObject(@Param('id', ParseUUIDPipe) id: string, @Param('objectId', ParseUUIDPipe) objectId: string, @Req() request: AuthRequest) {
+    return this.worlds.getObject(request.account.id, id, objectId);
+  }
   @Post(':id/points')
   @Header('Cache-Control', 'no-store')
   addPoint(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {

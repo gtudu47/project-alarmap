@@ -295,6 +295,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   openWorld(access: WorldAccess): void {
     this.placingPoint.set(false); this.cancelLine();
     if (!this.accounts.user()) return;
+    clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; this.tileKey = '';
     this.objectsPartial.set(access.objectsComplete === false);
     this.objectCount.set(access.objectCount ?? null);
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;

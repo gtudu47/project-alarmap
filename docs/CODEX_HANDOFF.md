@@ -424,3 +424,7 @@ Validation : lint, types, 30 tests unitaires et build Docker réussis ; huit par
 ## Sélection des tracés sur le globe (28 octobre 2026)
 
 Le raycaster détecte les lignes rendues avec une tolérance de 10 pixels convertie selon la profondeur et le zoom. La sphère participe au calcul et bloque les tracés de la face cachée ; les couches masquées et objets transparents ne sont pas rendus ni sélectionnables. Validation : lint, types, 30 tests unitaires, build Docker et cinq parcours de sélection ; test supplémentaire du zoom et de la face cachée réussi. Un délai plus long est prévu pour le démarrage WebGL dans les tests sur machines lentes. Prochain travail : sélection des polygones et édition des sommets.
+
+## Chargement à l’ouverture d’un monde (28 octobre 2026)
+
+La CI a révélé une course : quand la scène de démonstration et le monde ouvert avaient le même identifiant, la même révision et la même vue, la clé des tuiles pouvait être réutilisée et empêcher le chargement des détails. L’ouverture annule maintenant les anciennes demandes et réinitialise cette clé. Le test attend la fin du chargement de la démonstration avant l’ouverture pour vérifier le cas. Validation : lint, types, builds Docker et six parcours navigateur réussis.

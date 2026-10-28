@@ -275,3 +275,5 @@ L’ajout d’un lieu et l’enregistrement d’un tracé utilisent maintenant u
 ## Sélection des tracés
 
 En vue plane, cliquez près d’une route ou d’une rivière visible pour ouvrir sa fiche. Les tracés coupés à l’antiméridien se sélectionnent aux deux bords de la carte. Dans l’Atlas, le bouton Localiser centre la carte sur le début d’un tracé et ouvre sa fiche. La sélection directe des tracés sur le globe reste à développer.
+
+Sur le globe, cliquez également près d’une route ou rivière pour ouvrir sa fiche. Un tracé masqué par la planète ou par son calque ne peut pas être sélectionné ; la tolérance de clic s’adapte au zoom.

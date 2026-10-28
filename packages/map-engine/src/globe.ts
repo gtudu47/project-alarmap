@@ -54,7 +54,13 @@ export class GlobeRenderer implements RendererAdapter {
       const rect = canvas.getBoundingClientRect();
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2), this.camera);
-      const candidates = [sphere, ...this.objects.children.filter(child => child instanceof THREE.Mesh && child.userData['id'])];
+      // La tolérance suit la taille apparente du trait à l'écran, même au zoom.
+      const sphereHit = ray.intersectObject(sphere, false)[0];
+      const surface = sphereHit?.point ?? this.controls.target;
+      const depth = Math.max(1e-9, -surface.clone().applyMatrix4(this.camera.matrixWorldInverse).z);
+      ray.params.Line = { threshold: 10 * depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (rect.height * this.camera.zoom) };
+      const candidates = [sphere, ...this.objects.children.filter(child => (child instanceof THREE.Mesh || child instanceof THREE.Line) && child.userData['id'])];
+      // La sphère masque les tracés situés sur la face opposée.
       const hit = ray.intersectObjects(candidates, false)[0];
       onSelect(typeof hit?.object.userData['id'] === 'string' ? hit.object.userData['id'] : null);
     }, options);
@@ -153,7 +159,8 @@ export class GlobeRenderer implements RendererAdapter {
           const steps = Math.max(1, Math.ceil(Math.max(Math.abs(delta), Math.abs(b[1] - a[1]))));
           for (let step = 0; step <= steps; step++) dense.push([normalizeLongitude(a[0] + delta * step / steps), a[1] + (b[1] - a[1]) * step / steps]);
         }
-        this.objects.add(this.line(dense, object.style.color, opacity));
+        const line = this.line(dense, object.style.color, opacity);
+        line.userData['id'] = object.id; this.objects.add(line);
       }
     }
     this.render();

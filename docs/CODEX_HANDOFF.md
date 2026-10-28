@@ -420,3 +420,7 @@ Validation : lint, types, 29 tests unitaires, builds natifs et Docker réussis ;
 
 Après demande utilisateur, optimisation des calques abandonnée au profit de la roadmap. La vue plane détecte les clics à dix pixels des segments affichés, en utilisant le découpage à l’antiméridien et en ignorant les calques ou objets invisibles. L’Atlas localise les lignes à leur premier sommet, avec fiche dédiée. Sélection directe des lignes sur globe, modification des sommets et polygones restent à faire.
 Validation : lint, types, 30 tests unitaires et build Docker réussis ; huit parcours navigateur validés, dont le chargement partiel relancé après un délai au premier démarrage. La CI du commit 65110df a réussi sur Windows, Linux et Docker.
+
+## Sélection des tracés sur le globe (28 octobre 2026)
+
+Le raycaster détecte les lignes rendues avec une tolérance de 10 pixels convertie selon la profondeur et le zoom. La sphère participe au calcul et bloque les tracés de la face cachée ; les couches masquées et objets transparents ne sont pas rendus ni sélectionnables. Validation : lint, types, 30 tests unitaires, build Docker et cinq parcours de sélection ; test supplémentaire du zoom et de la face cachée réussi. Un délai plus long est prévu pour le démarrage WebGL dans les tests sur machines lentes. Prochain travail : sélection des polygones et édition des sommets.

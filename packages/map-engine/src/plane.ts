@@ -15,6 +15,10 @@ export class PlaneRenderer implements RendererAdapter {
   private zoomListener: (level: number) => void = () => {};
   private draft: Coordinate[] = [];
   private draftGraphic?: Graphics;
+  private vertexGraphic?: Graphics;
+  private editableVertices: Coordinate[] | null = null;
+  private verticesListener: (points: Coordinate[]) => void = () => {};
+  private vertexDrag?: { id: number; index: number; before: Coordinate[] };
   private gridOptions = { ...DEFAULT_GRID };
   private gridGraphics?: Graphics;
   private gridListener: (stats: GridStats, view: GridView, regions?: GridView[]) => void = () => {};
@@ -31,10 +35,28 @@ export class PlaneRenderer implements RendererAdapter {
     const options = { signal: this.events.signal };
     this.app.canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      const bounds = this.app.canvas.getBoundingClientRect();
+      const x = event.clientX - bounds.left; const y = event.clientY - bounds.top;
+      let nearest = -1; let distance = 10;
+      this.editableVertices?.forEach(([lon, lat], index) => {
+        const delta = Math.hypot(x - (this.scene.x + lon * this.scene.scale.x), y - (this.scene.y - lat * this.scene.scale.y));
+        if (delta <= distance) { distance = delta; nearest = index; }
+      });
+      if (nearest >= 0 && this.editableVertices) {
+        this.vertexDrag = { id: event.pointerId, index: nearest, before: this.editableVertices.map(point => [...point] as Coordinate) };
+        this.app.canvas.setPointerCapture(event.pointerId); return;
+      }
       this.drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, moved: false, id: event.pointerId };
       this.app.canvas.setPointerCapture(event.pointerId);
     }, options);
     this.app.canvas.addEventListener('pointermove', (event) => {
+      if (this.vertexDrag?.id === event.pointerId && this.editableVertices) {
+        const bounds = this.app.canvas.getBoundingClientRect();
+        const longitude = Math.max(-180, Math.min(180, (event.clientX - bounds.left - this.scene.x) / this.scene.scale.x));
+        const latitude = Math.max(-90, Math.min(90, (this.scene.y - event.clientY + bounds.top) / this.scene.scale.y));
+        this.editableVertices[this.vertexDrag.index] = [Math.round(longitude * 1e10) / 1e10, Math.round(latitude * 1e10) / 1e10];
+        this.transform(); return;
+      }
       if (!this.drag || this.drag.id !== event.pointerId) return;
       this.drag.moved ||= Math.hypot(event.clientX - this.drag.startX, event.clientY - this.drag.startY) > 5;
       this.offset.x += event.clientX - this.drag.x;
@@ -42,6 +64,10 @@ export class PlaneRenderer implements RendererAdapter {
       this.drag.x = event.clientX; this.drag.y = event.clientY; this.transform();
     }, options);
     this.app.canvas.addEventListener('pointerup', event => {
+      if (this.vertexDrag?.id === event.pointerId && this.editableVertices) {
+        this.vertexDrag = undefined;
+        this.verticesListener(this.editableVertices.map(point => [...point] as Coordinate)); return;
+      }
       if (!this.drag || this.drag.id !== event.pointerId || this.drag.moved) return;
       const bounds = this.app.canvas.getBoundingClientRect();
       const x = event.clientX - bounds.left; const y = event.clientY - bounds.top;
@@ -68,7 +94,10 @@ export class PlaneRenderer implements RendererAdapter {
       }
       onSelect(nearest);
     }, options);
-    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) this.app.canvas.addEventListener(event, () => { this.drag = undefined; }, options);
+    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) this.app.canvas.addEventListener(event, () => {
+      this.drag = undefined;
+      if (this.vertexDrag) { this.editableVertices = this.vertexDrag.before; this.vertexDrag = undefined; this.transform(); }
+    }, options);
     this.app.canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
       const bounds = this.app.canvas.getBoundingClientRect();
@@ -89,6 +118,10 @@ export class PlaneRenderer implements RendererAdapter {
     const next = 0.5 * (1e7 / 0.5) ** (level / 100);
     const ratio = next / this.zoom;
     this.offset.x *= ratio; this.offset.y *= ratio; this.zoom = next; this.transform();
+  }
+  setEditableVertices(points: Coordinate[] | null, onChange: (points: Coordinate[]) => void): void {
+    this.vertexDrag = undefined; this.editableVertices = points?.map(point => [...point] as Coordinate) ?? null;
+    this.verticesListener = onChange; this.transform();
   }
   setDraftLine(points: Coordinate[]): void { this.draft = points; this.transform(); }
   setWorld(world: World): void { this.world = world; this.draw(); this.transform(); }
@@ -132,6 +165,14 @@ export class PlaneRenderer implements RendererAdapter {
       }
       for (const [x,y] of this.draft) this.draftGraphic.circle(x,-y,4/scale).fill('#f0ca7b');
     }
+    this.vertexGraphic?.clear();
+    if (this.vertexGraphic && this.editableVertices) {
+      for (const segment of splitAntimeridian(this.editableVertices)) {
+        segment.forEach(([x,y],i) => i === 0 ? this.vertexGraphic!.moveTo(x,-y) : this.vertexGraphic!.lineTo(x,-y));
+        this.vertexGraphic.stroke({ color: '#f0ca7b', pixelLine: true });
+      }
+      for (const [x,y] of this.editableVertices) this.vertexGraphic.circle(x,-y,6/scale).fill('#f0ca7b');
+    }
     this.scene.scale.set(scale);
     this.scene.position.set(this.host.clientWidth / 2 + this.offset.x, this.host.clientHeight / 2 + this.offset.y);
     for (const point of this.points) { point.scale.set(1 / scale); for (const child of point.children) child.visible = scale > 50; }
@@ -147,7 +188,7 @@ export class PlaneRenderer implements RendererAdapter {
   private draw(): void {
     for (const child of this.scene.removeChildren()) child.destroy({ children: true });
     this.points = [];
-    this.draftGraphic = undefined;
+    this.draftGraphic = undefined; this.vertexGraphic = undefined;
     const grid = new Graphics();
     grid.rect(-180, -90, 360, 180).fill('#142b3b');
     for (let longitude = -180; longitude <= 180; longitude += 30) grid.moveTo(longitude, -90).lineTo(longitude, 90);
@@ -177,6 +218,7 @@ export class PlaneRenderer implements RendererAdapter {
         this.scene.addChild(graphics);
       }
     }
+    this.vertexGraphic = new Graphics(); this.scene.addChild(this.vertexGraphic);
   }
   destroy(): void {
     this.events.abort(); this.observer?.disconnect();

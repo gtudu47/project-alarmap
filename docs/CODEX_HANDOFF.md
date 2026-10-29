@@ -433,3 +433,8 @@ La CI a révélé une course : quand la scène de démonstration et le monde ouv
 
 Nouvelle route GET worlds/:id/objects/:objectId : accès membre, géométrie non simplifiée et révision cohérente, 404 si objet absent ou hors monde. Depuis une fiche de tracé, éditeur du nom et des coordonnées longitude/latitude (2 à 2 000 sommets) ; propriétés et identité conservées, calque verrouillé et révisions contrôlés par le serveur, Undo/Redo sur le tracé complet. Modification directe des sommets sur la carte encore à faire.
 Validation : npm run check (30 tests), build Docker, deux tests API/PostGIS et huit parcours Edge réussis, dont un tracé simplifié chargé intégralement avant sauvegarde, erreur de saisie et Undo/Redo.
+
+## Déplacement des sommets en vue plane (29 octobre 2026)
+
+Dans l’éditeur de tracé, des poignées permettent de déplacer les sommets à la souris ; la liste des coordonnées se synchronise. Le déplacement reste local jusqu’à la sauvegarde et utilise la révision et l’historique existants. L’annulation abandonne le brouillon. Les poignées reviennent après un passage 2D/3D/2D. La saisie invalide suspend les poignées ; le placement est borné aux coordonnées géographiques et arrondi à dix décimales. Sur le globe, édition par coordonnées uniquement.
+Validation : npm run check (30 tests), build Docker ; huit parcours Edge dont glisser-déposer, saisie, annulation, conservation lors du changement de vue et Undo/Redo. Le premier test de glisser-déposer a révélé un écart d’arrondi sub-pixel ; l’assertion utilise une tolérance.

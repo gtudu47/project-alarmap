@@ -9,6 +9,12 @@ export class MapEngine {
   private renderer?: RendererAdapter;
   private world?: World;
   private focusCoordinate?: Coordinate;
+  private editableVertices: Coordinate[] | null = null;
+  private verticesListener: (points: Coordinate[]) => void = () => {};
+  private readonly verticesChanged = (points: Coordinate[]): void => {
+    this.editableVertices = points.map(point => coordinateSchema.parse(point));
+    this.verticesListener(this.editableVertices.map(point => [...point] as Coordinate));
+  };
   private grid = { ...DEFAULT_GRID };
   private gridListener: (stats: GridStats, view: GridView, regions?: GridView[]) => void = () => {};
   private zoomListener: (level: number) => void = () => {};
@@ -37,6 +43,7 @@ export class MapEngine {
     renderer.onScale?.(this.scaleListener);
     if (this.world) renderer.setWorld(this.world);
     if (this.focusCoordinate) renderer.focus(this.focusCoordinate);
+    renderer.setEditableVertices?.(this.editableVertices, this.verticesChanged);
     renderer.setGrid?.(this.grid, this.gridListener);
   }
   setVisibleObjects(objects: MapObject[]): void {
@@ -55,6 +62,11 @@ export class MapEngine {
   setZoom(level: number): void {
     if (!Number.isFinite(level)) return;
     this.renderer?.setZoom(Math.max(0, Math.min(100, level)));
+  }
+  setEditableVertices(points: Coordinate[] | null, onChange: (points: Coordinate[]) => void = () => {}): void {
+    this.editableVertices = points?.map(point => coordinateSchema.parse(point)) ?? null;
+    this.verticesListener = onChange;
+    this.renderer?.setEditableVertices?.(this.editableVertices, this.verticesChanged);
   }
   setDraftLine(points: Coordinate[]): void { this.renderer?.setDraftLine?.(points); }
   setScale(denominator: number): void { this.renderer?.setScale?.(denominator); }

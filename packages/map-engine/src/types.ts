@@ -6,6 +6,7 @@ export interface RendererAdapter {
   init(host: HTMLElement, onSelect: (id: string | null) => void, onCoordinate?: (coordinate: Coordinate) => boolean): Promise<void>;
   setWorld(world: World): void;
   setDraftLine?(points: Coordinate[]): void;
+  setEditableVertices?(points: Coordinate[] | null, onChange: (points: Coordinate[]) => void): void;
   setZoom(level: number): void;
   onZoom(listener: (level: number) => void): void;
   setGrid?(options: GridOptions, onChange: (stats: GridStats, view: GridView, regions?: GridView[]) => void): void;

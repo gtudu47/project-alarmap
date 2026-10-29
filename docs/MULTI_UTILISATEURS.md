@@ -197,8 +197,7 @@ sommet corrige le dessin. Enregistrer sauvegarde la ligne (2 à 2 000 sommets,
 au moins deux distincts). Échap ou Abandonner supprime le brouillon local.
 La ligne sauvegardée est visible dans les deux vues et dans l’Atlas.
 Annuler/Rétablir couvre sa création pendant la session ; recharger efface cet
-historique. Modifier les sommets ou sélectionner/supprimer directement une
-ligne existante reste à développer. Les rivières sont descriptives : aucun
+historique. Les lignes peuvent être sélectionnées et leurs sommets modifiés ; leur suppression directe reste à développer. Les rivières sont descriptives : aucun
 calcul d’écoulement n’est appliqué.
 
 ## Échelle du globe
@@ -266,7 +265,7 @@ L’Accueil affiche le nombre total d’objets de la révision ouverte, fourni p
 ## Modification légère des lieux
 
 Modifier ou supprimer un lieu, puis annuler ou rétablir cette action, ne nécessite plus de charger tous les objets du monde. Le serveur renvoie seulement l’objet concerné (aucun après suppression), avec les métadonnées, le compteur et la révision issus de la même transaction. Les droits et verrous de calque restent contrôlés. Une révision périmée exige un rechargement.
-La création des lieux et des tracés ainsi que les changements de calques utilisent encore le chargement complet.
+Les changements de calques utilisent encore le chargement complet.
 
 ## Création sans chargement intégral
 
@@ -274,10 +273,10 @@ L’ajout d’un lieu et l’enregistrement d’un tracé utilisent maintenant u
 
 ## Sélection des tracés
 
-En vue plane, cliquez près d’une route ou d’une rivière visible pour ouvrir sa fiche. Les tracés coupés à l’antiméridien se sélectionnent aux deux bords de la carte. Dans l’Atlas, le bouton Localiser centre la carte sur le début d’un tracé et ouvre sa fiche. La sélection directe des tracés sur le globe reste à développer.
+En vue plane, cliquez près d’une route ou d’une rivière visible pour ouvrir sa fiche. Les tracés coupés à l’antiméridien se sélectionnent aux deux bords de la carte. Dans l’Atlas, le bouton Localiser centre la carte sur le début d’un tracé et ouvre sa fiche. La sélection directe des tracés est également disponible sur le globe.
 
 Sur le globe, cliquez également près d’une route ou rivière pour ouvrir sa fiche. Un tracé masqué par la planète ou par son calque ne peut pas être sélectionné ; la tolérance de clic s’adapte au zoom.
 
 ## Modifier un tracé
 
-Sélectionnez une route ou une rivière puis choisissez « Modifier le tracé ». Modifiez le nom et les coordonnées, une paire longitude, latitude par ligne, puis enregistrez. Le tracé complet est chargé avant l’édition pour conserver les sommets qui ne sont pas visibles à l’échelle courante. Les boutons Annuler et Rétablir permettent de revenir sur la modification. Le déplacement direct des sommets à la souris reste à développer.
+Sélectionnez une route ou une rivière puis choisissez « Modifier le tracé ». Modifiez le nom et les coordonnées, une paire longitude, latitude par ligne, puis enregistrez. Le tracé complet est chargé avant l’édition pour conserver les sommets qui ne sont pas visibles à l’échelle courante. Les boutons Annuler et Rétablir permettent de revenir sur la modification. En vue plane, vous pouvez aussi faire glisser les points dorés. Les changements restent un brouillon jusqu’à « Enregistrer le tracé modifié ». Le globe permet encore la modification par coordonnées.

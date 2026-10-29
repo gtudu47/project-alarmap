@@ -76,7 +76,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
                 <label>Nom du tracé<input name="name" required maxlength="200"></label>
                 <label>Type de tracé<select name="kind"><option value="road">Route</option><option value="river">Rivière</option></select></label>
                 <label>Calque du tracé<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
-                <button type="button" class="account-secondary" [disabled]="pointBusy()" (click)="startLine()">Commencer le tracé</button>
+                <button type="button" class="account-secondary" [disabled]="pointBusy() || !!lineEdit()" (click)="startLine()">Commencer le tracé</button>
                 @if (drawingLine()) {
                   <p role="status">{{ linePoints().length }} sommet(s). Cliquez sur la carte ; Échap abandonne.</p>
                   <button type="button" class="account-secondary" [disabled]="pointBusy() || !linePoints().length" (click)="removeLineVertex()">Retirer le dernier sommet</button>
@@ -93,7 +93,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>Ajouter un lieu</h2>
             @if (view() === 'plane') {
-              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading()" (click)="cancelLine(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
+              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading() || !!lineEdit()" (click)="cancelLine(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
               @if (placingPoint()) { <p role="status">Cliquez sur la carte pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
             }
             <label>Calque du lieu<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
@@ -123,15 +123,15 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
               <form class="point-form" (submit)="updateLine($event)">
                 <label>Nom du tracé sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
-                <label>Sommets du tracé<textarea name="coordinates" rows="6" required [value]="formatLineCoordinates(edit.object)"></textarea></label>
-                <p>Un sommet par ligne : longitude, latitude. Les coordonnées vont de −180 à 180 et de −90 à 90.</p>
+                <label>Sommets du tracé<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatLineCoordinates(edit.object)" (input)="syncLineVertices($any($event.target).value)"></textarea></label>
+                <p>Un sommet par ligne : longitude, latitude. En vue plane, déplacez les points dorés à la souris. Enregistrez pour appliquer.</p>
                 <button class="account-primary" [disabled]="pointBusy()">Enregistrer le tracé modifié</button>
-                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="lineEdit.set(null); lineEditError.set('')">Annuler la modification</button>
+                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
               </form>
             } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginLineEdit(object)">Modifier le tracé</button> }
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
-<button class="account-link" (click)="lineEdit.set(null); selectedId.set(null)">Fermer la fiche</button></section> }
+<button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
         <div class="status" [class.ready]="apiStatus() === 'ready'" role="status"><span class="status-dot"></span>{{ apiLabel() }}</div>
         <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : text.sample }}</p>
       </aside>
@@ -288,7 +288,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const id = object.id;
     if (!this.world.objects.some(item => item.id === id)) { this.world = { ...this.world, objects: [...this.world.objects,object] }; this.syncScene(); }
     if (object.geometry.type !== 'Point' && object.geometry.type !== 'LineString') return;
-    if (this.selectedId() !== id) { this.lineEdit.set(null); this.lineEditError.set(''); }
+    if (this.selectedId() !== id) { this.cancelLineEdit(); }
     this.deleteConfirm.set(null); this.selectedId.set(id);
     this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));
     this.engine?.setLayerVisible(object.layerId, true);
@@ -303,13 +303,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
       if (this.personal() && !this.accounts.user()) {
-        this.cancelLine(); this.placingPoint.set(false); this.lineEdit.set(null); this.lineEditError.set(''); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        this.cancelLine(); this.placingPoint.set(false); this.cancelLineEdit(); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
   }
   openWorld(access: WorldAccess): void {
-    this.placingPoint.set(false); this.cancelLine(); this.lineEdit.set(null); this.lineEditError.set('');
+    this.placingPoint.set(false); this.cancelLine(); this.cancelLineEdit();
     if (!this.accounts.user()) return;
     clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; this.tileKey = '';
     this.objectsPartial.set(access.objectsComplete === false);
@@ -370,10 +370,29 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.objectCount.set(access.objectCount ?? null);
     this.syncScene();
   }
+  @ViewChild('lineCoordinates') private lineCoordinates?: ElementRef<HTMLTextAreaElement>;
   readonly lineEdit = signal<{ object: MapObject; revision: number } | null>(null);
   readonly lineEditError = signal('');
   formatLineCoordinates(object: MapObject): string {
     return object.geometry.type === 'LineString' ? object.geometry.coordinates.map(([lon, lat]) => lon + ', ' + lat).join('\n') : '';
+  }
+  cancelLineEdit(): void {
+    this.engine?.setEditableVertices(null); this.lineEdit.set(null); this.lineEditError.set('');
+  }
+  private showEditableVertices(points: Coordinate[] | null): void {
+    this.engine?.setEditableVertices(points, vertices => {
+      const area = this.lineCoordinates?.nativeElement;
+      if (area && this.lineEdit()?.object.id === this.selectedId()) area.value = vertices.map(([lon, lat]) => lon + ', ' + lat).join('\n');
+    });
+  }
+  syncLineVertices(text: string): void {
+    const edit = this.lineEdit(); if (!edit) return;
+    const rows = text.trim().split(/\r?\n/);
+    const number = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+    const coordinates = rows.map(row => row.split(',').map(part => part.trim()));
+    if (coordinates.length > 2000 || coordinates.some(pair => pair.length !== 2 || pair.some(part => !number.test(part)))) { this.showEditableVertices(null); return; }
+    const parsed = lineObjectSchema.safeParse({ ...edit.object, geometry: { type: 'LineString', coordinates: coordinates.map(pair => pair.map(Number)) } });
+    this.showEditableVertices(parsed.success && parsed.data.geometry.type === 'LineString' ? parsed.data.geometry.coordinates : null);
   }
   async beginLineEdit(object: MapObject): Promise<void> {
     if (!this.personal() || this.role === 'viewer' || this.pointBusy() || object.geometry.type !== 'LineString') return;
@@ -385,7 +404,9 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (world.revision !== revision || this.world.revision !== revision) throw new Error('Le monde a changé. Rechargez-le avant de modifier le tracé.');
       const full = world.objects.find(item => item.id === object.id && item.geometry.type === 'LineString');
       if (!full) throw new Error('Tracé introuvable.');
-      this.lineEdit.set({ object: full, revision });
+      if (full.geometry.type !== 'LineString') throw new Error('Tracé introuvable.');
+      this.cancelLine(); this.placingPoint.set(false); this.lineEdit.set({ object: full, revision });
+      this.showEditableVertices(full.geometry.coordinates);
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Chargement du tracé impossible.'); }
     finally { this.pointBusy.set(false); }
   }
@@ -404,14 +425,15 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const parsed = lineObjectSchema.safeParse({ ...edit.object, name: String(fields.get('name') ?? '').trim(), geometry: { type: 'LineString', coordinates: coordinates.map(pair => pair.map(Number)) } });
     if (!parsed.success) { this.lineEditError.set('Vérifiez le nom, les coordonnées et au moins deux sommets distincts.'); return; }
     const worldId = this.world.id; const revision = edit.revision; this.pointBusy.set(true); this.lineEditError.set('');
+    this.engine?.setEditableVertices(null);
     try {
       const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/lines/' + edit.object.id + '?compact=1', { method: 'PUT', body: JSON.stringify({ revision, point: parsed.data }) });
       if (!this.personal() || !this.accounts.user() || this.world.id !== worldId) return;
       if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
       this.applyObjectResult(result, edit.object.id, revision); this.recordHistory({ before: edit.object, after: parsed.data });
-      this.lineEdit.set(null); this.pointMessage.set('Tracé modifié.');
+      this.cancelLineEdit(); this.pointMessage.set('Tracé modifié.');
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Modification du tracé impossible.'); }
-    finally { this.pointBusy.set(false); }
+    finally { this.pointBusy.set(false); if (this.lineEdit() && this.lineCoordinates) this.syncLineVertices(this.lineCoordinates.nativeElement.value); }
   }
   readonly view = signal<ViewMode>('plane');
   readonly loading = signal(true);
@@ -425,7 +447,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); } };
   readonly drawingLine = signal(false);
   readonly linePoints = signal<Coordinate[]>([]);
-  startLine(): void { this.placingPoint.set(false); this.drawingLine.set(true); }
+  startLine(): void { if (this.lineEdit()) return; this.placingPoint.set(false); this.drawingLine.set(true); }
   cancelLine(): void { this.drawingLine.set(false); this.linePoints.set([]); this.engine?.setDraftLine([]); }
   removeLineVertex(): void { this.linePoints.update(points => points.slice(0,-1)); this.engine?.setDraftLine(this.linePoints()); }
   async saveLine(event: Event): Promise<void> {
@@ -472,7 +494,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private engine?: MapEngine;
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
-    this.engine = new MapEngine(this.host.nativeElement, id => { if (this.selectedId() !== id) { this.lineEdit.set(null); this.lineEditError.set(''); } this.selectedId.set(id); this.deleteConfirm.set(null); });
+    this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); });
     window.addEventListener('keydown', this.cancelPlacement);
     this.engine.onCoordinate(([longitude, latitude]) => {
       if (this.drawingLine() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {

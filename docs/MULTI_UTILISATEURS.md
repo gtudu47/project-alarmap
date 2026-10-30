@@ -197,7 +197,7 @@ sommet corrige le dessin. Enregistrer sauvegarde la ligne (2 à 2 000 sommets,
 au moins deux distincts). Échap ou Abandonner supprime le brouillon local.
 La ligne sauvegardée est visible dans les deux vues et dans l’Atlas.
 Annuler/Rétablir couvre sa création pendant la session ; recharger efface cet
-historique. Les lignes peuvent être sélectionnées et leurs sommets modifiés ; leur suppression directe reste à développer. Les rivières sont descriptives : aucun
+historique. Les lignes peuvent être sélectionnées, modifiées et supprimées avec confirmation. Les rivières sont descriptives : aucun
 calcul d’écoulement n’est appliqué.
 
 ## Échelle du globe
@@ -280,3 +280,7 @@ Sur le globe, cliquez également près d’une route ou rivière pour ouvrir sa 
 ## Modifier un tracé
 
 Sélectionnez une route ou une rivière puis choisissez « Modifier le tracé ». Modifiez le nom et les coordonnées, une paire longitude, latitude par ligne, puis enregistrez. Le tracé complet est chargé avant l’édition pour conserver les sommets qui ne sont pas visibles à l’échelle courante. Les boutons Annuler et Rétablir permettent de revenir sur la modification. En vue plane, vous pouvez aussi faire glisser les points dorés. Les changements restent un brouillon jusqu’à « Enregistrer le tracé modifié ». Le globe permet encore la modification par coordonnées.
+
+## Supprimer un tracé
+
+Sélectionnez une route ou une rivière dans votre monde, puis choisissez « Supprimer le tracé » et confirmez. Le bouton Annuler peut restaurer le tracé complet pendant la session. Un calque verrouillé ou un accès en lecture seule empêche la suppression.

@@ -159,6 +159,9 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.deepEqual(lineWorld.world.objects[0]!.geometry, line.geometry);
     assert.equal((await request(linePath, tokens[0], { revision: 0 }, 'DELETE')).status, 409);
     assert.equal((await request(linePath, tokens[1], { revision: 1 }, 'DELETE')).status, 403);
+    await infra.pool.query('UPDATE layers SET locked=true WHERE world_id=$1',[other.world.id]);
+    assert.equal((await request(linePath + '?compact=1', tokens[0], { revision: 1 }, 'DELETE')).status, 409);
+    await infra.pool.query('UPDATE layers SET locked=false WHERE world_id=$1',[other.world.id]);
     assert.equal((await request(linePath.replace('/lines/','/points/'), tokens[0], { revision: 1 }, 'DELETE')).status, 404);
     assert.equal((await request(linePath, tokens[0], { revision: 1 }, 'DELETE')).status, 200);
     assert.equal((await request(linePath, tokens[0], { revision: 2, point: line }, 'PUT')).status, 200);

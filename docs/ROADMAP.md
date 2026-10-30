@@ -240,3 +240,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - V0.1 tracés : édition du nom et des sommets par coordonnées, lecture de la géométrie complète, contrôle des révisions et historique.
 
 - V0.1 édition : déplacement à la souris des sommets d’une route ou rivière en vue plane, brouillon avant validation et historique après sauvegarde. Manipulation directe sur le globe à réaliser.
+
+- V0.1 édition : suppression confirmée des routes et rivières, avec restauration de la géométrie complète par l’historique de session.

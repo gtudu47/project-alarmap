@@ -438,3 +438,7 @@ Validation : npm run check (30 tests), build Docker, deux tests API/PostGIS et h
 
 Dans l’éditeur de tracé, des poignées permettent de déplacer les sommets à la souris ; la liste des coordonnées se synchronise. Le déplacement reste local jusqu’à la sauvegarde et utilise la révision et l’historique existants. L’annulation abandonne le brouillon. Les poignées reviennent après un passage 2D/3D/2D. La saisie invalide suspend les poignées ; le placement est borné aux coordonnées géographiques et arrondi à dix décimales. Sur le globe, édition par coordonnées uniquement.
 Validation : npm run check (30 tests), build Docker ; huit parcours Edge dont glisser-déposer, saisie, annulation, conservation lors du changement de vue et Undo/Redo. Le premier test de glisser-déposer a révélé un écart d’arrondi sub-pixel ; l’assertion utilise une tolérance.
+
+## Suppression des tracés (30 octobre 2026)
+
+La fiche d’une route/rivière permet sa suppression après confirmation. Le client récupère d’abord l’objet complet à la révision courante afin d’enregistrer un historique fidèle, puis supprime via l’API avec vérification serveur des droits et du verrou de calque. Undo/Redo de session restaure les sommets et propriétés ; aucun chargement complet du monde. Validation : npm run check (30 tests), build Docker, deux tests API/PostGIS et trois parcours Edge, incluant annulation de la confirmation, suppression, Undo/Redo et calque verrouillé.

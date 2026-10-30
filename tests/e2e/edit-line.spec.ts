@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { createDemoWorld } from '../../packages/map-model/src/index';
 
-test('modifier les sommets complets d’un tracé puis annuler et rétablir', async ({ page }) => {
+test('modifier et supprimer un tracé complet puis annuler et rétablir', async ({ page }) => {
   test.setTimeout(60000);
   const world = createDemoWorld(); const line = world.objects[1]!;
   line.geometry = { type: 'LineString', coordinates: [[170,20],[179,25],[-170,30]] };
   line.properties = { note: 'Conservée' }; line.startYear = -20;
-  const simplified = () => ({ ...world.objects.find(o => o.id === line.id)!, geometry: { type: 'LineString', coordinates: [[170,20],[-170,30]] } });
+  const simplified = () => { const current = world.objects.find(o => o.id === line.id); return current ? [{ ...current, geometry: { type: 'LineString', coordinates: [[170,20],[-170,30]] } }] : []; };
   const user = { id: '00000000-0000-4000-8000-000000000050', email: 'alice@example.test', displayName: 'Alice', isAdmin: false };
   let fullLoads = 0; let objectLoads = 0; let writes = 0;
   await page.route('**/api/v1/**', async route => {
@@ -14,13 +14,17 @@ test('modifier les sommets complets d’un tracé puis annuler et rétablir', as
     let body: unknown = { initialized: true, status: 'ok' };
     if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'test' };
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
-    else if (path.endsWith('/atlas')) body = { revision: world.revision, objects: [simplified()], nextCursor: null };
-    else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: [simplified()], total: 1, reduced: false };
+    else if (path.endsWith('/atlas')) body = { revision: world.revision, objects: simplified(), nextCursor: null };
+    else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: simplified(), total: 1, reduced: false };
     else if (path.endsWith('/objects/' + line.id)) { objectLoads++; body = { world: { ...world, objects: [world.objects.find(o => o.id === line.id)] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length }; }
     else if (path.endsWith('/lines/' + line.id) && method === 'PUT') {
       const input = route.request().postDataJSON(); expect(input.revision).toBe(world.revision); expect(url.searchParams.get('compact')).toBe('1');
-      writes++; world.objects = world.objects.map(o => o.id === line.id ? input.point : o); world.revision++;
+      writes++; world.objects = [...world.objects.filter(o => o.id !== line.id), input.point]; world.revision++;
       body = { world: { ...world, objects: [input.point] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
+    } else if (path.endsWith('/lines/' + line.id) && method === 'DELETE') {
+      expect(route.request().postDataJSON().revision).toBe(world.revision); expect(url.searchParams.get('compact')).toBe('1');
+      writes++; world.objects = world.objects.filter(o => o.id !== line.id); world.revision++;
+      body = { world: { ...world, objects: [] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
     } else if (path.endsWith('/' + world.id)) {
       if (!url.searchParams.has('summary')) fullLoads++;
       body = { world: { ...world, objects: [] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
@@ -85,5 +89,19 @@ test('modifier les sommets complets d’un tracé puis annuler et rétablir', as
   await expect.poll(() => world.objects[1]!.name).toBe('Passage de l’antiméridien');
   expect(world.objects[1]!.geometry).toEqual({ type: 'LineString', coordinates: [[170,20],[179,25],[-170,30]] });
   await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
-  await expect.poll(() => world.objects[1]!.name).toBe('Nouvelle route'); expect(fullLoads).toBe(0);
+  await expect.poll(() => world.objects[1]!.name).toBe('Nouvelle route');
+  const saved = structuredClone(world.objects[1]!); const beforeDeleteWrites = writes;
+  await selected.getByRole('button', { name: 'Supprimer le tracé', exact: true }).click();
+  await selected.getByRole('button', { name: 'Annuler la suppression' }).click(); expect(writes).toBe(beforeDeleteWrites);
+  await selected.getByRole('button', { name: 'Supprimer le tracé', exact: true }).click();
+  await selected.getByRole('button', { name: 'Confirmer la suppression du tracé' }).click();
+  await expect(page.getByText('Tracé supprimé.', { exact: true })).toBeVisible();
+  expect(world.objects.some(o => o.id === line.id)).toBe(false); expect(objectLoads).toBe(3);
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect.poll(() => world.objects.find(o => o.id === line.id)).toEqual(saved);
+  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await expect.poll(() => world.objects.some(o => o.id === line.id)).toBe(false);
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect.poll(() => world.objects.find(o => o.id === line.id)).toEqual(saved);
+  expect(fullLoads).toBe(0);
 });

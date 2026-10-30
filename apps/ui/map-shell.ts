@@ -129,6 +129,13 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
                 <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
               </form>
             } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginLineEdit(object)">Modifier le tracé</button> }
+            @if (!lineEdit()) {
+              @if (deleteConfirm() === object.id) {
+                <p>Supprimer ce tracé ? Vous pourrez annuler pendant cette session.</p>
+                <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteLine()">Confirmer la suppression du tracé</button>
+                <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
+              } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le tracé</button> }
+            }
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
 <button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
@@ -396,7 +403,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   async beginLineEdit(object: MapObject): Promise<void> {
     if (!this.personal() || this.role === 'viewer' || this.pointBusy() || object.geometry.type !== 'LineString') return;
-    const worldId = this.world.id; const revision = this.world.revision; this.pointBusy.set(true); this.lineEditError.set('');
+    const worldId = this.world.id; const revision = this.world.revision; this.pointBusy.set(true); this.lineEditError.set(''); this.deleteConfirm.set(null);
     try {
       const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/objects/' + object.id);
       if (!this.personal() || !this.accounts.user() || this.world.id !== worldId || this.selectedId() !== object.id) return;
@@ -434,6 +441,27 @@ export class MapShell implements AfterViewInit, OnDestroy {
       this.cancelLineEdit(); this.pointMessage.set('Tracé modifié.');
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Modification du tracé impossible.'); }
     finally { this.pointBusy.set(false); if (this.lineEdit() && this.lineCoordinates) this.syncLineVertices(this.lineCoordinates.nativeElement.value); }
+  }
+  async deleteLine(): Promise<void> {
+    const id = this.selectedId();
+    if (!id || this.deleteConfirm() !== id || this.lineEdit() || this.pointBusy() || !this.personal() || this.role === 'viewer') return;
+    const worldId = this.world.id; const revision = this.world.revision;
+    this.pointBusy.set(true); this.lineEditError.set(''); this.pointMessage.set('');
+    try {
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/objects/' + id);
+      if (!this.personal() || !this.accounts.user() || this.world.id !== worldId || this.selectedId() !== id) return;
+      const world = worldSchema.parse(access.world);
+      if (world.id !== worldId || world.revision !== revision || this.world.revision !== revision) throw new Error('Le monde a changé. Rechargez-le avant de supprimer le tracé.');
+      const before = world.objects.find(item => item.id === id && item.geometry.type === 'LineString');
+      if (!before) throw new Error('Tracé introuvable.');
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/lines/' + id + '?compact=1', { method: 'DELETE', body: JSON.stringify({ revision }) });
+      if (!this.personal() || !this.accounts.user() || this.world.id !== worldId) return;
+      if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
+      this.applyObjectResult(result, id, revision); this.recordHistory({ before, after: null });
+      this.deleteConfirm.set(null); if (this.selectedId() === id) this.selectedId.set(null);
+      this.pointMessage.set('Tracé supprimé.');
+    } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Suppression du tracé impossible.'); }
+    finally { this.pointBusy.set(false); }
   }
   readonly view = signal<ViewMode>('plane');
   readonly loading = signal(true);

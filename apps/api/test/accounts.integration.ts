@@ -234,9 +234,11 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     const restoredArea = await (await request('/worlds/' + other.world.id + '/objects/' + area.id, tokens[1])).json() as { world: World };
     assert.deepEqual(restoredArea.world.objects[0]!.geometry, area.geometry);
     assert.equal((await request(areaPath, tokens[0], { revision: 10, point: crossed }, 'PUT')).status, 400);
+    const outsideHole = { ...area, geometry: { type: 'Polygon', coordinates: [...area.geometry.coordinates, [[20,20],[21,20],[20,21],[20,20]]] } };
+    assert.equal((await request(areaPath, tokens[0], { revision: 10, point: outsideHole }, 'PUT')).status, 400);
     const afterRejectedEdit = await (await request('/worlds/' + other.world.id + '/objects/' + area.id, tokens[0])).json() as { world: World };
     assert.equal(afterRejectedEdit.world.revision, 10); assert.deepEqual(afterRejectedEdit.world.objects[0]!.geometry, area.geometry);
-    const modifiedArea = { ...area, name: 'Vallée bleue', style: { color: '#3355aa', opacity: 0.55 }, properties: { note: 'Conservée' }, geometry: { type: 'Polygon', coordinates: [[[0,0],[12,0],[10,10],[0,0]]] } };
+    const modifiedArea = { ...area, name: 'Vallée bleue', style: { color: '#3355aa', opacity: 0.55 }, properties: { note: 'Conservée' }, geometry: { type: 'Polygon', coordinates: [[[0,0],[12,0],[10,10],[0,0]],[[5,2],[7,2],[6,3],[5,2]],[[8,5],[9,5],[9,6],[8,5]]] } };
     assert.equal((await request(areaPath, tokens[0], { revision: 10, point: modifiedArea }, 'PUT')).status, 200);
     const loadedEdit = await (await request('/worlds/' + other.world.id + '/objects/' + area.id, tokens[1])).json() as { world: World };
     assert.equal(loadedEdit.world.revision, 11); assert.deepEqual(loadedEdit.world.objects[0]!.geometry, modifiedArea.geometry);
@@ -246,6 +248,10 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     const continentPath = areaPath.replace(area.id, continentId);
     assert.equal((await request(continentPath, tokens[0], { revision: 11 }, 'DELETE')).status, 404);
     assert.equal((await request(continentPath, tokens[0], { revision: 11, point: { ...area, id: continentId } }, 'PUT')).status, 409);
+    assert.equal((await request(areaPath, tokens[0], { revision: 11 }, 'DELETE')).status, 200);
+    assert.equal((await request(areaPath, tokens[0], { revision: 12, point: modifiedArea }, 'PUT')).status, 200);
+    const restoredWithHole = await (await request('/worlds/' + other.world.id + '/objects/' + area.id, tokens[1])).json() as { world: World };
+    assert.deepEqual(restoredWithHole.world.objects[0]!.geometry, modifiedArea.geometry);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

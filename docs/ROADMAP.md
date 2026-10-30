@@ -25,7 +25,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Schémas de monde, calque, objet, période et fondations Religions.
 - [x] Fonctions géographiques : sphère, distance, découpage de lignes à l’antiméridien.
 - [-] Moteur commun : prototype plan/globe, grille, points, lignes, zoom, déplacement, visibilité.
-- [ ] Polygones avec trous et territoires polaires ; validation topologique.
+- [-] Polygones avec trous et validation topologique ; territoires polaires à réaliser.
 - [ ] Sélection, culling, propriétés de caméra et événements publics.
 - [ ] Tests complets de cohérence de rendu et d’interaction.
 
@@ -249,4 +249,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
   suppression confirmée et historique de session ; contrôle topologique PostGIS.
 - [x] Surface en 2D, sélection et localisation dans l’Atlas ; contour sur globe.
 - [x] Modifier le nom, la couleur et les sommets d’un territoire simple en vue plane ; annuler ou rétablir la modification.
-- [ ] Remplir les territoires sur le globe ; prendre en charge les trous à la création, l’antiméridien et les pôles.
+- [x] Ajouter, modifier et restaurer des trous par coordonnées ; affichage et sélection en 2D, contours sur globe.
+- [ ] Dessiner les trous à la souris, remplir les territoires sur le globe et prendre en charge l’antiméridien et les pôles.

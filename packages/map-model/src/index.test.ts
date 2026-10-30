@@ -33,7 +33,7 @@ describe('modèle géographique et temporel', () => {
   });
 });
 
-it('valide un territoire simple et rejette les géométries hors de cette première version', () => {
+it('valide les territoires avec trous et rejette les géométries non prises en charge', () => {
   const world = createDemoWorld();
   const area = { ...world.objects[0]!, kind: 'territory', name: 'Vallée', geometry: { type: 'Polygon', coordinates: [[[0, 0], [10, 0], [10, 10], [0, 0]]] } };
   expect(areaObjectSchema.safeParse(area).success).toBe(true);
@@ -41,5 +41,9 @@ it('valide un territoire simple et rejette les géométries hors de cette premi�
   expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [[[170, 0], [-170, 0], [-170, 10], [170, 0]]] } }).success).toBe(false);
   expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [[[0, 90], [1, 80], [0, 80], [0, 90]]] } }).success).toBe(false);
   expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 0], [0, 0]]] } }).success).toBe(false);
-  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [...area.geometry.coordinates, area.geometry.coordinates[0]] } }).success).toBe(false);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [...area.geometry.coordinates, [[5, 1], [7, 1], [6, 2], [5, 1]]] } }).success).toBe(true);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [...area.geometry.coordinates, [[170, 0], [-170, 0], [-170, 1], [170, 0]]] } }).success).toBe(false);
+  const tooMany = Array.from({ length: 2001 }, (_, i) => [i % 10, Math.floor(i / 10) % 10]);
+  tooMany.push(tooMany[0]!);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [tooMany] } }).success).toBe(false);
 });

@@ -159,7 +159,8 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
                 <label>Nom du territoire sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
                 <label>Couleur du territoire sélectionné<input name="color" type="color" [value]="edit.object.style.color"></label>
                 <label>Sommets du territoire<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatAreaCoordinates(edit.object)" (input)="syncAreaVertices($any($event.target).value)"></textarea></label>
-                <p>Un sommet par ligne : longitude, latitude. Le contour se ferme automatiquement. En vue plane, déplacez les points dorés à la souris.</p>
+                <label>Trous du territoire<textarea name="holes" rows="5" [value]="formatAreaHoles(edit.object)"></textarea></label>
+                <p>Un sommet par ligne : longitude, latitude. Séparez les trous par une ligne vide. Chaque contour se ferme automatiquement. En vue plane, déplacez les points dorés du contour extérieur à la souris.</p>
                 <button class="account-primary" [disabled]="pointBusy()">Enregistrer le territoire modifié</button>
                 <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
               </form>
@@ -481,6 +482,9 @@ export class MapShell implements AfterViewInit, OnDestroy {
   formatAreaCoordinates(object: MapObject): string {
     return object.geometry.type === 'Polygon' ? object.geometry.coordinates[0]!.slice(0, -1).map(([lon, lat]) => lon + ', ' + lat).join('\n') : '';
   }
+  formatAreaHoles(object: MapObject): string {
+    return object.geometry.type === 'Polygon' ? object.geometry.coordinates.slice(1).map(ring => ring.slice(0, -1).map(([lon, lat]) => lon + ', ' + lat).join('\n')).join('\n\n') : '';
+  }
   private parseAreaVertices(text: string): Coordinate[] | null {
     const rows = text.trim().split(/\r?\n/); const number = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
     const pairs = rows.map(row => row.split(',').map(part => part.trim()));
@@ -517,7 +521,14 @@ export class MapShell implements AfterViewInit, OnDestroy {
     if (edit.revision !== this.world.revision) { this.lineEditError.set('Le monde a changé. Rechargez-le avant de modifier le territoire.'); return; }
     const fields = new FormData(event.target as HTMLFormElement); const points = this.parseAreaVertices(String(fields.get('coordinates') ?? ''));
     if (!points || points.length < 3) { this.lineEditError.set('Indiquez 3 à 2 000 sommets, chacun sous la forme longitude, latitude.'); return; }
-    const parsed = areaObjectSchema.safeParse({ ...edit.object, name: String(fields.get('name') ?? '').trim(), style: { ...edit.object.style, color: fields.get('color') }, geometry: { type: 'Polygon', coordinates: [[...points, points[0]]] } });
+    const holesText = String(fields.get('holes') ?? '').trim(); const holes: Coordinate[][] = [];
+    for (const block of holesText ? holesText.split(/\r?\n\s*\r?\n/) : []) {
+      const hole = this.parseAreaVertices(block);
+      if (!hole || hole.length < 3) { this.lineEditError.set('Chaque trou doit contenir au moins trois sommets, un par ligne.'); return; }
+      holes.push(hole);
+    }
+    const rings = [points, ...holes].map(ring => [...ring, ring[0]!]);
+    const parsed = areaObjectSchema.safeParse({ ...edit.object, name: String(fields.get('name') ?? '').trim(), style: { ...edit.object.style, color: fields.get('color') }, geometry: { type: 'Polygon', coordinates: rings } });
     if (!parsed.success) { this.lineEditError.set('Vérifiez le nom et les sommets : ni pôle, ni traversée de l’antiméridien.'); return; }
     const worldId = this.world.id; const revision = edit.revision; this.pointBusy.set(true); this.lineEditError.set(''); this.engine?.setEditableVertices(null);
     try {

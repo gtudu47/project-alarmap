@@ -469,3 +469,14 @@ le brouillon ; la modification graphique des sommets reste limitée à la 2D.
 le globe et autres fonctionnalités du lot V0.1-D puis consultation/publication.
 Validation du lot précédent : CI GitHub 41121285745 réussie sur Windows et Linux,
 avec intégration PostGIS, conteneurs et tests navigateur.
+
+## Reprise — trous des territoires (30 octobre 2026)
+
+Les territoires peuvent comporter plusieurs trous, ajoutés ou modifiés par
+coordonnées dans leur fiche après dessin du contour extérieur. Chaque anneau
+est fermé automatiquement ; 2 000 sommets au total. PostGIS refuse les trous
+hors du contour ou les croisements ; la carte plane découpe leur surface et ne
+les sélectionne pas, le globe affiche les contours. Suppression et historique
+conservent les anneaux. Les poignées ne déplacent que le contour extérieur.
+À poursuivre : dessin des trous à la souris, globe rempli, antiméridien et pôles.
+La CI GitHub 41122648285 du lot d’édition précédent est réussie.

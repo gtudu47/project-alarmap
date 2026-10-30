@@ -295,11 +295,11 @@ surface colorée ; le globe affiche son contour. Le territoire peut être
 localisé dans l’Atlas, sélectionné, supprimé après confirmation et restauré
 avec l’historique de session. Les lecteurs ne peuvent pas le modifier.
 
-Cette première version accepte un contour simple, sans trou ni traversée de
+Le dessin initial accepte un contour simple, sans traversée de
 l’antiméridien ou des pôles, avec 2 000 sommets au maximum. Le serveur refuse
-les contours croisés ou de surface nulle. Le remplissage sur le globe reste à développer. La sélection et l’affichage des polygones
-existants à trous fonctionnent en vue plane quand leurs contours respectent ces
-limites géographiques ; leur création n’est pas encore proposée.
+les contours croisés ou de surface nulle. Le remplissage sur le globe reste à
+développer. Les trous sont ajoutés et modifiés par coordonnées dans la fiche
+du territoire.
 
 ### Modifier un territoire
 
@@ -311,3 +311,11 @@ inchangée jusqu’à validation ; le changement de vue conserve le brouillon en
 cours. Le serveur contrôle à nouveau les droits, le calque, la révision et la
 validité du contour. Un refus conserve le brouillon pour le corriger.
 Annuler/Rétablir retrouve l’ancienne ou la nouvelle version pendant la session.
+
+Pour ajouter un trou, renseignez son contour dans **Trous du territoire**, avec
+un sommet par ligne. Séparez plusieurs trous par une ligne vide. Ils doivent se
+trouver à l’intérieur du contour extérieur, sans chevauchement ni croisement.
+La limite de 2 000 sommets s’applique à tous les contours réunis. La vue plane
+affiche les trous et exclut leur intérieur de la sélection ; le globe affiche
+les contours. Les poignées déplacent actuellement le contour extérieur ; les
+trous se modifient par coordonnées. Le serveur valide la géométrie complète.

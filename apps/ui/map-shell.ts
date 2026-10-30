@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
-import { createDemoWorld, worldSchema, lineObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
+import { createDemoWorld, worldSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
 import { AccountsClient, type WorldAccess } from './accounts.client';
@@ -71,6 +71,21 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         </section>
         @if (personal() && role !== 'viewer') {
           @if (view() === 'plane') {
+            <details class="tile-settings"><summary>Territoires</summary>
+              <form class="point-form" (submit)="saveArea($event)">
+                <label>Nom du territoire<input name="name" required maxlength="200"></label>
+                <label>Couleur du territoire<input name="color" type="color" value="#9fc78e"></label>
+                <label>Calque du territoire<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
+                <button type="button" class="account-secondary" [disabled]="pointBusy() || !!lineEdit() || drawingArea()" (click)="startArea()">Dessiner un territoire</button>
+                @if (drawingArea()) {
+                  <p role="status">{{ areaPoints().length }} sommet(s). Cliquez sur la carte ; Échap abandonne.</p>
+                  <button type="button" class="account-secondary" [disabled]="pointBusy() || !areaPoints().length" (click)="removeAreaVertex()">Retirer le dernier sommet du territoire</button>
+                  <button type="button" class="account-link" [disabled]="pointBusy()" (click)="cancelArea()">Abandonner le territoire</button>
+                  <button class="account-primary" [disabled]="pointBusy() || areaPoints().length < 3">Enregistrer le territoire</button>@if (areaError()) { <p role="alert">{{ areaError() }}</p> }
+                }
+              </form>
+              <p>Contour simple sans traversée de l’antiméridien ni pôle. Sur le globe, seul le contour est affiché pour le moment.</p>
+            </details>
             <details class="tile-settings"><summary>Routes et rivières</summary>
               <form class="point-form" (submit)="saveLine($event)">
                 <label>Nom du tracé<input name="name" required maxlength="200"></label>
@@ -93,7 +108,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>Ajouter un lieu</h2>
             @if (view() === 'plane') {
-              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading() || !!lineEdit()" (click)="cancelLine(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
+              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading() || !!lineEdit()" (click)="cancelLine(); cancelArea(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
               @if (placingPoint()) { <p role="status">Cliquez sur la carte pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
             }
             <label>Calque du lieu<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
@@ -105,7 +120,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
-        @if (selectedObject(); as object) { <section class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? 'Lieu sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? 'Lieu sélectionné.' : 'Tracé sélectionné.' }}</p>
+        @if (selectedObject(); as object) { <section class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? 'Lieu sélectionné' : object.geometry.type === 'Polygon' ? 'Territoire sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? 'Lieu sélectionné.' : object.geometry.type === 'Polygon' ? 'Territoire sélectionné.' : 'Tracé sélectionné.' }}</p>
           @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
             <form class="point-form" (submit)="updatePoint($event)">
               <label>Nom du lieu sélectionné<input name="name" [value]="object.name" required maxlength="200"></label>
@@ -138,6 +153,15 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             }
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
+          @if (personal() && role !== 'viewer' && object.geometry.type === 'Polygon' && object.kind === 'territory') {
+            @if (deleteConfirm() === object.id) {
+              <p>Supprimer ce territoire ? Vous pourrez annuler pendant cette session.</p>
+              <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteArea()">Confirmer la suppression du territoire</button>
+              <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
+            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le territoire</button> }
+            @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
+          }
+
 <button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
         <div class="status" [class.ready]="apiStatus() === 'ready'" role="status"><span class="status-dot"></span>{{ apiLabel() }}</div>
         <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : text.sample }}</p>
@@ -152,7 +176,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <button class="reset" type="button" (click)="reset()" [disabled]="loading()">{{ text.reset }}</button>
         </div>
         @if (exportMessage()) { <p class="export-message" role="status">{{ exportMessage() }}</p> }
-        <div #mapHost [class.placing-point]="placingPoint() || drawingLine()" class="map-host" data-testid="map-host"></div>
+        <div #mapHost [class.placing-point]="placingPoint() || drawingLine() || drawingArea()" class="map-host" data-testid="map-host"></div>
         @if (loading()) { <div class="map-message" role="status">{{ text.loading }}</div> }
         @if (error()) { <div class="map-message error" role="alert">{{ text.unavailable }}</div> }
         <div class="zoom-control" aria-label="Commande de zoom">
@@ -275,7 +299,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const pointId = (change.before ?? change.after)!.id; const worldId = this.world.id; const previousRevision = this.world.revision;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : '/points/') + pointId + '?compact=1', { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : (change.before ?? change.after)!.geometry.type === 'Polygon' ? '/areas/' : '/points/') + pointId + '?compact=1', { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
         this.applyObjectResult(result, pointId, previousRevision); this.deleteConfirm.set(null);
         if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
@@ -294,13 +318,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
   locateObject(object: MapObject): void {
     const id = object.id;
     if (!this.world.objects.some(item => item.id === id)) { this.world = { ...this.world, objects: [...this.world.objects,object] }; this.syncScene(); }
-    if (object.geometry.type !== 'Point' && object.geometry.type !== 'LineString') return;
+    if (object.geometry.type !== 'Point' && object.geometry.type !== 'LineString' && object.geometry.type !== 'Polygon') return;
     if (this.selectedId() !== id) { this.cancelLineEdit(); }
     this.deleteConfirm.set(null); this.selectedId.set(id);
     this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));
     this.engine?.setLayerVisible(object.layerId, true);
     this.navigate('carte');
-    const coordinate = object.geometry.type === 'Point' ? object.geometry.coordinates : object.geometry.coordinates[0]!;
+    const coordinate = object.geometry.type === 'Point' ? object.geometry.coordinates : object.geometry.type === 'LineString' ? object.geometry.coordinates[0]! : object.geometry.coordinates[0]![0]!;
     requestAnimationFrame(() => { if (this.selectedId() === id) this.engine?.focus(coordinate); });
   }
   readonly pointBusy = signal(false);
@@ -310,13 +334,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
       if (this.personal() && !this.accounts.user()) {
-        this.cancelLine(); this.placingPoint.set(false); this.cancelLineEdit(); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.cancelLineEdit(); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
   }
   openWorld(access: WorldAccess): void {
-    this.placingPoint.set(false); this.cancelLine(); this.cancelLineEdit();
+    this.placingPoint.set(false); this.cancelLine(); this.cancelArea(); this.cancelLineEdit();
     if (!this.accounts.user()) return;
     clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; this.tileKey = '';
     this.objectsPartial.set(access.objectsComplete === false);
@@ -412,7 +436,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       const full = world.objects.find(item => item.id === object.id && item.geometry.type === 'LineString');
       if (!full) throw new Error('Tracé introuvable.');
       if (full.geometry.type !== 'LineString') throw new Error('Tracé introuvable.');
-      this.cancelLine(); this.placingPoint.set(false); this.lineEdit.set({ object: full, revision });
+      this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.lineEdit.set({ object: full, revision });
       this.showEditableVertices(full.geometry.coordinates);
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Chargement du tracé impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -463,6 +487,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Suppression du tracé impossible.'); }
     finally { this.pointBusy.set(false); }
   }
+  async deleteArea(): Promise<void> {
+    const id = this.selectedId();
+    if (!id || this.deleteConfirm() !== id || this.lineEdit() || this.pointBusy() || !this.personal() || this.role === 'viewer') return;
+    const worldId = this.world.id; const revision = this.world.revision;
+    this.pointBusy.set(true); this.lineEditError.set(''); this.pointMessage.set('');
+    try {
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/objects/' + id);
+      if (!this.personal() || !this.accounts.user() || this.world.id !== worldId || this.selectedId() !== id) return;
+      const world = worldSchema.parse(access.world);
+      if (world.id !== worldId || world.revision !== revision || this.world.revision !== revision) throw new Error('Le monde a changé. Rechargez-le avant de supprimer le territoire.');
+      const before = world.objects.find(item => item.id === id && item.geometry.type === 'Polygon' && item.kind === 'territory');
+      if (!before) throw new Error('Territoire introuvable.');
+      if (!areaObjectSchema.safeParse(before).success) throw new Error('Ce territoire ne peut pas encore être supprimé avec annulation.');
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/areas/' + id + '?compact=1', { method: 'DELETE', body: JSON.stringify({ revision }) });
+      if (!this.personal() || !this.accounts.user() || this.world.id !== worldId) return;
+      if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
+      this.applyObjectResult(result, id, revision); this.recordHistory({ before, after: null });
+      this.deleteConfirm.set(null); if (this.selectedId() === id) this.selectedId.set(null);
+      this.pointMessage.set('Territoire supprimé.');
+    } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Suppression du territoire impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
   readonly view = signal<ViewMode>('plane');
   readonly loading = signal(true);
   readonly error = signal(false);
@@ -472,10 +518,36 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
   @ViewChild('pointForm') private pointForm?: ElementRef<HTMLFormElement>;
   readonly placingPoint = signal(false);
-  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); } };
+  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); this.cancelArea(); } };
+  readonly drawingArea = signal(false);
+  readonly areaPoints = signal<Coordinate[]>([]);
+  readonly areaError = signal('');
+  startArea(): void { if (this.lineEdit()) return; this.cancelLine(); this.placingPoint.set(false); this.areaError.set(''); this.drawingArea.set(true); }
+  cancelArea(): void { this.drawingArea.set(false); this.areaError.set(''); this.areaPoints.set([]); this.engine?.setDraftLine([]); }
+  private showAreaDraft(): void {
+    const points = this.areaPoints(); this.engine?.setDraftLine(points.length >= 3 ? [...points, points[0]!] : points);
+  }
+  removeAreaVertex(): void { this.areaPoints.update(points => points.slice(0, -1)); this.showAreaDraft(); }
+  async saveArea(event: Event): Promise<void> {
+    event.preventDefault();
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || !this.drawingArea()) return;
+    const form = event.target as HTMLFormElement; const fields = new FormData(form); const points = this.areaPoints();
+    if (points.length < 3) return;
+    const area = areaObjectSchema.safeParse({ id: crypto.randomUUID(), layerId: fields.get('layerId'), name: String(fields.get('name') ?? '').trim(), kind: 'territory', geometry: { type: 'Polygon', coordinates: [[...points, points[0]]] }, style: { color: fields.get('color'), opacity: 0.55 }, properties: {} });
+    if (!area.success) { this.areaError.set('Territoire invalide : utilisez 3 sommets distincts, sans pôle ni traversée de l’antiméridien.'); return; }
+    const worldId = this.world.id; const revision = this.world.revision; this.pointBusy.set(true); this.pointMessage.set('');
+    try {
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/areas/' + area.data.id + '?compact=1', { method: 'PUT', body: JSON.stringify({ revision, point: area.data }) });
+      if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
+      if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
+      this.applyObjectResult(access, area.data.id, revision); this.cancelArea(); this.recordHistory({ before: null, after: area.data });
+      form.reset(); this.pointMessage.set('Territoire enregistré.');
+    } catch (error) { this.areaError.set(error instanceof Error ? error.message : 'Territoire non enregistré.'); }
+    finally { this.pointBusy.set(false); }
+  }
   readonly drawingLine = signal(false);
   readonly linePoints = signal<Coordinate[]>([]);
-  startLine(): void { if (this.lineEdit()) return; this.placingPoint.set(false); this.drawingLine.set(true); }
+  startLine(): void { if (this.lineEdit()) return; this.cancelArea(); this.placingPoint.set(false); this.drawingLine.set(true); }
   cancelLine(): void { this.drawingLine.set(false); this.linePoints.set([]); this.engine?.setDraftLine([]); }
   removeLineVertex(): void { this.linePoints.update(points => points.slice(0,-1)); this.engine?.setDraftLine(this.linePoints()); }
   async saveLine(event: Event): Promise<void> {
@@ -525,6 +597,10 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); });
     window.addEventListener('keydown', this.cancelPlacement);
     this.engine.onCoordinate(([longitude, latitude]) => {
+      if (this.drawingArea() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
+        if (this.areaPoints().length < 2000) { this.areaPoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.showAreaDraft(); }
+        return true;
+      }
       if (this.drawingLine() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
         if (this.linePoints().length < 2000) { this.linePoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.engine?.setDraftLine(this.linePoints()); }
         return true;
@@ -548,7 +624,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   async setView(mode: ViewMode): Promise<void> {
     clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest;
-    this.placingPoint.set(false); this.cancelLine();
+    this.placingPoint.set(false); this.cancelLine(); this.cancelArea();
     this.loading.set(true); this.error.set(false);
     try { await this.engine?.setView(mode); this.view.set(mode); this.tileKey = ''; this.engine?.setGrid(this.gridOptions, this.gridChanged); }
     catch { this.error.set(true); }

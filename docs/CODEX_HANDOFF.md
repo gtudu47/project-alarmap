@@ -442,3 +442,18 @@ Validation : npm run check (30 tests), build Docker ; huit parcours Edge dont gl
 ## Suppression des tracés (30 octobre 2026)
 
 La fiche d’une route/rivière permet sa suppression après confirmation. Le client récupère d’abord l’objet complet à la révision courante afin d’enregistrer un historique fidèle, puis supprime via l’API avec vérification serveur des droits et du verrou de calque. Undo/Redo de session restaure les sommets et propriétés ; aucun chargement complet du monde. Validation : npm run check (30 tests), build Docker, deux tests API/PostGIS et trois parcours Edge, incluant annulation de la confirmation, suppression, Undo/Redo et calque verrouillé.
+
+## Reprise — premiers territoires (30 octobre 2026)
+
+Branche `dev`, dépôt `C:\Users\fred\OneDrive\Documents\GitHub\project-alarmap`.
+Les sections antérieures conservent l’historique et peuvent décrire un état dépassé.
+Dessin de territoires simples en vue plane, nom/couleur/calque, contrôle des droits,
+révisions, verrouillage et topologie PostGIS ; surface 2D, contour 3D, sélection,
+Atlas, suppression confirmée et annulation/rétablissement de session. Les
+polygones d’autres catégories ne peuvent être écrasés ou supprimés par l’API
+territoires. Création limitée à un anneau, hors pôles et antiméridien, sans trou.
+Les tracés croisés ou de surface nulle sont refusés. Tests unitaires, intégration
+PostGIS et parcours navigateur exécutés ; voir la CI du commit pour les contrôles
+complets. À poursuivre : édition des sommets des territoires enregistrés,
+remplissage sur globe, trous et géométries aux raccordements/pôles. Le VPS n’est
+toujours pas fourni ; aucun déploiement public n’a été effectué.

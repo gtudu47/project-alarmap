@@ -49,3 +49,21 @@ export function distanceToSegment(point: [number, number], a: [number, number], 
   const t = lengthSquared ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared)) : 0;
   return Math.hypot(point[0] - (a[0] + t * dx), point[1] - (a[1] + t * dy));
 }
+
+/** Cette première projection accepte des anneaux sans raccordement ni pôle. */
+export function supportsPlanarPolygon(rings: Coordinate[][]): boolean {
+  return rings.length > 0 && rings.every(ring => ring.length >= 4 && ring.every((point, i) => Math.abs(point[1]) < 90 && (i === 0 || Math.abs(point[0] - ring[i - 1]![0]) <= 180)));
+}
+/** Inclusion d’un point dans un contour plan et exclusion des trous. */
+export function pointInPolygon(point: Coordinate, rings: Coordinate[][]): boolean {
+  const inside = (ring: Coordinate[]): boolean => {
+    let result = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i]!; const b = ring[j]!;
+      if (distanceToSegment(point, a, b) < 1e-10) return true;
+      if ((a[1] > point[1]) !== (b[1] > point[1]) && point[0] < (b[0] - a[0]) * (point[1] - a[1]) / (b[1] - a[1]) + a[0]) result = !result;
+    }
+    return result;
+  };
+  return supportsPlanarPolygon(rings) && inside(rings[0]!) && !rings.slice(1).some(inside);
+}

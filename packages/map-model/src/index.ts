@@ -43,6 +43,13 @@ export const lineObjectSchema = objectSchema.refine(object => {
   const points = object.geometry.coordinates;
   return points.length <= 2000 && points.some(p => p[0] !== points[0]![0] || p[1] !== points[0]![1]);
 }, 'Une route ou rivière exige 2 à 2 000 sommets, dont deux distincts, et un nom.');
+/** Premier outil de territoire : contour simple, hors pôles et antiméridien. */
+export const areaObjectSchema = objectSchema.refine(object => {
+  if (object.geometry.type !== 'Polygon' || object.kind !== 'territory' || !object.name.trim() || object.geometry.coordinates.length !== 1) return false;
+  const ring = object.geometry.coordinates[0]!;
+  if (ring.length > 2001 || new Set(ring.slice(0, -1).map(point => point.join(','))).size < 3) return false;
+  return ring.every((point, index) => Math.abs(point[1]) < 90 && (index === 0 || Math.abs(point[0] - ring[index - 1]![0]) <= 180));
+}, 'Un territoire exige 3 à 2 000 sommets distincts, hors pôles et sans traverser l’antiméridien.');
 export type MapObject = z.infer<typeof objectSchema>;
 export const worldSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION), id: z.uuid(), name: z.string().trim().min(1).max(200),

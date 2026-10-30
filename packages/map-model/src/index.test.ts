@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDemoWorld, geometrySchema, isActiveAt, periodSchema, relationSchema, worldSchema } from './index.js';
+import { areaObjectSchema, createDemoWorld, geometrySchema, isActiveAt, periodSchema, relationSchema, worldSchema } from './index.js';
 
 describe('modèle géographique et temporel', () => {
   it('conserve une scène via JSON', () => {
@@ -31,4 +31,15 @@ describe('modèle géographique et temporel', () => {
     expect(relationSchema.parse(relation).religionAId).toBe(relation.religionAId);
     expect(relationSchema.safeParse({ ...relation, relationScore: 101 }).success).toBe(false);
   });
+});
+
+it('valide un territoire simple et rejette les géométries hors de cette première version', () => {
+  const world = createDemoWorld();
+  const area = { ...world.objects[0]!, kind: 'territory', name: 'Vallée', geometry: { type: 'Polygon', coordinates: [[[0, 0], [10, 0], [10, 10], [0, 0]]] } };
+  expect(areaObjectSchema.safeParse(area).success).toBe(true);
+  expect(areaObjectSchema.safeParse({ ...area, kind: 'city' }).success).toBe(false);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [[[170, 0], [-170, 0], [-170, 10], [170, 0]]] } }).success).toBe(false);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [[[0, 90], [1, 80], [0, 80], [0, 90]]] } }).success).toBe(false);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 0], [0, 0]]] } }).success).toBe(false);
+  expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [...area.geometry.coordinates, area.geometry.coordinates[0]] } }).success).toBe(false);
 });

@@ -1,0 +1,59 @@
+import { expect, test } from '@playwright/test';
+import { createDemoWorld } from '../../packages/map-model/src/index';
+
+test('dessiner, sélectionner et restaurer un territoire', async ({ page }) => {
+  test.setTimeout(90000);
+  const world = createDemoWorld(); world.objects = [];
+  const user = { id: '00000000-0000-4000-8000-000000000050', email: 'alice@example.test', displayName: 'Alice', isAdmin: false };
+  await page.route('**/api/v1/**', async route => {
+    const url = new URL(route.request().url()); const path = url.pathname; const method = route.request().method();
+    let body: unknown = { initialized: true, status: 'ok' };
+    if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'test' };
+    else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
+    else if (path.endsWith('/atlas')) body = { revision: world.revision, objects: world.objects, nextCursor: null };
+    else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: world.objects, total: world.objects.length, reduced: false };
+    else if (path.includes('/objects/')) body = { world: { ...world, objects: world.objects.filter(o => o.id === path.split('/').at(-1)) }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
+    else if (path.includes('/areas/')) {
+      const input = route.request().postDataJSON(); expect(input.revision).toBe(world.revision); expect(url.searchParams.get('compact')).toBe('1');
+      if (method === 'PUT') {
+        expect(input.point.geometry.type).toBe('Polygon');
+        const ring = input.point.geometry.coordinates[0]; expect(ring).toHaveLength(4); expect(ring[0]).toEqual(ring[3]);
+        world.objects = [...world.objects.filter(o => o.id !== input.point.id), input.point];
+      } else world.objects = world.objects.filter(o => o.id !== path.split('/').at(-1));
+      world.revision++; body = { world: { ...world, objects: method === 'PUT' ? [input.point] : [] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
+    } else if (path.endsWith('/' + world.id)) body = { world: { ...world, objects: [] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByText('Territoires', { exact: true }).click();
+  await page.getByLabel('Nom du territoire').fill('Vallée verte');
+  await page.getByRole('button', { name: 'Dessiner un territoire' }).click();
+  const box = (await page.getByTestId('map-host').locator('canvas').boundingBox())!;
+  const x = box.x + box.width / 2; const y = box.y + box.height / 2;
+  await page.mouse.click(x - 60, y - 40); await page.mouse.click(x + 60, y - 40);
+  await expect(page.getByRole('button', { name: 'Enregistrer le territoire' })).toBeDisabled();
+  await page.mouse.click(x, y + 50);
+  await page.getByRole('button', { name: 'Enregistrer le territoire' }).click();
+  await expect(page.getByText('Territoire enregistré.', { exact: true })).toBeVisible();
+  const saved = structuredClone(world.objects[0]!); expect(saved.kind).toBe('territory');
+  await page.mouse.click(x, y);
+  const selected = page.getByRole('region', { name: 'Territoire sélectionné' });
+  await expect(selected.getByRole('heading', { name: 'Vallée verte' })).toBeVisible();
+  await selected.getByRole('button', { name: 'Supprimer le territoire', exact: true }).click();
+  await selected.getByRole('button', { name: 'Annuler la suppression' }).click(); expect(world.objects).toHaveLength(1);
+  await selected.getByRole('button', { name: 'Supprimer le territoire', exact: true }).click();
+  await selected.getByRole('button', { name: 'Confirmer la suppression du territoire' }).click();
+  await expect(page.getByText('Territoire supprimé.', { exact: true })).toBeVisible(); expect(world.objects).toHaveLength(0);
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect.poll(() => world.objects[0]).toEqual(saved);
+  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await expect.poll(() => world.objects.length).toBe(0);
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect.poll(() => world.objects[0]).toEqual(saved);
+  await page.getByRole('link', { name: 'Atlas', exact: true }).click();
+  await page.getByRole('button', { name: 'Localiser Vallée verte' }).click();
+  await expect(page.getByRole('region', { name: 'Territoire sélectionné' })).toBeVisible();
+  await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
+});

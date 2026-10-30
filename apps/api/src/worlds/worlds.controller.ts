@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Patch, Put, Get, Query, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { objectSchema, lineObjectSchema } from '@alarmap/map-model';
+import { objectSchema, lineObjectSchema, areaObjectSchema } from '@alarmap/map-model';
 import { AuthGuard, type AuthRequest } from '../auth/auth.guard.js';
 import { parseInput } from '../validation.js';
 import { WorldsService } from './worlds.service.js';
@@ -76,6 +76,21 @@ export class WorldsController {
     const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
     const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
     return this.worlds.changePoint(request.account.id, id, lineId, input.revision, undefined, 'ST_LineString', compact);
+  }
+
+  @Put(':id/areas/:areaId')
+  @Header('Cache-Control', 'no-store')
+  saveArea(@Param('id', ParseUUIDPipe) id: string, @Param('areaId', ParseUUIDPipe) areaId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), point: areaObjectSchema.refine(area => area.id === areaId, 'Identifiant invalide.') }).strict(), body);
+    return this.worlds.restorePoint(request.account.id, id, input.revision, input.point, 'ST_Polygon', compact);
+  }
+  @Delete(':id/areas/:areaId')
+  @Header('Cache-Control', 'no-store')
+  deleteArea(@Param('id', ParseUUIDPipe) id: string, @Param('areaId', ParseUUIDPipe) areaId: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
+    const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative() }).strict(), body);
+    return this.worlds.changePoint(request.account.id, id, areaId, input.revision, undefined, 'ST_Polygon', compact);
   }
 
   @Post(':id/layers')

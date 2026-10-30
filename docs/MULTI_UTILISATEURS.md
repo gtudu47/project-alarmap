@@ -117,7 +117,7 @@ Un clic dans une zone vide ferme la fiche. Les déplacements de plus de cinq
 pixels sont traités comme des mouvements de caméra. Les objets invisibles
 (calque masqué ou opacité nulle) ne sont pas sélectionnables. Le globe teste
 également la sphère pour ne pas sélectionner un point derrière la planète.
-Les lignes et polygones ne disposent pas encore de sélection directe.
+Les lignes sont sélectionnables dans les deux vues. Les territoires simples sont sélectionnables par leur surface en vue plane et par leur contour sur le globe.
 
 ## Gestion des calques
 
@@ -284,3 +284,20 @@ Sélectionnez une route ou une rivière puis choisissez « Modifier le tracé »
 ## Supprimer un tracé
 
 Sélectionnez une route ou une rivière dans votre monde, puis choisissez « Supprimer le tracé » et confirmez. Le bouton Annuler peut restaurer le tracé complet pendant la session. Un calque verrouillé ou un accès en lecture seule empêche la suppression.
+
+## Dessiner un territoire
+
+Dans un monde personnel, ouvrez **Territoires** en vue plane, choisissez un
+nom, une couleur et un calque déverrouillé, puis cliquez au moins trois fois sur
+la carte et enregistrez. Le dernier sommet peut être retiré ; Échap ou
+« Abandonner le territoire » annule le dessin en cours. La carte affiche la
+surface colorée ; le globe affiche son contour. Le territoire peut être
+localisé dans l’Atlas, sélectionné, supprimé après confirmation et restauré
+avec l’historique de session. Les lecteurs ne peuvent pas le modifier.
+
+Cette première version accepte un contour simple, sans trou ni traversée de
+l’antiméridien ou des pôles, avec 2 000 sommets au maximum. Le serveur refuse
+les contours croisés ou de surface nulle. L’édition des sommets et le remplissage
+sur le globe restent à développer. La sélection et l’affichage des polygones
+existants à trous fonctionnent en vue plane quand leurs contours respectent ces
+limites géographiques ; leur création n’est pas encore proposée.

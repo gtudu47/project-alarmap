@@ -92,6 +92,16 @@ export class GlobeRenderer implements RendererAdapter {
       new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }),
     );
   }
+  private geographicLine(coordinates: Coordinate[], color: string, opacity: number, id: string): THREE.Line {
+    const dense: Coordinate[] = [];
+    for (let index = 1; index < coordinates.length; index++) {
+      const a = coordinates[index - 1]!; const b = coordinates[index]!;
+      const delta = normalizeLongitude(b[0] - a[0]);
+      const steps = Math.max(1, Math.ceil(Math.max(Math.abs(delta), Math.abs(b[1] - a[1]))));
+      for (let step = 0; step <= steps; step++) dense.push([normalizeLongitude(a[0] + delta * step / steps), a[1] + (b[1] - a[1]) * step / steps]);
+    }
+    const line = this.line(dense, color, opacity); line.userData['id'] = id; return line;
+  }
   onZoom(listener: (level: number) => void): void { this.zoomListener = listener; this.render(); }
   setZoom(level: number): void {
     const magnification = 10 ** (-6 + 14 * level / 100);
@@ -152,15 +162,10 @@ export class GlobeRenderer implements RendererAdapter {
         marker.userData['id'] = object.id;
         marker.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(marker);
       } else if (object.geometry.type === 'LineString') {
-        const dense: Coordinate[] = [];
-        for (let index = 1; index < object.geometry.coordinates.length; index++) {
-          const a = object.geometry.coordinates[index - 1]!; const b = object.geometry.coordinates[index]!;
-          const delta = normalizeLongitude(b[0] - a[0]);
-          const steps = Math.max(1, Math.ceil(Math.max(Math.abs(delta), Math.abs(b[1] - a[1]))));
-          for (let step = 0; step <= steps; step++) dense.push([normalizeLongitude(a[0] + delta * step / steps), a[1] + (b[1] - a[1]) * step / steps]);
-        }
-        const line = this.line(dense, object.style.color, opacity);
-        line.userData['id'] = object.id; this.objects.add(line);
+        this.objects.add(this.geographicLine(object.geometry.coordinates, object.style.color, opacity, object.id));
+      } else if (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') {
+        const polygons = object.geometry.type === 'Polygon' ? [object.geometry.coordinates] : object.geometry.coordinates;
+        for (const rings of polygons) for (const ring of rings) this.objects.add(this.geographicLine(ring, object.style.color, opacity, object.id));
       }
     }
     this.render();

@@ -3,7 +3,7 @@ import { DEFAULT_GRID, visibleGrid, type GridOptions, type GridStats, type GridV
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import type { Coordinate, World } from '@alarmap/map-model';
 import type { RendererAdapter } from './types.js';
-import { distanceToSegment, splitAntimeridian } from './geography.js';
+import { distanceToSegment, pointInPolygon, splitAntimeridian, supportsPlanarPolygon } from './geography.js';
 
 export class PlaneRenderer implements RendererAdapter {
   private readonly app = new Application();
@@ -74,7 +74,7 @@ export class PlaneRenderer implements RendererAdapter {
       const longitude = (x - this.scene.x) / this.scene.scale.x;
       const latitude = (this.scene.y - y) / this.scene.scale.y;
       if (longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90 && onCoordinate?.([longitude, latitude])) return;
-      let nearest: string | null = null; let distance = 10;
+      let nearest: string | null = null; let areaHit: string | null = null; let distance = 10;
       for (const layer of [...(this.world?.layers ?? [])].sort((a, b) => a.order - b.order)) {
         if (!layer.visible || layer.opacity === 0) continue;
         for (const object of this.world?.objects ?? []) {
@@ -83,6 +83,10 @@ export class PlaneRenderer implements RendererAdapter {
             const [longitude, latitude] = object.geometry.coordinates;
             const delta = Math.hypot(x - (this.scene.x + longitude * this.scene.scale.x), y - (this.scene.y - latitude * this.scene.scale.y));
             if (delta <= distance) { distance = delta; nearest = object.id; }
+          } else if (object.geometry.type === 'Polygon' && pointInPolygon([longitude, latitude], object.geometry.coordinates)) {
+            areaHit = object.id;
+          } else if (object.geometry.type === 'MultiPolygon' && object.geometry.coordinates.some(polygon => pointInPolygon([longitude, latitude], polygon))) {
+            areaHit = object.id;
           } else if (object.geometry.type === 'LineString') {
             const pixel = ([lon, lat]: Coordinate): [number, number] => [this.scene.x + lon * this.scene.scale.x, this.scene.y - lat * this.scene.scale.y];
             for (const segment of splitAntimeridian(object.geometry.coordinates)) for (let i = 1; i < segment.length; i++) {
@@ -92,7 +96,7 @@ export class PlaneRenderer implements RendererAdapter {
           }
         }
       }
-      onSelect(nearest);
+      onSelect(nearest ?? areaHit);
     }, options);
     for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) this.app.canvas.addEventListener(event, () => {
       this.drag = undefined;
@@ -213,6 +217,15 @@ export class PlaneRenderer implements RendererAdapter {
           for (const segment of splitAntimeridian(object.geometry.coordinates)) {
             segment.forEach(([longitude, latitude], index) => index === 0 ? graphics.moveTo(longitude, -latitude) : graphics.lineTo(longitude, -latitude));
             graphics.stroke({ color: object.style.color, pixelLine: true });
+          }
+        } else if (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') {
+          const polygons = object.geometry.type === 'Polygon' ? [object.geometry.coordinates] : object.geometry.coordinates;
+          for (const rings of polygons) {
+            if (!supportsPlanarPolygon(rings)) continue;
+            const pixels = (ring: Coordinate[]) => ring.flatMap(([lon, lat]) => [lon, -lat]);
+            graphics.poly(pixels(rings[0]!)).fill(object.style.color);
+            for (const hole of rings.slice(1)) graphics.poly(pixels(hole)).cut();
+            for (const ring of rings) graphics.poly(pixels(ring)).stroke({ color: object.style.color, pixelLine: true });
           }
         }
         this.scene.addChild(graphics);

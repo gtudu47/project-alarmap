@@ -155,7 +155,7 @@ L’historique durable et l’annulation des autres géométries restent à dév
 
 Sélection des points visibles par clic dans la carte plane et le globe,
 ouverture de la fiche existante et distinction avec le déplacement de caméra.
-La sélection directe des lignes est disponible en vue plane et sur le globe ; celle des polygones reste à développer.
+La sélection des lignes fonctionne dans les deux vues. Les territoires simples sont sélectionnables par leur surface en vue plane et leur contour sur le globe.
 
 ### Gestion des calques
 
@@ -193,7 +193,7 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Dessin de routes/rivières par sommets en vue plane, aperçu, retrait du
   dernier sommet, abandon et sauvegarde ; rendu plane/globe et Undo/Redo.
-- [-] Édition des sommets des lignes existantes par coordonnées et glisser-déposer en vue plane ; dessin de polygones à réaliser.
+- [-] Édition des sommets des lignes existantes par coordonnées et glisser-déposer en vue plane ; dessin de territoires simples disponible, édition des sommets des polygones à réaliser.
 
 ### Échelle du globe
 
@@ -233,7 +233,7 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - Création progressive : ajout des lieux et tracés sans téléchargement préalable du monde complet ; historique et compteurs conservés.
 
-- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Édition des sommets par coordonnées et glisser-déposer en vue plane disponible ; sélection des polygones à réaliser.
+- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Édition des lignes en vue plane disponible ; dessin et sélection des territoires simples disponibles, édition des polygones à poursuivre.
 
 - V0.1 globe : sélection directe des routes et rivières visibles, avec tolérance adaptée au zoom et masquage par la planète.
 
@@ -242,3 +242,11 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - V0.1 édition : déplacement à la souris des sommets d’une route ou rivière en vue plane, brouillon avant validation et historique après sauvegarde. Manipulation directe sur le globe à réaliser.
 
 - V0.1 édition : suppression confirmée des routes et rivières, avec restauration de la géométrie complète par l’historique de session.
+
+### V0.1 — Premiers territoires
+
+- [x] Contour simple dessiné en vue plane, nom, couleur, calque, sauvegarde,
+  suppression confirmée et historique de session ; contrôle topologique PostGIS.
+- [x] Surface en 2D, sélection et localisation dans l’Atlas ; contour sur globe.
+- [ ] Modifier les sommets d’un territoire existant et remplir le globe.
+- [ ] Prendre en charge les trous à la création, l’antiméridien et les pôles.

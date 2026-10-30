@@ -27,6 +27,22 @@ export class WorldsController {
     const input = parseInput(z.object({ summary: z.enum(['1']).optional() }).strict(),query);
     return this.worlds.get(request.account.id, id, input.summary === '1');
   }
+  @Get(':id/members')
+  @Header('Cache-Control', 'no-store')
+  members(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthRequest) {
+    return this.worlds.members(request.account.id, id);
+  }
+  @Post(':id/members')
+  @Header('Cache-Control', 'no-store')
+  share(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ email: z.email().max(254).transform(value => value.trim()), role: z.enum(['editor', 'viewer']) }).strict(), body);
+    return this.worlds.share(request.account.id, id, input);
+  }
+  @Delete(':id/members/:memberId')
+  @Header('Cache-Control', 'no-store')
+  unshare(@Param('id', ParseUUIDPipe) id: string, @Param('memberId', ParseUUIDPipe) memberId: string, @Req() request: AuthRequest) {
+    return this.worlds.unshare(request.account.id, id, memberId);
+  }
   @Get(':id/objects/:objectId')
   @Header('Cache-Control', 'no-store')
   getObject(@Param('id', ParseUUIDPipe) id: string, @Param('objectId', ParseUUIDPipe) objectId: string, @Req() request: AuthRequest) {

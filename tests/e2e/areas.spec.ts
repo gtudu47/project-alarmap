@@ -26,7 +26,7 @@ test('dessiner, sélectionner et restaurer un territoire', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByText('Territoires', { exact: true }).click();
   await page.getByLabel('Nom du territoire').fill('Vallée verte');
   await page.getByRole('button', { name: 'Dessiner un territoire' }).click();

@@ -24,7 +24,7 @@ for (const partial of [false, true]) test('placer un lieu par clic, enregistrer 
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByRole('button', { name: 'Placer sur la carte', exact: true }).click();
   await page.keyboard.press('Escape'); await expect(page.getByRole('button', { name: 'Placer sur la carte', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Placer sur la carte', exact: true }).click();

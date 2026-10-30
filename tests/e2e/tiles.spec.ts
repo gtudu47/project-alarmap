@@ -32,7 +32,7 @@ test('les détails sont demandés selon le zoom du monde privé', async ({ page 
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await expect.poll(() => requests.length).toBeGreaterThan(0);
   const coarse = requests[0]!;
   await page.getByText('Détail et tuiles', { exact: true }).click();

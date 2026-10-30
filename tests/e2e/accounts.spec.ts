@@ -69,7 +69,7 @@ test('les calques restent indépendants entre carte et globe', async ({ page }) 
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('button', { name: /Monde à deux calques/ }).click();
+  await page.getByRole('button', { name: /^Monde à deux calques/ }).click();
   await expect(page.getByRole('checkbox', { name: 'Villes' })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Routes' })).not.toBeChecked();
   await page.getByRole('checkbox', { name: 'Routes' }).check();

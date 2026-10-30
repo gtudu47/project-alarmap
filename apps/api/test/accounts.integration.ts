@@ -43,7 +43,19 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(`/worlds/${world.id}`, tokens[1])).status, 404);
     const point = { name: 'Lieu de test', longitude: 175, latitude: -20, revision: 0 };
     assert.equal((await request(`/worlds/${world.id}/points`, tokens[1], point)).status, 404);
-    await infra.pool.query("INSERT INTO members(world_id,user_id,role) VALUES($1,$2,'viewer')", [world.id, users[1]]);
+    const membersPath = '/worlds/' + world.id + '/members';
+    assert.equal((await request(membersPath)).status, 401);
+    assert.equal((await request(membersPath, tokens[1])).status, 404);
+    assert.equal((await request(membersPath, tokens[1], { email: `${users[1]}@example.test`, role: 'editor' })).status, 404);
+    assert.equal((await request(membersPath, tokens[0], { email: `${users[0]}@example.test`, role: 'editor' })).status, 400);
+    assert.equal((await request(membersPath, tokens[0], { email: 'unknown@example.test', role: 'viewer' })).status, 404);
+    assert.equal((await request(membersPath, tokens[0], { email: `${users[1]}@example.test`, role: 'owner' })).status, 400);
+    assert.equal((await request(membersPath + '/' + users[0], tokens[0], undefined, 'DELETE')).status, 400);
+    assert.equal((await request(membersPath, tokens[0], { email: `${users[1]}@EXAMPLE.TEST`, role: 'viewer' })).status, 201);
+    const sharedMembers = await (await request(membersPath, tokens[0])).json() as { id: string; email: string; displayName: string; role: string }[];
+    assert.deepEqual(sharedMembers, [{ id: users[1], email: `${users[1]}@example.test`, displayName: 'Test 1', role: 'viewer' }]);
+    assert.equal((await request(membersPath, tokens[1])).status, 404);
+    assert.equal((await request(membersPath + '/' + users[1], tokens[1], undefined, 'DELETE')).status, 404);
     assert.equal((await request(`/worlds/${world.id}`, tokens[1])).status, 200);
     assert.equal((await request(`/worlds/${world.id}/points`, tokens[1], point)).status, 403);
     assert.equal((await request(`/worlds/${world.id}/points`, tokens[0], { ...point, latitude: 91 })).status, 400);
@@ -74,7 +86,8 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal(edited.world.objects[0]?.name, update.name);
     assert.deepEqual(edited.world.objects[0]?.geometry.coordinates, [-179, 85]);
     assert.equal((await request(endpoint, tokens[0], { revision: 1 }, 'DELETE')).status, 409);
-    await infra.pool.query("UPDATE members SET role='editor' WHERE world_id=$1 AND user_id=$2", [world.id, users[1]]);
+    assert.equal((await request(membersPath, tokens[0], { email: `${users[1]}@example.test`, role: 'editor' })).status, 201);
+    assert.equal((await request(membersPath, tokens[1], { email: `${users[1]}@example.test`, role: 'viewer' })).status, 404);
     assert.equal((await request(endpoint, tokens[1], { revision: 2 }, 'DELETE')).status, 200);
     const removed = await (await request('/worlds/' + world.id, tokens[0])).json() as { world: { revision: number; objects: unknown[] } };
     assert.equal(removed.world.revision, 3);
@@ -82,7 +95,7 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(endpoint, tokens[0], { revision: 3 }, 'DELETE')).status, 404);
     const original = { ...reopened.world.objects[0]!, name: 'Restauré', kind: 'city', style: { color: '#e6b96c', opacity: 1 }, properties: { note: 'Identité conservée' }, startYear: -50, endYear: 100 };
     assert.equal((await request(endpoint, tokens[1], { revision: 2, point: original }, 'PUT')).status, 409);
-    await infra.pool.query("UPDATE members SET role='viewer' WHERE world_id=$1 AND user_id=$2", [world.id, users[1]]);
+    assert.equal((await request(membersPath, tokens[0], { email: `${users[1]}@example.test`, role: 'viewer' })).status, 201);
     assert.equal((await request(endpoint, tokens[1], { revision: 3, point: original }, 'PUT')).status, 403);
     const restored = await request(endpoint, tokens[0], { revision: 3, point: original }, 'PUT');
     assert.equal(restored.status, 200);
@@ -252,6 +265,13 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(areaPath, tokens[0], { revision: 12, point: modifiedArea }, 'PUT')).status, 200);
     const restoredWithHole = await (await request('/worlds/' + other.world.id + '/objects/' + area.id, tokens[1])).json() as { world: World };
     assert.deepEqual(restoredWithHole.world.objects[0]!.geometry, modifiedArea.geometry);
+    assert.equal((await request(membersPath + '/' + users[1], tokens[0], undefined, 'DELETE')).status, 200);
+    assert.equal((await request('/worlds/' + world.id, tokens[1])).status, 404);
+    assert.equal((await request('/worlds/' + world.id + '/tiles' + tileQuery + '100', tokens[1])).status, 404);
+    assert.equal((await request('/worlds/' + world.id + '/points', tokens[1], { ...point, revision: 11 })).status, 404);
+    assert.equal((await request('/worlds/' + other.world.id, tokens[1])).status, 200);
+    assert.equal((await request(membersPath + '/' + users[1], tokens[0], undefined, 'DELETE')).status, 404);
+    assert.deepEqual(await (await request(membersPath, tokens[0])).json(), []);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

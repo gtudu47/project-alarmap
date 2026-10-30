@@ -32,7 +32,7 @@ test('modifier et supprimer un tracé complet puis annuler et rétablir', async 
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByRole('link', { name: 'Atlas', exact: true }).click();
   await page.getByRole('button', { name: 'Localiser Passage de l’antiméridien' }).click();
   const selected = page.getByRole('region', { name: 'Tracé sélectionné' });

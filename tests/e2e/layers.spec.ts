@@ -24,7 +24,7 @@ test('créer, renommer et verrouiller un calque', async ({ page }) => {
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByLabel('Nouveau calque').fill('Relief');
   await page.getByRole('button', { name: 'Créer le calque' }).click();
   await expect(page.getByRole('checkbox', { name: 'Relief', exact: true })).toBeVisible();

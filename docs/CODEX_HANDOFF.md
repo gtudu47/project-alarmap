@@ -488,3 +488,19 @@ collecte des sommets, permet d’en retirer ou d’abandonner avec Échap, puis 
 le contour au brouillon. La sauvegarde reste explicite et le changement de vue
 est suspendu pendant le dessin. Les trous existants restent modifiables par
 coordonnées ; les poignées concernent uniquement le contour extérieur.
+
+## Reprise — partage privé entre comptes (30 octobre 2026)
+
+Le propriétaire d’un monde peut ajouter un compte déjà inscrit comme lecteur ou
+éditeur, changer son rôle et retirer son accès dans Mon espace. Routes privées
+`GET/POST /worlds/:id/members` et `DELETE /worlds/:id/members/:memberId` :
+propriétaire uniquement, droits vérifiés à chaque requête, rôle propriétaire
+protégé, contrôles HTTP/PostGIS et parcours navigateur. Aucun email n’est envoyé.
+Les invitations créent les comptes mais ne partagent aucun monde automatiquement.
+Aucun VPS ni domaine fourni ; cette fonctionnalité locale ne met pas le service
+sur Internet. À poursuivre : publication de révisions et Viewer public filtré.
+Validation du partage : tests HTTP/PostGIS réussis (accès, changement de rôle,
+révocation immédiate et isolement des mondes), navigateur propriétaire et lecteur
+réussis. La suite navigateur a révélé deux sélecteurs ambigus et un délai WebGL
+insuffisant : corrigés et parcours concernés relancés avec succès. La CI du
+commit bb95b0e est réussie.

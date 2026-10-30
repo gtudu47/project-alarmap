@@ -22,7 +22,7 @@ for (const partial of [false, true]) test('dessiner une rivière, retirer un som
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByText('Routes et rivières', { exact: true }).click();
   await page.getByLabel('Nom du tracé').fill('Rivière claire'); await page.getByLabel('Type de tracé').selectOption('river');
   await page.getByRole('button', { name: 'Commencer le tracé' }).click();

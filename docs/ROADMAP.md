@@ -40,7 +40,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Écran Mon espace, connexion, invitations et création de mondes privés.
 - [x] Premier outil de lieux par coordonnées avec sauvegarde et révisions.
 - [x] Tests API des comptes/mondes sur PostgreSQL/PostGIS réel : isolation, lecture seule, concurrence et révocation.
-- [-] Autorisations owner/editor/viewer sur les routes existantes ; tests HTTP/PostGIS exécutés.
+- [-] Autorisations owner/editor/viewer et partage privé entre comptes inscrits ; tests HTTP/PostGIS exécutés.
 - [ ] Publication filtrée : draft/private/unlisted/public.
 - [ ] Viewer et iframe sur données publiées réelles ; export PNG.
 
@@ -86,7 +86,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 
 ## V1.1 à V2.0
 
-- [ ] **1.1 Collaboration** : invitations, partage, commentaires, audit, versions et restauration.
+- [-] **1.1 Collaboration** : partage privé initial entre comptes inscrits ; commentaires, audit, versions et restauration à développer.
 - [ ] **1.2 Temps réel** : WebSocket, présence, curseurs et documents CRDT autorisés côté serveur.
 - [ ] **1.3 Encyclopédie** : articles et liens aux entités/périodes, personnages,
   événements, batailles ; graphe/statistiques religieux, ordres, reliques, conciles, pèlerinages.

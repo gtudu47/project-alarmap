@@ -76,7 +76,7 @@ test('sélectionner un tracé visible sur le globe sans sélectionner sa face ca
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByRole('link', { name: 'Atlas', exact: true }).click();
   await page.getByRole('button', { name: 'Localiser Passage de l’antiméridien' }).click();
   await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();

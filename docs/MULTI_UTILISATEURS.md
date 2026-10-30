@@ -11,7 +11,7 @@
 Un compte invité n’est pas administrateur. Une invitation ne donne accès à
 aucun monde existant. L’administrateur de l’instance ne voit pas les mondes
 des autres comptes par défaut ; chaque requête vérifie propriétaire ou membre.
-Le partage explicite de mondes avec d’autres membres reste un futur écran.
+Le propriétaire peut partager un monde privé avec un compte déjà inscrit, depuis **Mon espace** puis **Gérer les accès**.
 
 Le premier outil disponible dans un monde personnel ajoute un lieu par
 longitude/latitude, avec sauvegarde immédiate côté serveur. Les outils de dessin
@@ -321,3 +321,18 @@ La limite de 2 000 sommets s’applique à tous les contours réunis. La vue pla
 affiche les trous et exclut leur intérieur de la sélection ; le globe affiche
 les contours. Les poignées déplacent actuellement le contour extérieur ; les
 trous déjà dessinés se modifient par coordonnées. Le serveur valide la géométrie complète.
+
+## Partager un monde privé
+
+Le propriétaire ouvre **Mon espace**, puis **Gérer les accès** à côté de son
+monde. Il renseigne l’adresse email d’une personne déjà inscrite sur la même
+instance et choisit **Lecture seule** ou **Éditeur**. Il peut modifier ce rôle
+ou retirer l’accès après confirmation. Le monde apparaît dans l’espace du membre.
+Le propriétaire conserve son accès et reste seul habilité à gérer les membres.
+Les permissions sont vérifiées côté serveur à chaque opération ; le retrait
+empêche les prochains accès, sans effacer les données déjà consultées ou copiées.
+
+Ce partage ne crée pas de compte et n’envoie pas d’email. L’administrateur doit
+d’abord inviter la personne sur l’instance, puis le propriétaire peut partager
+son monde. Pour un accès par Internet, l’instance doit encore être installée sur
+un serveur accessible et disposer d’un domaine et d’HTTPS.

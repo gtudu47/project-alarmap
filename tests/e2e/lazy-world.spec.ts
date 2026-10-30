@@ -18,7 +18,7 @@ test('ouvrir sans objets puis parcourir l’Atlas par pages sans chargement comp
   await page.goto('/');
   await expect(page.getByText('Démonstration locale · objets intégrés.',{exact:true})).toBeVisible({ timeout: 15000 });
   await page.getByRole('button',{name:'Alice',exact:true}).click();
-  await page.getByRole('dialog').getByRole('button',{name:/Monde de démonstration/}).click();
+  await page.getByRole('dialog').getByRole('button',{name:/^Monde de démonstration/}).click();
   await expect(page.getByText('1 objet(s) chargé(s) dans cette zone',{exact:true})).toBeVisible();
   expect(summaries).toBe(1); expect(fullLoads).toBe(0);
   await page.getByRole('link',{name:'Accueil',exact:true}).click();

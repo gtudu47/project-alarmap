@@ -1,5 +1,5 @@
 import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild, inject, signal } from '@angular/core';
-import { AccountsClient, type Invitation, type WorldAccess, type WorldSummary } from './accounts.client';
+import { AccountsClient, type Invitation, type WorldAccess, type WorldSummary, type WorldMember } from './accounts.client';
 
 @Component({
   selector: 'alarmap-account-panel', standalone: true,
@@ -32,6 +32,31 @@ import { AccountsClient, type Invitation, type WorldAccess, type WorldSummary } 
             <div class="account-worlds">
               @for (world of worlds(); track world.id) {
                 <button type="button" class="world-entry" [disabled]="busy()" (click)="openWorld(world.id)"><strong>{{ world.name }}</strong><span>{{ world.radiusKm }} km · {{ world.role === 'owner' ? 'Propriétaire' : world.role === 'editor' ? 'Éditeur' : 'Lecture seule' }}</span><span>Ouvrir →</span></button>
+                @if (world.role === 'owner') {
+                  <button type="button" class="account-link" [disabled]="busy()" (click)="manageMembers(world.id)" [attr.aria-label]="'Gérer les accès de ' + world.name">{{ sharingWorld() === world.id ? 'Fermer les accès' : 'Gérer les accès' }}</button>
+                  @if (sharingWorld() === world.id) {
+                    <section class="invite-section" [attr.aria-label]="'Accès à ' + world.name">
+                      <h3>Accès à {{ world.name }}</h3>
+                      <p>Partagez ce monde privé avec un compte déjà inscrit. Le propriétaire conserve toujours ses droits.</p>
+                      <form class="account-form" (submit)="shareWorld($event, world.id)">
+                        <label>Adresse email du membre<input name="email" type="email" required maxlength="254"></label>
+                        <label>Rôle du membre<select name="role"><option value="viewer">Lecture seule</option><option value="editor">Éditeur</option></select></label>
+                        <button class="account-primary" [disabled]="busy()">Donner accès</button>
+                      </form>
+                      <ul class="invitation-list">@for (member of members(); track member.id) {
+                        <li><strong>{{ member.displayName }}</strong> · {{ member.email }}
+                          <form class="account-form" (submit)="changeMember($event, world.id, member)">
+                            <label [attr.for]="'role-' + member.id">Rôle de {{ member.displayName }}</label><select [id]="'role-' + member.id" name="role" [value]="member.role"><option value="viewer">Lecture seule</option><option value="editor">Éditeur</option></select>
+                            <button class="account-secondary" [disabled]="busy()">Modifier le rôle</button>
+                          </form>
+                          @if (removeMemberConfirm() === member.id) {
+                            <span>Retirer l’accès à {{ member.displayName }} ?</span><button type="button" class="account-secondary" [disabled]="busy()" (click)="removeMember(world.id, member.id)">Confirmer le retrait</button><button type="button" class="account-link" [disabled]="busy()" (click)="removeMemberConfirm.set(null)">Annuler</button>
+                          } @else { <button type="button" class="account-link" [disabled]="busy()" (click)="removeMemberConfirm.set(member.id)" [attr.aria-label]="'Retirer l’accès de ' + member.displayName">Retirer l’accès</button> }
+                        </li>
+                      } @empty { <li>Aucun autre membre pour ce monde.</li> }</ul>
+                    </section>
+                  }
+                }
               } @empty { <p>Vous n’avez pas encore de monde. Créez le premier ci-dessus.</p> }
             </div>
             @if (client.user()!.isAdmin) {
@@ -64,6 +89,9 @@ export class AccountPanel implements OnInit {
   readonly worlds = signal<WorldSummary[]>([]);
   readonly invitations = signal<Invitation[]>([]);
   readonly invitationUrl = signal('');
+  readonly sharingWorld = signal<string | null>(null);
+  readonly members = signal<WorldMember[]>([]);
+  readonly removeMemberConfirm = signal<string | null>(null);
   action: 'login' | 'setup' | 'accept-invitation' = 'login';
   private token = '';
   constructor() {
@@ -108,7 +136,7 @@ export class AccountPanel implements OnInit {
     });
   }
   async logout(): Promise<void> {
-    await this.run(async () => { await this.client.logout(); this.worlds.set([]); this.invitations.set([]); this.invitationUrl.set(''); });
+    await this.run(async () => { await this.client.logout(); this.worlds.set([]); this.invitations.set([]); this.invitationUrl.set(''); this.sharingWorld.set(null); this.members.set([]); this.removeMemberConfirm.set(null); });
   }
   async createWorld(event: Event): Promise<void> {
     event.preventDefault(); const form = event.target as HTMLFormElement; const data = new FormData(form);
@@ -119,6 +147,37 @@ export class AccountPanel implements OnInit {
   }
   async openWorld(id: string): Promise<void> {
     await this.run(async () => this.worldOpened.emit(await this.client.request<WorldAccess>(`/worlds/${id}?summary=1`)));
+  }
+  async manageMembers(worldId: string): Promise<void> {
+    if (this.sharingWorld() === worldId) { this.sharingWorld.set(null); this.members.set([]); this.removeMemberConfirm.set(null); return; }
+    await this.run(async () => {
+      const members = await this.client.request<WorldMember[]>(`/worlds/${worldId}/members`);
+      this.members.set(members); this.sharingWorld.set(worldId); this.removeMemberConfirm.set(null);
+    });
+  }
+  async shareWorld(event: Event, worldId: string): Promise<void> {
+    event.preventDefault(); const form = event.target as HTMLFormElement; const data = new FormData(form);
+    await this.run(async () => {
+      await this.client.request<void>(`/worlds/${worldId}/members`, { method: 'POST', body: JSON.stringify({ email: String(data.get('email') ?? '').trim(), role: data.get('role') }) });
+      this.members.set(await this.client.request<WorldMember[]>(`/worlds/${worldId}/members`));
+      form.reset(); this.removeMemberConfirm.set(null); this.notice.set('Accès enregistré.');
+    });
+  }
+  async changeMember(event: Event, worldId: string, member: WorldMember): Promise<void> {
+    event.preventDefault(); const data = new FormData(event.target as HTMLFormElement);
+    await this.run(async () => {
+      await this.client.request<void>(`/worlds/${worldId}/members`, { method: 'POST', body: JSON.stringify({ email: member.email, role: data.get('role') }) });
+      this.members.set(await this.client.request<WorldMember[]>(`/worlds/${worldId}/members`));
+      this.removeMemberConfirm.set(null); this.notice.set('Rôle mis à jour.');
+    });
+  }
+  async removeMember(worldId: string, memberId: string): Promise<void> {
+    if (this.removeMemberConfirm() !== memberId) return;
+    await this.run(async () => {
+      await this.client.request<void>(`/worlds/${worldId}/members/${memberId}`, { method: 'DELETE' });
+      this.members.set(await this.client.request<WorldMember[]>(`/worlds/${worldId}/members`));
+      this.removeMemberConfirm.set(null); this.notice.set('Accès retiré.');
+    });
   }
   async invite(event: Event): Promise<void> {
     event.preventDefault(); const form = event.target as HTMLFormElement; const data = new FormData(form);

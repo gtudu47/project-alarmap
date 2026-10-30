@@ -15,7 +15,7 @@ test('détails 3D des deux côtés de l’antiméridien, dédoublonnage et révi
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto('/'); await page.getByRole('button',{name:'Alice',exact:true}).click();
-  await page.getByRole('dialog').getByRole('button',{name:/Monde de démonstration/}).click();
+  await page.getByRole('dialog').getByRole('button',{name:/^Monde de démonstration/}).click();
   await page.getByRole('link',{name:'Atlas',exact:true}).click();
   await page.getByRole('button',{name:'Localiser Origine',exact:true}).click();
   await page.getByRole('button',{name:'Globe 3D',exact:true}).click();

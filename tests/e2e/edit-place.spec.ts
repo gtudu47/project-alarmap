@@ -37,7 +37,7 @@ for (const partial of [false, true]) test('modifier puis supprimer un lieu avec 
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Alice', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Monde de démonstration/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await page.getByRole('link', { name: 'Atlas', exact: true }).click();
   await page.getByRole('button', { name: 'Localiser Origine', exact: true }).click();
   const selected = page.getByRole('region', { name: 'Lieu sélectionné' });

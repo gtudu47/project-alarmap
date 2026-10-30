@@ -17,6 +17,42 @@ export class WorldsService {
       WHERE w.owner_id=$1 OR m.user_id=$1 ORDER BY w.updated_at DESC LIMIT 100`, [userId]);
     return result.rows;
   }
+  async members(userId: string, id: string): Promise<{ id: string; email: string; displayName: string; role: 'editor' | 'viewer' }[]> {
+    const owner = await this.pool.query('SELECT 1 FROM worlds WHERE id=$1 AND owner_id=$2', [id, userId]);
+    if (!owner.rowCount) throw new NotFoundException('Monde introuvable.');
+    const result = await this.pool.query<{ id: string; email: string; displayName: string; role: 'editor' | 'viewer' }>(`SELECT u.id,u.email,u.display_name AS "displayName",m.role FROM members m
+      JOIN users u ON u.id=m.user_id JOIN worlds w ON w.id=m.world_id
+      WHERE m.world_id=$1 AND m.user_id<>w.owner_id ORDER BY lower(u.email),u.id`, [id]);
+    return result.rows;
+  }
+  async share(userId: string, id: string, input: { email: string; role: 'editor' | 'viewer' }): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const owner = await client.query('SELECT 1 FROM worlds WHERE id=$1 AND owner_id=$2 FOR UPDATE', [id,userId]);
+      if (!owner.rowCount) throw new NotFoundException('Monde introuvable.');
+      const user = await client.query<{ id: string }>('SELECT id FROM users WHERE lower(email)=lower($1)', [input.email]);
+      if (!user.rows[0]) throw new NotFoundException('Compte introuvable. Cette personne doit d’abord rejoindre l’instance.');
+      if (user.rows[0].id === userId) throw new BadRequestException('Le propriétaire conserve toujours son accès.');
+      await client.query(`INSERT INTO members(world_id,user_id,role) VALUES($1,$2,$3)
+        ON CONFLICT(world_id,user_id) DO UPDATE SET role=EXCLUDED.role`, [id,user.rows[0].id,input.role]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
+  async unshare(userId: string, id: string, memberId: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const owner = await client.query('SELECT 1 FROM worlds WHERE id=$1 AND owner_id=$2 FOR UPDATE', [id,userId]);
+      if (!owner.rowCount) throw new NotFoundException('Monde introuvable.');
+      if (memberId === userId) throw new BadRequestException('Le propriétaire conserve toujours son accès.');
+      const removed = await client.query('DELETE FROM members WHERE world_id=$1 AND user_id=$2', [id,memberId]);
+      if (!removed.rowCount) throw new NotFoundException('Membre introuvable.');
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
   async create(userId: string, input: { name: string; radiusKm: number }): Promise<{ world: World; role: MemberRole }> {
     const id = randomUUID(); const client = await this.pool.connect();
     try {

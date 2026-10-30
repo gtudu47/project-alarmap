@@ -19,7 +19,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Dockerfiles, Compose, proxy et dépendances de démarrage.
 - [x] Validation des builds, 12 tests unitaires, 3 parcours navigateur et démarrage natif de l’API.
 - [x] Démarrage complet Docker/PostGIS validé sur Windows avec Docker Desktop (17 septembre 2026).
-- [ ] Validation de la CI distante Windows/Linux.
+- [x] CI distante Windows/Linux et vérifications Docker sur GitHub.
 
 ### Lot C — Modèle et moteur
 - [x] Schémas de monde, calque, objet, période et fondations Religions.
@@ -40,7 +40,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Écran Mon espace, connexion, invitations et création de mondes privés.
 - [x] Premier outil de lieux par coordonnées avec sauvegarde et révisions.
 - [x] Tests API des comptes/mondes sur PostgreSQL/PostGIS réel : isolation, lecture seule, concurrence et révocation.
-- [-] Autorisations owner/editor/viewer sur les routes existantes ; tests HTTP/PostGIS écrits, à exécuter.
+- [-] Autorisations owner/editor/viewer sur les routes existantes ; tests HTTP/PostGIS exécutés.
 - [ ] Publication filtrée : draft/private/unlisted/public.
 - [ ] Viewer et iframe sur données publiées réelles ; export PNG.
 
@@ -193,7 +193,7 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Dessin de routes/rivières par sommets en vue plane, aperçu, retrait du
   dernier sommet, abandon et sauvegarde ; rendu plane/globe et Undo/Redo.
-- [-] Édition des sommets des lignes existantes par coordonnées et glisser-déposer en vue plane ; dessin de territoires simples disponible, édition des sommets des polygones à réaliser.
+- [-] Édition des sommets des lignes existantes par coordonnées et glisser-déposer en vue plane ; dessin et modification des sommets de territoires simples disponibles.
 
 ### Échelle du globe
 
@@ -233,7 +233,7 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - Création progressive : ajout des lieux et tracés sans téléchargement préalable du monde complet ; historique et compteurs conservés.
 
-- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Édition des lignes en vue plane disponible ; dessin et sélection des territoires simples disponibles, édition des polygones à poursuivre.
+- V0.1 sélection : clic sur les routes et rivières visibles en vue plane, y compris aux deux côtés de l’antiméridien ; localisation d’un tracé depuis l’Atlas. Édition des lignes en vue plane disponible ; dessin, sélection et modification des territoires simples disponibles.
 
 - V0.1 globe : sélection directe des routes et rivières visibles, avec tolérance adaptée au zoom et masquage par la planète.
 
@@ -248,5 +248,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Contour simple dessiné en vue plane, nom, couleur, calque, sauvegarde,
   suppression confirmée et historique de session ; contrôle topologique PostGIS.
 - [x] Surface en 2D, sélection et localisation dans l’Atlas ; contour sur globe.
-- [ ] Modifier les sommets d’un territoire existant et remplir le globe.
-- [ ] Prendre en charge les trous à la création, l’antiméridien et les pôles.
+- [x] Modifier le nom, la couleur et les sommets d’un territoire simple en vue plane ; annuler ou rétablir la modification.
+- [ ] Remplir les territoires sur le globe ; prendre en charge les trous à la création, l’antiméridien et les pôles.

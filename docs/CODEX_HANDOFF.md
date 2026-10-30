@@ -457,3 +457,15 @@ PostGIS et parcours navigateur exécutés ; voir la CI du commit pour les contr�
 complets. À poursuivre : édition des sommets des territoires enregistrés,
 remplissage sur globe, trous et géométries aux raccordements/pôles. Le VPS n’est
 toujours pas fourni ; aucun déploiement public n’a été effectué.
+
+## Reprise — édition des territoires simples (30 octobre 2026)
+
+Édition du nom, de la couleur et des sommets d’un territoire simple : chargement
+de la géométrie complète avant modification, coordonnées ou poignées en 2D,
+fermeture automatique de l’anneau, conservation du brouillon en cas d’erreur,
+contrôle de révision et historique de session. Le changement de vue conserve
+le brouillon ; la modification graphique des sommets reste limitée à la 2D.
+À poursuivre : contours à trous et aux raccordements/pôles, remplissage sur
+le globe et autres fonctionnalités du lot V0.1-D puis consultation/publication.
+Validation du lot précédent : CI GitHub 41121285745 réussie sur Windows et Linux,
+avec intégration PostGIS, conteneurs et tests navigateur.

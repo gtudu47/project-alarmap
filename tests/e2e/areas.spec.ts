@@ -16,6 +16,7 @@ test('dessiner, sélectionner et restaurer un territoire', async ({ page }) => {
     else if (path.includes('/areas/')) {
       const input = route.request().postDataJSON(); expect(input.revision).toBe(world.revision); expect(url.searchParams.get('compact')).toBe('1');
       if (method === 'PUT') {
+        if (input.point.name === 'Rejet serveur') { await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Contour croisé.' }) }); return; }
         expect(input.point.geometry.type).toBe('Polygon');
         const ring = input.point.geometry.coordinates[0]; expect(ring).toHaveLength(4); expect(ring[0]).toEqual(ring[3]);
         world.objects = [...world.objects.filter(o => o.id !== input.point.id), input.point];
@@ -36,10 +37,47 @@ test('dessiner, sélectionner et restaurer un territoire', async ({ page }) => {
   await page.mouse.click(x, y + 50);
   await page.getByRole('button', { name: 'Enregistrer le territoire' }).click();
   await expect(page.getByText('Territoire enregistré.', { exact: true })).toBeVisible();
-  const saved = structuredClone(world.objects[0]!); expect(saved.kind).toBe('territory');
+  world.objects[0]!.properties = { note: 'Conservée' };
+  let saved = structuredClone(world.objects[0]!); expect(saved.kind).toBe('territory');
   await page.mouse.click(x, y);
   const selected = page.getByRole('region', { name: 'Territoire sélectionné' });
   await expect(selected.getByRole('heading', { name: 'Vallée verte' })).toBeVisible();
+  await selected.getByRole('button', { name: 'Modifier le territoire' }).click();
+  const coordinates = selected.getByLabel('Sommets du territoire');
+  await coordinates.fill('0, 0\ninvalide');
+  await selected.getByRole('button', { name: 'Enregistrer le territoire modifié' }).click();
+  await expect(selected.getByText(/Indiquez 3 à 2 000 sommets/)).toBeVisible();
+  expect(world.objects[0]).toEqual(saved);
+  await selected.getByRole('button', { name: 'Annuler la modification' }).click();
+  await selected.getByRole('button', { name: 'Modifier le territoire' }).click();
+  await selected.getByLabel('Nom du territoire sélectionné').fill('Rejet serveur');
+  await coordinates.fill('-20, 20\n20, 20\n0, -20');
+  await selected.getByRole('button', { name: 'Enregistrer le territoire modifié' }).click();
+  await expect(selected.getByText('Contour croisé.')).toBeVisible();
+  await expect(coordinates).toHaveValue('-20, 20\n20, 20\n0, -20'); expect(world.objects[0]).toEqual(saved);
+  await selected.getByLabel('Nom du territoire sélectionné').fill('Vallée bleue');
+  await selected.getByLabel('Couleur du territoire sélectionné').fill('#3355aa');
+  const scale = Math.min(box.width / 400, box.height / 220);
+  await page.mouse.move(x - 20 * scale, y - 20 * scale); await page.mouse.down();
+  await page.mouse.move(x - 18 * scale, y - 20 * scale, { steps: 5 }); await page.mouse.up();
+  await expect.poll(async () => Number((await coordinates.inputValue()).split('\n')[0]!.split(',')[0])).toBeCloseTo(-18, 4);
+  const draft = await coordinates.inputValue(); expect(world.objects[0]).toEqual(saved);
+  await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
+  await expect(coordinates).toHaveValue(draft);
+  await page.getByRole('button', { name: 'Carte plane', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Carte plane', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
+  await expect(coordinates).toHaveValue(draft);
+  await selected.getByRole('button', { name: 'Enregistrer le territoire modifié' }).click();
+  await expect(page.getByText('Territoire modifié.', { exact: true })).toBeVisible();
+  expect(world.objects[0]!.name).toBe('Vallée bleue'); expect(world.objects[0]!.style.color).toBe('#3355aa');
+  expect(world.objects[0]!.properties).toEqual({ note: 'Conservée' });
+  const modified = structuredClone(world.objects[0]!);
+  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await expect.poll(() => world.objects[0]).toEqual(saved);
+  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await expect.poll(() => world.objects[0]).toEqual(modified);
+  saved = modified;
   await selected.getByRole('button', { name: 'Supprimer le territoire', exact: true }).click();
   await selected.getByRole('button', { name: 'Annuler la suppression' }).click(); expect(world.objects).toHaveLength(1);
   await selected.getByRole('button', { name: 'Supprimer le territoire', exact: true }).click();
@@ -52,7 +90,7 @@ test('dessiner, sélectionner et restaurer un territoire', async ({ page }) => {
   await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
   await expect.poll(() => world.objects[0]).toEqual(saved);
   await page.getByRole('link', { name: 'Atlas', exact: true }).click();
-  await page.getByRole('button', { name: 'Localiser Vallée verte' }).click();
+  await page.getByRole('button', { name: 'Localiser Vallée bleue' }).click();
   await expect(page.getByRole('region', { name: 'Territoire sélectionné' })).toBeVisible();
   await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });

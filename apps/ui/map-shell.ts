@@ -154,11 +154,23 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
           @if (personal() && role !== 'viewer' && object.geometry.type === 'Polygon' && object.kind === 'territory') {
-            @if (deleteConfirm() === object.id) {
-              <p>Supprimer ce territoire ? Vous pourrez annuler pendant cette session.</p>
-              <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteArea()">Confirmer la suppression du territoire</button>
-              <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
-            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le territoire</button> }
+            @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
+              <form class="point-form" (submit)="updateArea($event)">
+                <label>Nom du territoire sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
+                <label>Couleur du territoire sélectionné<input name="color" type="color" [value]="edit.object.style.color"></label>
+                <label>Sommets du territoire<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatAreaCoordinates(edit.object)" (input)="syncAreaVertices($any($event.target).value)"></textarea></label>
+                <p>Un sommet par ligne : longitude, latitude. Le contour se ferme automatiquement. En vue plane, déplacez les points dorés à la souris.</p>
+                <button class="account-primary" [disabled]="pointBusy()">Enregistrer le territoire modifié</button>
+                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
+              </form>
+            } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginAreaEdit(object)">Modifier le territoire</button> }
+            @if (!lineEdit()) {
+              @if (deleteConfirm() === object.id) {
+                <p>Supprimer ce territoire ? Vous pourrez annuler pendant cette session.</p>
+                <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteArea()">Confirmer la suppression du territoire</button>
+                <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
+              } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le territoire</button> }
+            }
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
 
@@ -465,6 +477,57 @@ export class MapShell implements AfterViewInit, OnDestroy {
       this.cancelLineEdit(); this.pointMessage.set('Tracé modifié.');
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Modification du tracé impossible.'); }
     finally { this.pointBusy.set(false); if (this.lineEdit() && this.lineCoordinates) this.syncLineVertices(this.lineCoordinates.nativeElement.value); }
+  }
+  formatAreaCoordinates(object: MapObject): string {
+    return object.geometry.type === 'Polygon' ? object.geometry.coordinates[0]!.slice(0, -1).map(([lon, lat]) => lon + ', ' + lat).join('\n') : '';
+  }
+  private parseAreaVertices(text: string): Coordinate[] | null {
+    const rows = text.trim().split(/\r?\n/); const number = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+    const pairs = rows.map(row => row.split(',').map(part => part.trim()));
+    if (pairs.some(pair => pair.length !== 2 || pair.some(part => !number.test(part)))) return null;
+    const points = pairs.map(pair => [Number(pair[0]), Number(pair[1])] as Coordinate);
+    if (points.length > 3 && points[0]![0] === points.at(-1)![0] && points[0]![1] === points.at(-1)![1]) points.pop();
+    return points.length <= 2000 ? points : null;
+  }
+  syncAreaVertices(text: string): void {
+    const edit = this.lineEdit(); const points = this.parseAreaVertices(text);
+    if (!edit || edit.object.geometry.type !== 'Polygon' || !points || points.length < 3) { this.showEditableVertices(null); return; }
+    const parsed = areaObjectSchema.safeParse({ ...edit.object, geometry: { type: 'Polygon', coordinates: [[...points, points[0]]] } });
+    this.showEditableVertices(parsed.success ? points : null);
+  }
+  async beginAreaEdit(object: MapObject): Promise<void> {
+    if (!this.personal() || this.role === 'viewer' || this.pointBusy() || object.geometry.type !== 'Polygon') return;
+    const worldId = this.world.id; const revision = this.world.revision; this.pointBusy.set(true); this.lineEditError.set(''); this.deleteConfirm.set(null);
+    try {
+      const access = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/objects/' + object.id);
+      if (!this.personal() || !this.accounts.user() || this.world.id !== worldId || this.selectedId() !== object.id) return;
+      const world = worldSchema.parse(access.world);
+      if (world.revision !== revision || this.world.revision !== revision) throw new Error('Le monde a changé. Rechargez-le avant de modifier le territoire.');
+      const full = world.objects.find(item => item.id === object.id && item.geometry.type === 'Polygon' && item.kind === 'territory');
+      if (!full || full.geometry.type !== 'Polygon') throw new Error('Territoire introuvable.');
+      if (!areaObjectSchema.safeParse(full).success) throw new Error('Ce contour ne peut pas encore être modifié.');
+      this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.lineEdit.set({ object: full, revision });
+      this.showEditableVertices(full.geometry.coordinates[0]!.slice(0, -1));
+    } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Chargement du territoire impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
+  async updateArea(event: Event): Promise<void> {
+    event.preventDefault(); const edit = this.lineEdit();
+    if (!edit || edit.object.geometry.type !== 'Polygon' || this.pointBusy() || !this.personal() || this.role === 'viewer' || this.selectedId() !== edit.object.id) return;
+    if (edit.revision !== this.world.revision) { this.lineEditError.set('Le monde a changé. Rechargez-le avant de modifier le territoire.'); return; }
+    const fields = new FormData(event.target as HTMLFormElement); const points = this.parseAreaVertices(String(fields.get('coordinates') ?? ''));
+    if (!points || points.length < 3) { this.lineEditError.set('Indiquez 3 à 2 000 sommets, chacun sous la forme longitude, latitude.'); return; }
+    const parsed = areaObjectSchema.safeParse({ ...edit.object, name: String(fields.get('name') ?? '').trim(), style: { ...edit.object.style, color: fields.get('color') }, geometry: { type: 'Polygon', coordinates: [[...points, points[0]]] } });
+    if (!parsed.success) { this.lineEditError.set('Vérifiez le nom et les sommets : ni pôle, ni traversée de l’antiméridien.'); return; }
+    const worldId = this.world.id; const revision = edit.revision; this.pointBusy.set(true); this.lineEditError.set(''); this.engine?.setEditableVertices(null);
+    try {
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/areas/' + edit.object.id + '?compact=1', { method: 'PUT', body: JSON.stringify({ revision, point: parsed.data }) });
+      if (!this.personal() || !this.accounts.user() || this.world.id !== worldId) return;
+      if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
+      this.applyObjectResult(result, edit.object.id, revision); this.recordHistory({ before: edit.object, after: parsed.data });
+      this.cancelLineEdit(); this.pointMessage.set('Territoire modifié.');
+    } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Modification du territoire impossible.'); }
+    finally { this.pointBusy.set(false); if (this.lineEdit() && this.lineCoordinates) this.syncAreaVertices(this.lineCoordinates.nativeElement.value); }
   }
   async deleteLine(): Promise<void> {
     const id = this.selectedId();

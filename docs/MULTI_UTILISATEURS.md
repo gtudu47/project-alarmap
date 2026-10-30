@@ -312,10 +312,12 @@ cours. Le serveur contrôle à nouveau les droits, le calque, la révision et la
 validité du contour. Un refus conserve le brouillon pour le corriger.
 Annuler/Rétablir retrouve l’ancienne ou la nouvelle version pendant la session.
 
-Pour ajouter un trou, renseignez son contour dans **Trous du territoire**, avec
-un sommet par ligne. Séparez plusieurs trous par une ligne vide. Ils doivent se
+Pour ajouter un trou, cliquez sur **Dessiner un trou** en vue plane, placez au
+moins trois sommets puis choisissez **Terminer le trou**. Il reste provisoire
+jusqu’à l’enregistrement du territoire. Vous pouvez aussi renseigner le contour
+dans **Trous du territoire**, avec un sommet par ligne. Séparez plusieurs trous par une ligne vide. Ils doivent se
 trouver à l’intérieur du contour extérieur, sans chevauchement ni croisement.
 La limite de 2 000 sommets s’applique à tous les contours réunis. La vue plane
 affiche les trous et exclut leur intérieur de la sélection ; le globe affiche
 les contours. Les poignées déplacent actuellement le contour extérieur ; les
-trous se modifient par coordonnées. Le serveur valide la géométrie complète.
+trous déjà dessinés se modifient par coordonnées. Le serveur valide la géométrie complète.

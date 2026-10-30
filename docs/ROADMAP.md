@@ -250,4 +250,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Surface en 2D, sélection et localisation dans l’Atlas ; contour sur globe.
 - [x] Modifier le nom, la couleur et les sommets d’un territoire simple en vue plane ; annuler ou rétablir la modification.
 - [x] Ajouter, modifier et restaurer des trous par coordonnées ; affichage et sélection en 2D, contours sur globe.
-- [ ] Dessiner les trous à la souris, remplir les territoires sur le globe et prendre en charge l’antiméridien et les pôles.
+- [x] Dessiner les trous à la souris en vue plane, puis valider la modification.
+- [ ] Remplir les territoires sur le globe et prendre en charge l’antiméridien et les pôles.

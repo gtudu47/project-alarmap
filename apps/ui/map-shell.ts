@@ -159,9 +159,17 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
                 <label>Nom du territoire sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
                 <label>Couleur du territoire sélectionné<input name="color" type="color" [value]="edit.object.style.color"></label>
                 <label>Sommets du territoire<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatAreaCoordinates(edit.object)" (input)="syncAreaVertices($any($event.target).value)"></textarea></label>
-                <label>Trous du territoire<textarea name="holes" rows="5" [value]="formatAreaHoles(edit.object)"></textarea></label>
+                <label>Trous du territoire<textarea #areaHoles name="holes" rows="5" [value]="formatAreaHoles(edit.object)"></textarea></label>
+                @if (view() === 'plane') {
+                  @if (drawingHole()) {
+                    <p role="status">{{ holePoints().length }} sommet(s) du trou. Cliquez sur la carte ; Échap abandonne le trou.</p>
+                    <button class="account-secondary" type="button" [disabled]="!holePoints().length" (click)="removeHoleVertex()">Retirer le dernier sommet du trou</button>
+                    <button class="account-link" type="button" (click)="cancelHole()">Abandonner le trou</button>
+                    <button class="account-secondary" type="button" [disabled]="holePoints().length < 3" (click)="finishHole()">Terminer le trou</button>
+                  } @else { <button class="account-secondary" type="button" [disabled]="pointBusy()" (click)="startHole()">Dessiner un trou</button> }
+                }
                 <p>Un sommet par ligne : longitude, latitude. Séparez les trous par une ligne vide. Chaque contour se ferme automatiquement. En vue plane, déplacez les points dorés du contour extérieur à la souris.</p>
-                <button class="account-primary" [disabled]="pointBusy()">Enregistrer le territoire modifié</button>
+                <button class="account-primary" [disabled]="pointBusy() || drawingHole()">Enregistrer le territoire modifié</button>
                 <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
               </form>
             } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginAreaEdit(object)">Modifier le territoire</button> }
@@ -182,8 +190,8 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
       <section class="map-panel" aria-label="Carte interactive">
         <div class="map-toolbar">
           <div class="segmented" aria-label="Représentation">
-            <button type="button" [class.active]="view() === 'plane'" [attr.aria-pressed]="view() === 'plane'" [disabled]="loading()" (click)="setView('plane')">{{ text.plane }}</button>
-            <button type="button" [class.active]="view() === 'globe'" [attr.aria-pressed]="view() === 'globe'" [disabled]="loading()" (click)="setView('globe')">{{ text.globe }}</button>
+            <button type="button" [class.active]="view() === 'plane'" [attr.aria-pressed]="view() === 'plane'" [disabled]="loading() || drawingHole()" (click)="setView('plane')">{{ text.plane }}</button>
+            <button type="button" [class.active]="view() === 'globe'" [attr.aria-pressed]="view() === 'globe'" [disabled]="loading() || drawingHole()" (click)="setView('globe')">{{ text.globe }}</button>
           </div>
           <button class="reset" type="button" (click)="exportPng()" [disabled]="loading() || exporting()">{{ exporting() ? 'Export…' : 'Exporter PNG' }}</button>
           <button class="reset" type="button" (click)="reset()" [disabled]="loading()">{{ text.reset }}</button>
@@ -415,12 +423,14 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.syncScene();
   }
   @ViewChild('lineCoordinates') private lineCoordinates?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('areaHoles') private areaHoles?: ElementRef<HTMLTextAreaElement>;
   readonly lineEdit = signal<{ object: MapObject; revision: number } | null>(null);
   readonly lineEditError = signal('');
   formatLineCoordinates(object: MapObject): string {
     return object.geometry.type === 'LineString' ? object.geometry.coordinates.map(([lon, lat]) => lon + ', ' + lat).join('\n') : '';
   }
   cancelLineEdit(): void {
+    if (this.drawingHole()) this.cancelHole();
     this.engine?.setEditableVertices(null); this.lineEdit.set(null); this.lineEditError.set('');
   }
   private showEditableVertices(points: Coordinate[] | null): void {
@@ -478,6 +488,28 @@ export class MapShell implements AfterViewInit, OnDestroy {
       this.cancelLineEdit(); this.pointMessage.set('Tracé modifié.');
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Modification du tracé impossible.'); }
     finally { this.pointBusy.set(false); if (this.lineEdit() && this.lineCoordinates) this.syncLineVertices(this.lineCoordinates.nativeElement.value); }
+  }
+  readonly drawingHole = signal(false);
+  readonly holePoints = signal<Coordinate[]>([]);
+  startHole(): void {
+    if (!this.lineEdit() || this.view() !== 'plane' || this.pointBusy()) return;
+    this.holePoints.set([]); this.drawingHole.set(true); this.engine?.setEditableVertices(null);
+  }
+  private showHoleDraft(): void {
+    const points = this.holePoints(); this.engine?.setDraftLine(points.length >= 3 ? [...points, points[0]!] : points);
+  }
+  removeHoleVertex(): void { this.holePoints.update(points => points.slice(0, -1)); this.showHoleDraft(); }
+  cancelHole(): void {
+    if (!this.drawingHole()) return;
+    this.drawingHole.set(false); this.holePoints.set([]); this.engine?.setDraftLine([]);
+    if (this.lineCoordinates && this.lineEdit()?.object.geometry.type === 'Polygon') this.syncAreaVertices(this.lineCoordinates.nativeElement.value);
+  }
+  finishHole(): void {
+    const points = this.holePoints(); const field = this.areaHoles?.nativeElement;
+    if (!this.drawingHole() || points.length < 3 || !field) return;
+    const previous = field.value.trim(); const hole = points.map(([lon, lat]) => lon + ', ' + lat).join('\n');
+    field.value = previous ? previous + '\n\n' + hole : hole;
+    this.cancelHole();
   }
   formatAreaCoordinates(object: MapObject): string {
     return object.geometry.type === 'Polygon' ? object.geometry.coordinates[0]!.slice(0, -1).map(([lon, lat]) => lon + ', ' + lat).join('\n') : '';
@@ -592,7 +624,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
   @ViewChild('pointForm') private pointForm?: ElementRef<HTMLFormElement>;
   readonly placingPoint = signal(false);
-  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); this.cancelArea(); } };
+  private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); this.cancelArea(); this.cancelHole(); } };
   readonly drawingArea = signal(false);
   readonly areaPoints = signal<Coordinate[]>([]);
   readonly areaError = signal('');
@@ -671,6 +703,10 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); });
     window.addEventListener('keydown', this.cancelPlacement);
     this.engine.onCoordinate(([longitude, latitude]) => {
+      if (this.drawingHole() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
+        if (this.holePoints().length < 2000) { this.holePoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.showHoleDraft(); }
+        return true;
+      }
       if (this.drawingArea() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
         if (this.areaPoints().length < 2000) { this.areaPoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.showAreaDraft(); }
         return true;
@@ -697,6 +733,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     await this.setView('plane');
   }
   async setView(mode: ViewMode): Promise<void> {
+    if (this.drawingHole()) return;
     clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest;
     this.placingPoint.set(false); this.cancelLine(); this.cancelArea();
     this.loading.set(true); this.error.set(false);

@@ -480,3 +480,11 @@ les sélectionne pas, le globe affiche les contours. Suppression et historique
 conservent les anneaux. Les poignées ne déplacent que le contour extérieur.
 À poursuivre : dessin des trous à la souris, globe rempli, antiméridien et pôles.
 La CI GitHub 41122648285 du lot d’édition précédent est réussie.
+
+## Reprise — dessin des trous (30 octobre 2026)
+
+Depuis la fiche d’édition d’un territoire en vue plane, **Dessiner un trou**
+collecte des sommets, permet d’en retirer ou d’abandonner avec Échap, puis ajoute
+le contour au brouillon. La sauvegarde reste explicite et le changement de vue
+est suspendu pendant le dessin. Les trous existants restent modifiables par
+coordonnées ; les poignées concernent uniquement le contour extérieur.

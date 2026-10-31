@@ -27,6 +27,17 @@ export class WorldsController {
     const input = parseInput(z.object({ summary: z.enum(['1']).optional() }).strict(),query);
     return this.worlds.get(request.account.id, id, input.summary === '1');
   }
+  @Post(':id/publication')
+  @Header('Cache-Control', 'no-store')
+  publish(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), visibility: z.enum(['public','unlisted']), layerIds: z.array(z.uuid()).min(1).max(100) }).strict(), body);
+    return this.worlds.publish(request.account.id, id, input);
+  }
+  @Delete(':id/publication')
+  @Header('Cache-Control', 'no-store')
+  unpublish(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthRequest) {
+    return this.worlds.unpublish(request.account.id, id);
+  }
   @Get(':id/members')
   @Header('Cache-Control', 'no-store')
   members(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthRequest) {
@@ -141,4 +152,16 @@ export class WorldsController {
     const bounds = parseInput(z.object({ west: z.coerce.number().min(-180).max(180), east: z.coerce.number().min(-180).max(180), south: z.coerce.number().min(-90).max(90), north: z.coerce.number().min(-90).max(90), detailKm: z.coerce.number().positive().max(1e12) }).strict().refine(value => value.west < value.east && value.south < value.north, 'Emprise invalide.'), query);
     return this.worlds.tiles(request.account.id,id,bounds);
   }
+}
+
+@ApiTags('public-worlds')
+@Controller('public/worlds')
+export class PublicWorldsController {
+  constructor(@Inject(WorldsService) private readonly worlds: WorldsService) {}
+  @Get()
+  @Header('Cache-Control', 'no-store')
+  list() { return this.worlds.publicWorlds(); }
+  @Get(':slug')
+  @Header('Cache-Control', 'no-store')
+  get(@Param('slug') slug: string) { return this.worlds.publicWorld(slug); }
 }

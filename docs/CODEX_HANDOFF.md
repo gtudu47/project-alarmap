@@ -504,3 +504,30 @@ révocation immédiate et isolement des mondes), navigateur propriétaire et lec
 réussis. La suite navigateur a révélé deux sélecteurs ambigus et un délai WebGL
 insuffisant : corrigés et parcours concernés relancés avec succès. La CI du
 commit bb95b0e est réussie.
+
+## Reprise — publication filtrée (31 octobre 2026)
+
+Le propriétaire publie explicitement une copie d’une révision avec un choix de
+calques et une visibilité publique ou par lien non répertorié. L’API publique
+expose uniquement la copie publiée : géométries, noms, styles et dates des
+objets retenus, propriétés vidées, aucun calque exclu. Le brouillon reste
+indépendant jusqu’à republication ; le retrait bloque les accès suivants.
+Le Viewer et l’intégration iframe chargent la copie sans authentification.
+Les assets et catégories de worldbuilding ne sont pas encore publiables.
+La CI du partage privé e7539db est réussie. Toujours aucun VPS ni domaine fourni.
+
+Compléments de validation : les propriétés sont également vidées à la lecture,
+même dans une copie ancienne. Les droits de modification sont revérifiés après
+verrouillage du monde ; un test PostGIS couvre la révocation pendant une écriture
+en attente. Pour une instance configurée localement, `localhost` et `127.0.0.1`
+sont acceptés uniquement avec le protocole et le port configurés.
+Validation réelle : un compte et un monde temporaires ont été créés puis
+supprimés après connexion sur 127.0.0.1, ajout d’un lieu, publication par
+calque, consultation dans un contexte navigateur anonyme et retrait. Le test
+iframe entre localhost et 127.0.0.1 vérifie deux origines distinctes ; un site
+public simulé vers une adresse locale est normalement bloqué par la protection
+réseau du navigateur, sans incidence sur un déploiement HTTPS accessible.
+Validation finale : `npm run check` (lint, types, 33 tests unitaires et builds),
+tests HTTP/PostGIS, parcours réel anonyme et 42 tests navigateur réussis.
+La publication nécessite un choix explicite des calques ; au maximum 100 calques
+par publication. Aucun partage Internet n’a été déployé automatiquement.

@@ -336,3 +336,28 @@ Ce partage ne crée pas de compte et n’envoie pas d’email. L’administrateu
 d’abord inviter la personne sur l’instance, puis le propriétaire peut partager
 son monde. Pour un accès par Internet, l’instance doit encore être installée sur
 un serveur accessible et disposer d’un domaine et d’HTTPS.
+
+## Publier une copie de carte
+
+Dans le monde ouvert, le propriétaire choisit **Publier cette carte**, les
+calques et la visibilité. **Lien non répertorié** permet la consultation à
+quiconque possède le lien ; **Public et répertorié** ajoute aussi la carte à
+la liste publique de l’instance via son API. Le lien fourni s’ouvre dans le Viewer et peut
+être utilisé comme source d’une iframe. Le bouton de retrait désactive les
+prochains accès au lien.
+
+La publication est une copie de la révision indiquée : modifier ensuite le
+brouillon ne modifie pas cette copie. Pour actualiser la carte consultable,
+publiez de nouveau. La copie contient uniquement les calques choisis, les
+noms, formes, styles et périodes de leurs objets. Les propriétés des objets ne
+sont pas publiées ; les assets et catégories de worldbuilding ne sont pas encore
+pris en charge. Les rôles privés et les autres calques ne sont pas exposés.
+Les visiteurs peuvent conserver une copie des données qu’ils ont consultées.
+Un lien local en `localhost` n’est accessible que depuis cet ordinateur : pour
+le partager sur Internet, il faut héberger l’instance sur un serveur accessible.
+
+Exemple de code pour intégrer le lien fourni à une page web :
+
+```html
+<iframe src="LIEN_DE_CONSULTATION" title="Carte AlarMap" width="100%" height="600"></iframe>
+```

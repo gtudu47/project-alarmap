@@ -42,7 +42,7 @@ export const pageText = {
       } @else {
         <div class="page-eyebrow">GUIDE DE PRISE EN MAIN</div><h1 id="page-title" tabindex="-1">{{ text.guideTitle }}</h1>
         <div class="guide-steps">@for (step of text.steps; track step.title; let index = $index) { <article><span class="step-number">0{{ index + 1 }}</span><div><h2>{{ step.title }}</h2><p>{{ step.body }}</p></div></article> }</div>
-        <aside class="page-note"><h2>Ce qui est disponible aujourd’hui</h2><p>Carte plane, globe, comptes sur invitation, création de mondes privés et ajout de lieux. Les comptes et la sauvegarde nécessitent un serveur disponible. La publication, le dessin de territoires et la chronologie sont encore en développement.</p></aside>
+        <aside class="page-note"><h2>Ce qui est disponible aujourd’hui</h2><p>Carte plane, globe, comptes sur invitation, lieux, tracés et territoires. Vous pouvez partager un monde privé entre comptes ou publier une copie de certains calques. La chronologie et les fonctions de worldbuilding restent à développer.</p></aside>
         <button class="account-primary" (click)="navigate.emit('carte')">Ouvrir la carte →</button>
       }
     </section>

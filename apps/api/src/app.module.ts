@@ -5,7 +5,7 @@ import { AuthService } from './auth/auth.service.js';
 import { AuthController, InvitationsController } from './auth/auth.controller.js';
 import { AdminGuard, AuthGuard } from './auth/auth.guard.js';
 import { WorldsService } from './worlds/worlds.service.js';
-import { WorldsController } from './worlds/worlds.controller.js';
+import { WorldsController, PublicWorldsController } from './worlds/worlds.controller.js';
 
 @ApiTags('health')
 @Controller('health')
@@ -27,7 +27,7 @@ export class HealthController {
   }
 }
 @Module({
-  controllers: [HealthController, AuthController, InvitationsController, WorldsController],
+  controllers: [HealthController, AuthController, InvitationsController, WorldsController, PublicWorldsController],
   providers: [Infrastructure, AuthService, AuthGuard, AdminGuard, WorldsService],
 })
 export class AppModule {}

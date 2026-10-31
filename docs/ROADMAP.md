@@ -41,8 +41,8 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Premier outil de lieux par coordonnées avec sauvegarde et révisions.
 - [x] Tests API des comptes/mondes sur PostgreSQL/PostGIS réel : isolation, lecture seule, concurrence et révocation.
 - [-] Autorisations owner/editor/viewer et partage privé entre comptes inscrits ; tests HTTP/PostGIS exécutés.
-- [ ] Publication filtrée : draft/private/unlisted/public.
-- [ ] Viewer et iframe sur données publiées réelles ; export PNG.
+- [-] Publication explicite par calques en mode public ou lien non répertorié ; propriétés et assets exclus, catégories avancées à développer.
+- [-] Viewer et iframe sur copie publiée, retrait d’accès et export PNG ; personnalisation et tests d’exploitation à poursuivre.
 
 ### Lot F — Distribution
 - [ ] Installation depuis une release en une commande sous Windows/Linux.

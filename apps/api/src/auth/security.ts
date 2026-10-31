@@ -27,7 +27,12 @@ export function readRefreshCookie(header?: string): string | undefined {
 }
 export function allowedOrigin(origin: string | undefined, config: Pick<Config, 'PUBLIC_APP_URL' | 'NODE_ENV'>): boolean {
   if (!origin) return false;
-  const allowed = new Set([new URL(config.PUBLIC_APP_URL).origin]);
+  const configured = new URL(config.PUBLIC_APP_URL);
+  const allowed = new Set([configured.origin]);
+  if (configured.hostname === 'localhost' || configured.hostname === '127.0.0.1') {
+    const alternate = new URL(configured); alternate.hostname = configured.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+    allowed.add(alternate.origin);
+  }
   if (config.NODE_ENV !== 'production') for (const host of ['localhost', '127.0.0.1']) for (const port of [4200, 4201, 8080]) allowed.add(`http://${host}:${port}`);
   return allowed.has(origin);
 }

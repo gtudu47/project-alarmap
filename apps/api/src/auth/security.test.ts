@@ -24,3 +24,13 @@ it('ne stocke qu’une empreinte des secrets à usage unique', () => {
   expect(readRefreshCookie(`other=x; alarmap_refresh=${token}`)).toBe(token);
   expect(readRefreshCookie('alarmap_refresh=malformed')).toBeUndefined();
 });
+
+it('accepte les deux adresses de boucle locale sur le protocole et le port configurés', () => {
+  const config = { PUBLIC_APP_URL: 'http://localhost:8080', NODE_ENV: 'production' as const };
+  expect(allowedOrigin('http://localhost:8080', config)).toBe(true);
+  expect(allowedOrigin('http://127.0.0.1:8080', config)).toBe(true);
+  expect(allowedOrigin('http://127.0.0.1:8081', config)).toBe(false);
+  expect(allowedOrigin('https://127.0.0.1:8080', config)).toBe(false);
+  expect(allowedOrigin('http://localhost.attacker.test:8080', config)).toBe(false);
+  expect(allowedOrigin('http://localhost:8080', { ...config, PUBLIC_APP_URL: 'https://maps.example.test' })).toBe(false);
+});

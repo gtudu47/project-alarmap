@@ -17,16 +17,34 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
       <a class="brand" href="/" aria-label="AlarMap accueil"><span class="brand-mark" aria-hidden="true">A</span>{{ text.brand }}</a>
       <span class="divider"></span><span class="workspace-title">{{ mode === 'editor' ? text.editor : text.viewer }}</span>
       @if (mode === 'editor') { <button type="button" class="account-secondary top-account" (click)="accountOpen.set(true)">{{ accounts.user()?.displayName ?? 'Mon espace' }}</button> }
-      <span class="version">v0.1 · {{ text.demo }}</span>
+      <span class="version">v0.1 · {{ publicStatus() === 'ready' ? 'Publication' : text.demo }}</span>
     </header>
     @if (mode === 'editor') { <nav class="workspace-nav" aria-label="Navigation principale">@for (item of pages; track item) { <a [href]="'?page=' + item" [attr.aria-current]="page() === item ? 'page' : null" (click)="navigate(item, $event)">{{ labels[item] }}</a> }</nav> }
     @if (mode === 'editor' && page() !== 'carte') { <alarmap-workspace-page [world]="world" [objectCount]="objectCount()" [personal]="personal()" [remote]="personal() && objectsPartial()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
-    <main [hidden]="page() !== 'carte'">
+    @if (publicStatus() === 'loading') { <p role="status">Chargement de la carte publiée…</p> }
+    @if (publicStatus() === 'error') { <p role="alert">Cette carte publiée est introuvable ou indisponible.</p> }
+    <main [hidden]="page() !== 'carte' || publicStatus() === 'loading' || publicStatus() === 'error'">
       <aside class="sidebar">
-        <div class="eyebrow">{{ personal() ? 'Mon monde privé' : text.demo }}</div>
+        <div class="eyebrow">{{ personal() ? 'Mon monde privé' : publicStatus() === 'ready' ? 'Carte publiée' : text.demo }}</div>
         <h1>{{ world.name }}</h1>
         <p class="intro">{{ text.tagline }}</p>
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
+        @if (personal() && role === 'owner') {
+          <details class="tile-settings"><summary>Publier cette carte</summary>
+            <p>La publication rend accessibles le nom, la géométrie, les styles et les dates des objets des calques choisis. Les propriétés internes ne sont pas publiées. Les modifications ultérieures restent en brouillon jusqu’à une nouvelle publication.</p>
+            <form class="point-form" (submit)="publishWorld($event)">
+              <label>Visibilité<select name="visibility" [value]="world.status === 'public' ? 'public' : 'unlisted'"><option value="unlisted">Lien non répertorié</option><option value="public">Public et répertorié</option></select></label>
+              <fieldset><legend>Calques à publier</legend>@for (layer of world.layers; track layer.id) { <label class="layer-lock"><input type="checkbox" name="layerId" [value]="layer.id">{{ layer.name }}</label> }</fieldset>
+              <button class="account-primary" [disabled]="pointBusy()">Publier la révision actuelle</button>
+            </form>
+            @if (publicationUrl()) { <label>Lien de consultation<input readonly [value]="publicationUrl()" aria-label="Lien de consultation"></label><p>Ce lien peut aussi être utilisé dans une iframe. Toute personne qui le possède peut consulter la carte.</p> }
+            @if (world.status === 'public' || world.status === 'unlisted') {
+              @if (unpublishConfirm()) { <p>Retirer l’accès à cette carte publiée ?</p><button type="button" class="account-secondary" [disabled]="pointBusy()" (click)="unpublishWorld()">Confirmer le retrait de la publication</button><button type="button" class="account-link" (click)="unpublishConfirm.set(false)">Annuler</button> }
+              @else { <button type="button" class="account-link" [disabled]="pointBusy()" (click)="unpublishConfirm.set(true)">Retirer la publication</button> }
+            }
+            @if (publicationMessage()) { <p role="status">{{ publicationMessage() }}</p> }
+          </details>
+        }
           <details class="tile-settings"><summary>Échelle cartographique</summary>
             <form class="point-form" (submit)="applyScale($event)">
               <label>Échelle 1:<input name="denominator" type="number" min="100" max="1000000000" step="1" value="25000" list="scale-presets" required></label>
@@ -185,7 +203,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
 
 <button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
         <div class="status" [class.ready]="apiStatus() === 'ready'" role="status"><span class="status-dot"></span>{{ apiLabel() }}</div>
-        <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : text.sample }}</p>
+        <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : publicStatus() === 'ready' ? 'Révision publiée en lecture seule.' : text.sample }}</p>
       </aside>
       <section class="map-panel" aria-label="Carte interactive">
         <div class="map-toolbar">
@@ -197,7 +215,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <button class="reset" type="button" (click)="reset()" [disabled]="loading()">{{ text.reset }}</button>
         </div>
         @if (exportMessage()) { <p class="export-message" role="status">{{ exportMessage() }}</p> }
-        <div #mapHost [class.placing-point]="placingPoint() || drawingLine() || drawingArea()" class="map-host" data-testid="map-host"></div>
+        <div #mapHost [class.placing-point]="placingPoint() || drawingLine() || drawingArea() || drawingHole()" class="map-host" data-testid="map-host"></div>
         @if (loading()) { <div class="map-message" role="status">{{ text.loading }}</div> }
         @if (error()) { <div class="map-message error" role="alert">{{ text.unavailable }}</div> }
         <div class="zoom-control" aria-label="Commande de zoom">
@@ -235,6 +253,37 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
+  private readonly publicSlug = this.mode === 'viewer' && new URLSearchParams(location.search).has('world') ? new URLSearchParams(location.search).get('world') ?? '' : null;
+  readonly publicStatus = signal<'sample' | 'loading' | 'ready' | 'error'>(this.publicSlug === null ? 'sample' : 'loading');
+  readonly publicationUrl = signal('');
+  readonly publicationMessage = signal('');
+  readonly unpublishConfirm = signal(false);
+  private viewerUrl(slug: string): string { const url = new URL('/viewer/', location.origin); url.searchParams.set('world', slug); return url.toString(); }
+  async publishWorld(event: Event): Promise<void> {
+    event.preventDefault();
+    if (!this.personal() || this.role !== 'owner' || this.pointBusy()) return;
+    const fields = new FormData(event.target as HTMLFormElement); const worldId = this.world.id; const revision = this.world.revision;
+    const layerIds = fields.getAll('layerId').map(value => String(value));
+    if (!layerIds.length || layerIds.length > 100) { this.publicationMessage.set('Choisissez de 1 à 100 calques à publier.'); return; }
+    this.pointBusy.set(true); this.publicationMessage.set('');
+    try {
+      const result = await this.accounts.request<{ slug: string; revision: number; visibility: 'public' | 'unlisted' }>('/worlds/' + worldId + '/publication', { method: 'POST', body: JSON.stringify({ revision, visibility: fields.get('visibility'), layerIds }) });
+      if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
+      this.world = { ...this.world, status: result.visibility }; this.publicationUrl.set(this.viewerUrl(result.slug));
+      this.unpublishConfirm.set(false); this.publicationMessage.set('Révision ' + result.revision + ' publiée.');
+    } catch (error) { this.publicationMessage.set(error instanceof Error ? error.message : 'Publication impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
+  async unpublishWorld(): Promise<void> {
+    if (!this.unpublishConfirm() || !this.personal() || this.role !== 'owner' || this.pointBusy()) return;
+    const worldId = this.world.id; this.pointBusy.set(true); this.publicationMessage.set('');
+    try {
+      await this.accounts.request<void>('/worlds/' + worldId + '/publication', { method: 'DELETE' });
+      if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
+      this.world = { ...this.world, status: 'draft' }; this.publicationUrl.set(''); this.unpublishConfirm.set(false); this.publicationMessage.set('Publication retirée.');
+    } catch (error) { this.publicationMessage.set(error instanceof Error ? error.message : 'Retrait impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
   gridOptions: GridOptions = { ...DEFAULT_GRID };
   readonly gridInfo = signal<GridStats | null>(null);
   readonly tileMessage = signal('');
@@ -269,7 +318,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.tileTimer = setTimeout(() => { void this.loadTiles(bounds,request); }, 180);
   };
   private async loadTiles(bounds: { west: number; east: number; south: number; north: number; detailKm: number }[], request: number): Promise<void> {
-    if (!this.personal()) { this.tileMessage.set('Démonstration locale · objets intégrés.'); return; }
+    if (!this.personal()) { this.tileMessage.set(this.publicStatus() === 'ready' ? 'Carte publiée · révision ' + this.world.revision : 'Démonstration locale · objets intégrés.'); return; }
     const worldId = this.world.id; const revision = this.world.revision; const mode = this.view();
     const abort = new AbortController(); this.tileAbort = abort; this.tileMessage.set('Chargement des détails…');
     try {
@@ -367,6 +416,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.objectsPartial.set(access.objectsComplete === false);
     this.objectCount.set(access.objectCount ?? null);
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
+    this.publicationUrl.set(this.world.status === 'public' || this.world.status === 'unlisted' ? this.viewerUrl(this.world.slug) : ''); this.publicationMessage.set(''); this.unpublishConfirm.set(false);
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
     this.syncScene(); this.engine?.reset(); this.accountOpen.set(false); this.pointMessage.set('');
   }
@@ -727,6 +777,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
     });
     this.engine.onScale(scale => { this.currentScale.set(scale); this.printWidthCm.set(this.host.nativeElement.clientWidth * 2.54 / 96); });
     this.engine.onZoom(level => this.zoomLevel.set(level));
+    if (this.publicSlug !== null) {
+      try {
+        const response = await fetch('/api/v1/public/worlds/' + encodeURIComponent(this.publicSlug), { credentials: 'omit', signal: this.abort.signal });
+        if (!response.ok) throw new Error('Carte indisponible.');
+        this.world = worldSchema.parse(await response.json()); this.publicStatus.set('ready');
+      } catch { if (!this.abort.signal.aborted) this.publicStatus.set('error'); return; }
+    }
     this.engine.loadWorld(this.world);
     this.engine.setGrid(this.gridOptions, this.gridChanged);
     void this.checkApi();

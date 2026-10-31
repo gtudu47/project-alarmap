@@ -34,6 +34,12 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
       assert.match(response.headers.get('set-cookie') ?? '', /HttpOnly/);
       tokens.push((await response.json() as { accessToken: string }).accessToken);
     }
+    const configuredOrigin = new URL(infra.config.PUBLIC_APP_URL);
+    if (configuredOrigin.hostname === 'localhost' || configuredOrigin.hostname === '127.0.0.1') {
+      configuredOrigin.hostname = configuredOrigin.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+      const alternateLogin = await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: configuredOrigin.origin }, body: JSON.stringify({ email: `${users[0]}@example.test`, password }) });
+      assert.equal(alternateLogin.status, 200);
+    }
     assert.equal((await request('/worlds')).status, 401);
     assert.equal((await request('/invitations', tokens[1], { email: 'cannot-invite@example.test' })).status, 403);
     const created = await request('/worlds', tokens[0], { name: 'Monde de test privé', radiusKm: 100 });
@@ -272,6 +278,61 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request('/worlds/' + other.world.id, tokens[1])).status, 200);
     assert.equal((await request(membersPath + '/' + users[1], tokens[0], undefined, 'DELETE')).status, 404);
     assert.deepEqual(await (await request(membersPath, tokens[0])).json(), []);
+    const publicationAccess = await (await request('/worlds', tokens[0], { name: 'Monde à publier', radiusKm: 100 })).json() as { world: World };
+    const publishedWorld = publicationAccess.world; const publishedPath = '/worlds/' + publishedWorld.id + '/publication';
+    const publicPath = '/public/worlds/' + publishedWorld.slug; const publicLayer = publishedWorld.layers[0]!.id;
+    const publicPoint = { id: randomUUID(), layerId: publicLayer, name: 'Visible', kind: 'city', geometry: { type: 'Point', coordinates: [3,4] }, style: { color: '#e6b96c', opacity: 1 }, properties: { secret: 'doit rester privé' } };
+    assert.equal((await request(publicPath)).status, 404);
+    assert.equal((await request('/worlds/' + publishedWorld.id + '/points/' + publicPoint.id, tokens[0], { revision: 0, point: publicPoint }, 'PUT')).status, 200);
+    const newLayer = await (await request('/worlds/' + publishedWorld.id + '/layers', tokens[0], { revision: 1, name: 'Calque privé' })).json() as { world: World };
+    const privateLayer = newLayer.world.layers.find(layer => layer.name === 'Calque privé')!.id;
+    const secretPoint = { ...publicPoint, id: randomUUID(), layerId: privateLayer, name: 'Lieu secret' };
+    assert.equal((await request('/worlds/' + publishedWorld.id + '/points/' + secretPoint.id, tokens[0], { revision: 2, point: secretPoint }, 'PUT')).status, 200);
+    assert.equal((await request('/worlds/' + publishedWorld.id + '/members', tokens[0], { email: `${users[1]}@example.test`, role: 'editor' })).status, 201);
+    const locker = await infra.pool.connect(); let lockOpen = false;
+    try {
+      await locker.query('BEGIN'); lockOpen = true;
+      await locker.query('SELECT 1 FROM worlds WHERE id=$1 FOR UPDATE', [publishedWorld.id]);
+      await locker.query('DELETE FROM members WHERE world_id=$1 AND user_id=$2', [publishedWorld.id,users[1]]);
+      const pendingEdit = request('/worlds/' + publishedWorld.id + '/points/' + publicPoint.id, tokens[1], { revision: 3, name: 'Modification interdite', longitude: 3, latitude: 4 }, 'PATCH');
+      let waiting = false;
+      for (let attempt = 0; attempt < 100 && !waiting; attempt++) {
+        const state = await infra.pool.query<{ waiting: boolean }>("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT revision,owner_id FROM worlds%') AS waiting");
+        waiting = state.rows[0]!.waiting;
+        if (!waiting) await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      await locker.query('COMMIT'); lockOpen = false;
+      const blockedEdit = await pendingEdit;
+      assert.equal(waiting, true); assert.equal(blockedEdit.status, 404);
+    } finally { if (lockOpen) await locker.query('ROLLBACK'); locker.release(); }
+    assert.equal((await request('/worlds/' + publishedWorld.id + '/members', tokens[0], { email: `${users[1]}@example.test`, role: 'editor' })).status, 201);
+    const publish = { revision: 3, visibility: 'unlisted', layerIds: [publicLayer] };
+    assert.equal((await request(publishedPath, undefined, publish)).status, 401);
+    assert.equal((await request(publishedPath, tokens[1], publish)).status, 404);
+    assert.equal((await request(publishedPath, tokens[0], { ...publish, layerIds: [randomUUID()] })).status, 400);
+    assert.equal((await request(publishedPath, tokens[0], { ...publish, layerIds: [publicLayer,publicLayer] })).status, 400);
+    assert.equal((await request(publishedPath, tokens[0], publish)).status, 201);
+    await infra.pool.query("UPDATE publications SET public_document=jsonb_set(public_document,'{objects,0,properties}',$2::jsonb) WHERE world_id=$1", [publishedWorld.id, JSON.stringify({ injectedSecret: 'privé' })]);
+    const publicResponse = await request(publicPath); assert.equal(publicResponse.status, 200); assert.match(publicResponse.headers.get('cache-control') ?? '', /no-store/);
+    assert.equal(publicResponse.headers.get('set-cookie'), null);
+    assert.equal((await request('/worlds/' + publishedWorld.id)).status, 401);
+    const firstPublication = await publicResponse.json() as World;
+    assert.equal(firstPublication.status, 'unlisted'); assert.equal(firstPublication.revision, 3);
+    assert.deepEqual(firstPublication.layers.map(layer => layer.id), [publicLayer]);
+    assert.deepEqual(firstPublication.objects.map(object => object.name), ['Visible']); assert.deepEqual(firstPublication.objects[0]!.properties, {});
+    const unlistedIndex = await (await request('/public/worlds')).json() as { slug: string }[];
+    assert.equal(unlistedIndex.some(item => item.slug === publishedWorld.slug), false);
+    assert.equal((await request('/worlds/' + publishedWorld.id + '/points/' + publicPoint.id, tokens[0], { revision: 3, name: 'Modifié en brouillon', longitude: 3, latitude: 4 }, 'PATCH')).status, 200);
+    assert.equal(((await (await request(publicPath)).json()) as World).objects[0]!.name, 'Visible');
+    assert.equal((await request(publishedPath, tokens[0], publish)).status, 409);
+    assert.equal((await request(publishedPath, tokens[0], { ...publish, revision: 4, visibility: 'public' })).status, 201);
+    const secondPublication = await (await request(publicPath)).json() as World;
+    assert.equal(secondPublication.objects[0]!.name, 'Modifié en brouillon'); assert.equal(secondPublication.revision, 4);
+    assert.equal((await (await request('/public/worlds')).json() as { slug: string }[]).some(item => item.slug === publishedWorld.slug), true);
+    assert.equal((await request(publishedPath, tokens[1], undefined, 'DELETE')).status, 404);
+    assert.equal((await request(publishedPath, tokens[0], undefined, 'DELETE')).status, 200);
+    assert.equal((await request(publicPath)).status, 404);
+    assert.equal((await (await request('/public/worlds')).json() as { slug: string }[]).some(item => item.slug === publishedWorld.slug), false);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

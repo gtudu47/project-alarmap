@@ -17,6 +17,50 @@ export class WorldsService {
       WHERE w.owner_id=$1 OR m.user_id=$1 ORDER BY w.updated_at DESC LIMIT 100`, [userId]);
     return result.rows;
   }
+  async publish(userId: string, id: string, input: { revision: number; visibility: 'public' | 'unlisted'; layerIds: string[] }): Promise<{ slug: string; revision: number; visibility: 'public' | 'unlisted' }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const owner = await client.query<{ revision: number }>('SELECT revision FROM worlds WHERE id=$1 AND owner_id=$2 FOR UPDATE', [id,userId]);
+      if (!owner.rows[0]) throw new NotFoundException('Monde introuvable.');
+      if (owner.rows[0].revision !== input.revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de publier.');
+      const { world } = await this.get(userId,id,false,undefined,client);
+      const selected = new Set(input.layerIds);
+      if (!selected.size || selected.size !== input.layerIds.length || input.layerIds.some(layerId => !world.layers.some(layer => layer.id === layerId))) throw new BadRequestException('Choisissez au moins un calque de ce monde.');
+      const snapshot = worldSchema.parse({
+        schemaVersion: world.schemaVersion, id: world.id, name: world.name, slug: world.slug, radiusKm: world.radiusKm, revision: world.revision, status: input.visibility,
+        layers: world.layers.filter(layer => selected.has(layer.id)),
+        objects: world.objects.filter(object => selected.has(object.layerId)).map(object => ({
+          id: object.id, layerId: object.layerId, name: object.name, kind: object.kind, geometry: object.geometry, style: object.style,
+          properties: {}, ...(object.startYear === undefined ? {} : { startYear: object.startYear }), ...(object.endYear === undefined ? {} : { endYear: object.endYear }),
+        })),
+      });
+      await client.query(`INSERT INTO publications(id,world_id,revision,public_document) VALUES($1,$2,$3,$4::jsonb)
+        ON CONFLICT(world_id,revision) DO UPDATE SET public_document=EXCLUDED.public_document,published_at=now()`, [randomUUID(),id,world.revision,JSON.stringify(snapshot)]);
+      await client.query('UPDATE worlds SET status=$2 WHERE id=$1', [id,input.visibility]);
+      await client.query('COMMIT');
+      return { slug: world.slug, revision: world.revision, visibility: input.visibility };
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
+  async unpublish(userId: string, id: string): Promise<void> {
+    const result = await this.pool.query("UPDATE worlds SET status='draft' WHERE id=$1 AND owner_id=$2 RETURNING id", [id,userId]);
+    if (!result.rowCount) throw new NotFoundException('Monde introuvable.');
+  }
+  async publicWorld(slug: string): Promise<World> {
+    const result = await this.pool.query<{ public_document: unknown }>(`SELECT p.public_document FROM worlds w
+      JOIN LATERAL (SELECT public_document FROM publications WHERE world_id=w.id ORDER BY published_at DESC,id DESC LIMIT 1) p ON true
+      WHERE w.slug=$1 AND w.status IN ('unlisted','public')`, [slug]);
+    if (!result.rows[0]) throw new NotFoundException('Carte publiée introuvable.');
+    const snapshot = worldSchema.parse(result.rows[0].public_document);
+    return { ...snapshot, objects: snapshot.objects.map(object => ({ ...object, properties: {} })) };
+  }
+  async publicWorlds(): Promise<{ slug: string; name: string; revision: number }[]> {
+    const result = await this.pool.query<{ slug: string; name: string; revision: number }>(`SELECT w.slug,p.public_document->>'name' AS name,p.revision FROM worlds w
+      JOIN LATERAL (SELECT public_document,revision,published_at FROM publications WHERE world_id=w.id ORDER BY published_at DESC,id DESC LIMIT 1) p ON true
+      WHERE w.status='public' ORDER BY p.published_at DESC,w.id LIMIT 100`);
+    return result.rows;
+  }
   async members(userId: string, id: string): Promise<{ id: string; email: string; displayName: string; role: 'editor' | 'viewer' }[]> {
     const owner = await this.pool.query('SELECT 1 FROM worlds WHERE id=$1 AND owner_id=$2', [id, userId]);
     if (!owner.rowCount) throw new NotFoundException('Monde introuvable.');
@@ -87,17 +131,26 @@ export class WorldsService {
     if (!access.world.objects.length) throw new NotFoundException('Objet introuvable.');
     return access;
   }
+  private async lockEditableWorld(client: PoolClient, id: string, userId: string): Promise<{ revision: number; owner_id: string }> {
+    const access = await client.query(`SELECT 1 FROM worlds w WHERE w.id=$1 AND (w.owner_id=$2 OR EXISTS
+      (SELECT 1 FROM members m WHERE m.world_id=w.id AND m.user_id=$2))`, [id,userId]);
+    if (!access.rowCount) throw new NotFoundException('Monde introuvable.');
+    const result = await client.query<{ revision: number; owner_id: string }>('SELECT revision,owner_id FROM worlds WHERE id=$1 FOR UPDATE', [id]);
+    const world = result.rows[0];
+    if (!world) throw new NotFoundException('Monde introuvable.');
+    if (world.owner_id !== userId) {
+      const member = await client.query<{ role: MemberRole }>('SELECT role FROM members WHERE world_id=$1 AND user_id=$2', [id,userId]);
+      if (!member.rows[0]) throw new NotFoundException('Monde introuvable.');
+      if (member.rows[0].role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+    }
+    return world;
+  }
   async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
     const pointId = randomUUID();
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
-        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
-        WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
-      const world = permission.rows[0];
-      if (!world) throw new NotFoundException('Monde introuvable.');
-      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      const world = await this.lockEditableWorld(client, id, userId);
       if (world.revision !== input.revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       const layer = await client.query<{ id: string }>('SELECT id FROM layers WHERE world_id=$1 AND NOT locked AND ($2::uuid IS NULL OR id=$2) ORDER BY sort_order,id LIMIT 1 FOR UPDATE', [id, input.layerId ?? null]);
       if (!layer.rows[0]) throw new ConflictException('Aucun calque modifiable.');
@@ -117,12 +170,7 @@ export class WorldsService {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
-        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2
-        WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
-      const world = permission.rows[0];
-      if (!world) throw new NotFoundException('Monde introuvable.');
-      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      const world = await this.lockEditableWorld(client, id, userId);
       if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       const point = await client.query<{ locked: boolean }>(`SELECT l.locked FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id
         WHERE o.id=$1 AND o.world_id=$2 AND ST_GeometryType(o.geometry)=$3 AND ($3 <> 'ST_Polygon' OR o.kind='territory') FOR UPDATE OF o,l`, [pointId, id, geometryType]);
@@ -143,11 +191,7 @@ export class WorldsService {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
-        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2 WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
-      const world = permission.rows[0];
-      if (!world) throw new NotFoundException('Monde introuvable.');
-      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      const world = await this.lockEditableWorld(client, id, userId);
       if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       const layer = await client.query<{ locked: boolean }>('SELECT locked FROM layers WHERE id=$1 AND world_id=$2 FOR UPDATE', [point.layerId, id]);
       if (!layer.rows[0]) throw new NotFoundException('Calque introuvable.');
@@ -179,11 +223,7 @@ export class WorldsService {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const permission = await client.query<{ revision: number; owner_id: string; role: MemberRole | null }>(`SELECT w.revision,w.owner_id,m.role FROM worlds w
-        LEFT JOIN members m ON m.world_id=w.id AND m.user_id=$2 WHERE w.id=$1 AND (w.owner_id=$2 OR m.user_id=$2) FOR UPDATE OF w`, [id, userId]);
-      const world = permission.rows[0];
-      if (!world) throw new NotFoundException('Monde introuvable.');
-      if (world.owner_id !== userId && world.role !== 'editor') throw new ForbiddenException('Ce monde est en lecture seule.');
+      const world = await this.lockEditableWorld(client, id, userId);
       if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       if (command.type === 'create') {
         await client.query('INSERT INTO layers(id,world_id,name,sort_order) SELECT $1,$2,$3,COALESCE(MAX(sort_order),-1)+1 FROM layers WHERE world_id=$2', [randomUUID(),id,command.name]);

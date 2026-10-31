@@ -76,9 +76,9 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
               <button class="account-secondary">Appliquer les dimensions</button>
               <button class="account-primary" type="button" [disabled]="loading()" (click)="zoomToGrid()">Voir ce niveau de détail</button>
             </form>
-            <p>Largeur mesurée au milieu de chaque bande de latitude. Les cases aux limites du monde sont partielles.</p>
+            <p>Lignes continues : la largeur choisie est mesurée à l’équateur et diminue vers les pôles. Les cases aux limites du monde sont partielles.</p>
           </details>
-          @if (gridInfo(); as grid) { <p class="tile-readout" data-testid="tile-readout">Mailles affichées : {{ formatKm(grid.widthKm) }} × {{ formatKm(grid.heightKm) }} km · {{ grid.multiplier === 1 ? 'détail choisi atteint' : 'zoomez pour subdiviser' }}</p> }
+          @if (gridInfo(); as grid) { <p class="tile-readout" data-testid="tile-readout">Mailles nominales à l’équateur : {{ formatKm(grid.widthKm) }} × {{ formatKm(grid.heightKm) }} km · {{ grid.multiplier === 1 ? 'détail choisi atteint' : 'zoomez pour subdiviser' }}</p> }
           <p class="tile-readout" role="status">{{ tileMessage() }}</p>
         <section class="layer-section" aria-labelledby="layers-heading">
           <h2 id="layers-heading">{{ text.layers }} <span>{{ world.layers.length }}</span></h2>

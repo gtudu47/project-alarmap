@@ -1,4 +1,4 @@
-import { capViews } from './globe-grid.js';
+import { capViews, gridLineVertices } from './globe-grid.js';
 import { DEFAULT_GRID, visibleGrid, type GridOptions, type GridStats, type GridView } from './grid.js';
 import { CSS_PIXELS_PER_METRE } from './scale.js';
 import { globeScaleDenominator, pixelsPerDegreeAtScale } from './scale.js';
@@ -65,12 +65,6 @@ export class GlobeRenderer implements RendererAdapter {
       onSelect(typeof hit?.object.userData['id'] === 'string' ? hit.object.userData['id'] : null);
     }, options);
     canvas.addEventListener('pointercancel', () => { press = undefined; }, options);
-    for (let longitude = -180; longitude < 180; longitude += 30) {
-      this.scene.add(this.line(Array.from({ length: 181 }, (_, index) => [longitude, index - 90] as Coordinate), '#365261', 1));
-    }
-    for (let latitude = -60; latitude <= 60; latitude += 30) {
-      this.scene.add(this.line(Array.from({ length: 361 }, (_, index) => [index - 180, latitude] as Coordinate), latitude === 0 ? '#66818a' : '#365261', 1));
-    }
     this.observer = new ResizeObserver(() => {
       if (!host.clientWidth || !host.clientHeight) return;
       const width = host.clientWidth; const height = host.clientHeight;
@@ -138,12 +132,15 @@ export class GlobeRenderer implements RendererAdapter {
     if (key === this.gridKey && this.lastGrid) { this.gridListener(this.lastGrid.stats,views[0]!,views); return; }
     this.gridKey = key;
     const results = views.map(view => visibleGrid(this.gridOptions,this.radiusKm,view));
-    const vertices: number[] = [];
+    const vertices: number[] = []; const seamSegments = new Set<string>();
     for (const result of results) for (const line of result.lines) {
-      const steps = Math.max(1,Math.ceil(Math.max(Math.abs(line.to[0]-line.from[0]),Math.abs(line.to[1]-line.from[1]))));
-      for (let i=0;i<steps;i++) for (const t of [i/steps,(i+1)/steps]) {
-        vertices.push(...toSphere([line.from[0]+(line.to[0]-line.from[0])*t,line.from[1]+(line.to[1]-line.from[1])*t],1.00001));
+      // Les deux écritures de l’antiméridien désignent le même méridien sur le globe.
+      if (line.from[0] === line.to[0] && Math.abs(line.from[0]) === 180) {
+        const key = line.from[1] + ':' + line.to[1];
+        if (seamSegments.has(key)) continue;
+        seamSegments.add(key);
       }
+      vertices.push(...gridLineVertices(line));
     }
     this.metricGrid.geometry.dispose(); this.metricGrid.geometry = new THREE.BufferGeometry();
     this.metricGrid.geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));

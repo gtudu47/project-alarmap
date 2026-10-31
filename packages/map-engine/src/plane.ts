@@ -199,10 +199,7 @@ export class PlaneRenderer implements RendererAdapter {
     this.draftGraphic = undefined; this.vertexGraphic = undefined;
     const grid = new Graphics();
     grid.rect(-180, -90, 360, 180).fill('#142b3b');
-    for (let longitude = -180; longitude <= 180; longitude += 30) grid.moveTo(longitude, -90).lineTo(longitude, 90);
-    for (let latitude = -90; latitude <= 90; latitude += 30) grid.moveTo(-180, latitude).lineTo(180, latitude);
-    grid.stroke({ color: '#365261', pixelLine: true });
-    grid.moveTo(-180, 0).lineTo(180, 0).moveTo(0, -90).lineTo(0, 90).stroke({ color: '#66818a', pixelLine: true });
+    grid.rect(-180, -90, 360, 180).stroke({ color: '#365261', pixelLine: true });
     this.scene.addChild(grid);
     this.gridGraphics = new Graphics(); this.scene.addChild(this.gridGraphics);
     this.draftGraphic = new Graphics(); this.scene.addChild(this.draftGraphic);

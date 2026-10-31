@@ -87,3 +87,26 @@ test('grille kilométrique sur globe, dimensions partagées et masquage', async 
   await expect(page.getByLabel('Largeur de tuile (km)')).toHaveValue('10');
   await expect(page.getByLabel('Afficher la grille',{exact:true})).not.toBeChecked();
 });
+
+
+test('le quadrillage est visible et peut être masqué dans les deux vues', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Détail et tuiles', { exact: true }).click();
+  await page.getByLabel('Largeur de tuile (km)').fill('1000');
+  await page.getByLabel('Hauteur de tuile (km)').fill('1000');
+  await page.getByRole('button', { name: 'Appliquer les dimensions' }).click();
+  const canvas = page.locator('canvas').first();
+  await expect(canvas).toBeVisible();
+  const planeOn = await canvas.screenshot();
+  await page.getByLabel('Afficher la grille', { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Appliquer les dimensions' }).click();
+  const planeOff = await canvas.screenshot();
+  expect(planeOn.equals(planeOff)).toBe(false);
+  await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
+  const globeOff = await page.locator('canvas').first().screenshot();
+  await page.getByLabel('Afficher la grille', { exact: true }).check();
+  await page.getByRole('button', { name: 'Appliquer les dimensions' }).click();
+  const globeOn = await page.locator('canvas').first().screenshot();
+  expect(globeOn.equals(globeOff)).toBe(false);
+});

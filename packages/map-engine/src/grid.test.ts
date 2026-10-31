@@ -23,4 +23,25 @@ describe('grille progressive en kilomètres', () => {
     expect(visibleGrid(DEFAULT_GRID, radius, { west: 200, east: 300, south: 0, north: 5, pixelsPerDegree: 100 }).lines).toEqual([]);
     expect(() => validateGrid({ enabled: true, widthKm: 0, heightKm: 1 })).toThrow();
   });
+  it('aligne les méridiens entre les bandes de latitude et les vues', () => {
+    const options = { enabled: true, widthKm: 10, heightKm: 12 };
+    const view = { west: -80, east: 80, south: -50, north: -20, pixelsPerDegree: 60 };
+    const lower = visibleGrid(options, radius, view);
+    const upper = visibleGrid(options, radius, { ...view, south: 20, north: 50 });
+    const meridians = (lines: typeof lower.lines) => lines.filter(line => line.from[0] === line.to[0]);
+    expect(meridians(lower.lines).map(line => line.from[0])).toEqual(meridians(upper.lines).map(line => line.from[0]));
+    expect(meridians(lower.lines).length).toBeGreaterThan(1);
+    expect(meridians(lower.lines)[1]!.from[0] - meridians(lower.lines)[0]!.from[0]).toBeCloseTo(10);
+    for (const line of meridians(lower.lines)) {
+      expect(line.from[1]).toBe(-50);
+      expect(line.to[1]).toBe(-20);
+    }
+  });
+  it('conserve les frontières aux pôles et à l’antiméridien', () => {
+    const result = visibleGrid({ enabled: true, widthKm: 10, heightKm: 12 }, radius, { west: -180, east: 180, south: -90, north: 90, pixelsPerDegree: 60 });
+    expect(result.lines.some(line => line.from[0] === -180 && line.to[0] === -180)).toBe(true);
+    expect(result.lines.some(line => line.from[0] === 180 && line.to[0] === 180)).toBe(true);
+    expect(result.lines.some(line => line.from[1] === 90 && line.to[1] === 90)).toBe(true);
+  });
+
 });

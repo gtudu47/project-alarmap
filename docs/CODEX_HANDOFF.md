@@ -1,4 +1,9 @@
-# État du projet
+# Fiche de reprise
+
+Les premières sections ci-dessous sont historiques ; consulter les dernières
+sections pour l’état le plus récent. Le dépôt actif est sur la branche dev.
+
+# État initial du projet
 
 Version : 0.1.0-dev.1
 Branche : dev
@@ -639,3 +644,40 @@ Validation : lint, typage et deux scénarios navigateur propriétaire et lecteur
 Contrôle de reprise : la migration 003_assets locale a été normalisée en LF
 et son empreinte PostgreSQL réalignée après vérification que le contenu était
 identique à Git. Un test vérifie les fins de ligne de toutes les migrations.
+
+
+## Travail en cours — repères illustrés (31 octobre 2026)
+
+Objectif : associer une image privée de la bibliothèque à un repère placé
+sur le monde, puis assurer sa présentation dans les vues concernées. Points
+de vigilance : contrôler l’appartenance de l’image au monde, empêcher sa
+suppression tant qu’elle est utilisée, préserver les droits à la publication
+et signaler les limites de l’export JSON. Les CI des trois lots précédents
+sont réussies. Cette étape est en cours et ne doit pas être considérée livrée.
+
+
+## Travail en cours — alignement de la grille (31 octobre 2026)
+
+Demande utilisateur : corriger l’alignement du quadrillage en vue plane et
+appliquer la même logique au globe. Observation : la largeur angulaire des
+colonnes dépend actuellement de chaque bande de latitude, ce qui décale leurs
+limites d’une bande à l’autre. Analyse des compromis géographiques en cours.
+Les repères illustrés restent en cours : contrôles serveur modifiés, tests
+et interface à terminer avant livraison.
+
+Correction en cours : méridiens calculés aux mêmes longitudes pour toutes les
+bandes, largeur nominale à l’équateur, suppression du réseau de référence
+superposé et segments courts au-dessus de la sphère 3D. Les 17 tests ciblés
+du modèle et du quadrillage passent ; validation navigateur et reconstruction
+Docker en cours. Les repères illustrés restent une préparation serveur, non
+livrée dans l’interface.
+
+Validation quadrillage : 43 tests unitaires, lint, typage, construction Docker
+des deux interfaces et 6 scénarios Playwright avec Edge réussis. Les conteneurs
+locaux sont sains ; recharger la page pour voir la correction. Chromium de test
+n’est pas installé localement, Edge a servi à ces essais. La largeur des cases
+est nominale à l’équateur et diminue vers les pôles.
+
+Les changements serveur de repères illustrés restent locaux et inachevés :
+leur interface et leurs rendus sont à développer avant livraison. L’API locale
+fonctionne toujours avec sa version précédente.

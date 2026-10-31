@@ -7,13 +7,14 @@ export function validateGrid(value: GridOptions): GridOptions {
   if (typeof value.enabled !== 'boolean' || ![value.widthKm, value.heightKm].every(n => Number.isFinite(n) && n >= 0.1 && n <= 10000)) throw new Error('Dimensions de tuile : 0,1 à 10 000 km.');
   return { ...value };
 }
-/** Taille est-ouest mesurée sur le parallèle médian de chaque bande.
- * Les cellules coupées aux pôles/à l’antiméridien sont partielles. */
+/** Les méridiens sont continus : la largeur kilométrique est nominale à l’équateur
+ * et diminue avec le cosinus de la latitude. Les cases aux bords peuvent être partielles. */
 export function visibleGrid(options: GridOptions, radiusKm: number, view: GridView): { lines: GridLine[]; stats: GridStats } {
   validateGrid(options);
   if (!Number.isFinite(radiusKm) || radiusKm <= 0 || !Number.isFinite(view.pixelsPerDegree) || view.pixelsPerDegree <= 0 || ![view.west,view.east,view.south,view.north].every(Number.isFinite)) throw new Error('Vue géographique invalide.');
   const kmPerDegree = radiusKm * Math.PI / 180;
   const minimumPixels = Math.min(options.widthKm, options.heightKm) / kmPerDegree * view.pixelsPerDegree;
+  if (!Number.isFinite(minimumPixels) || minimumPixels <= 0) throw new Error('Échelle géographique invalide.');
   const multiplier = 2 ** Math.max(0, Math.ceil(Math.log2(48 / minimumPixels)));
   const widthKm = options.widthKm * multiplier; const heightKm = options.heightKm * multiplier;
   const stats = { widthKm, heightKm, multiplier, visibleTiles: 0 };
@@ -22,21 +23,21 @@ export function visibleGrid(options: GridOptions, radiusKm: number, view: GridVi
   const south = Math.max(-90,view.south); const north = Math.min(90,view.north);
   if (!options.enabled || west >= east || south >= north) return { lines, stats };
   const rowDegrees = Math.min(180, heightKm / kmPerDegree);
-  const start = Math.max(0, Math.floor((south + 90) / rowDegrees));
-  const end = Math.ceil((north + 90) / rowDegrees);
-  for (let row = start; row < end && lines.length < 4096; row++) {
-    const bottom = -90 + row * rowDegrees; const top = Math.min(90,bottom + rowDegrees);
-    const middle = (bottom + top) / 2;
-    const columnDegrees = Math.min(360, widthKm / (kmPerDegree * Math.max(1e-12, Math.cos(middle * Math.PI / 180))));
-    const first = Math.max(0, Math.floor((west + 180) / columnDegrees));
-    const last = Math.ceil((east + 180) / columnDegrees);
-    if (bottom >= south) lines.push({ from: [west,bottom], to: [east,bottom] });
-    if (row === end - 1 && top <= north) lines.push({ from: [west,top], to: [east,top] });
-    for (let col = first; col <= last && lines.length < 4096; col++) {
-      const longitude = Math.min(180, -180 + col * columnDegrees);
-      if (longitude >= west && longitude <= east) lines.push({ from: [longitude,Math.max(bottom,south)], to: [longitude,Math.min(top,north)] });
-      if (col < last) stats.visibleTiles++;
-    }
+  const columnDegrees = Math.min(360, widthKm / kmPerDegree);
+  const rowCount = Math.ceil(180 / rowDegrees); const columnCount = Math.ceil(360 / columnDegrees);
+  const firstRow = Math.max(0, Math.floor((south + 90) / rowDegrees));
+  const lastRow = Math.min(rowCount, Math.ceil((north + 90) / rowDegrees));
+  const firstColumn = Math.max(0, Math.floor((west + 180) / columnDegrees));
+  const lastColumn = Math.min(columnCount, Math.ceil((east + 180) / columnDegrees));
+  stats.visibleTiles = Math.max(0,lastRow-firstRow) * Math.max(0,lastColumn-firstColumn);
+  // Les mêmes positions sont utilisées pour toute latitude et toutes les vues.
+  for (let row = firstRow; row <= lastRow && lines.length < 2048; row++) {
+    const latitude = Math.min(90, -90 + row * rowDegrees);
+    if (latitude >= south && latitude <= north) lines.push({ from: [west,latitude], to: [east,latitude] });
+  }
+  for (let col = firstColumn; col <= lastColumn && lines.length < 4096; col++) {
+    const longitude = Math.min(180, -180 + col * columnDegrees);
+    if (longitude >= west && longitude <= east) lines.push({ from: [longitude,south], to: [longitude,north] });
   }
   return { lines, stats };
 }

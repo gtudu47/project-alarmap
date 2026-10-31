@@ -252,3 +252,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Ajouter, modifier et restaurer des trous par coordonnées ; affichage et sélection en 2D, contours sur globe.
 - [x] Dessiner les trous à la souris en vue plane, puis valider la modification.
 - [ ] Remplir les territoires sur le globe et prendre en charge l’antiméridien et les pôles.
+
+- V0.1 quadrillage : méridiens continus communs aux vues plane et globe, largeur nominale à l’équateur, limites partielles et masquage du réseau superposé.

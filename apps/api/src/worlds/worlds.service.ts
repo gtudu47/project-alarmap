@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { objectSchema, worldSchema, type World, type MapObject, type MemberRole } from '@alarmap/map-model';
+import { imageMarkerSchema, objectSchema, worldSchema, type World, type MapObject, type MemberRole } from '@alarmap/map-model';
 import { Infrastructure } from '../infrastructure.js';
 
 export interface WorldSummary { id: string; name: string; slug: string; radiusKm: number; revision: number; role: MemberRole }
@@ -31,6 +31,7 @@ export class WorldsService {
   }
   async importWorld(userId: string, name: string, source: World): Promise<{ world: World; role: MemberRole }> {
     if (!source.layers.length || source.layers.length > 100 || source.objects.length > 2000) throw new BadRequestException('Import limité à 100 calques et 2 000 objets.');
+    if (source.objects.some(object => object.kind === 'image_marker')) throw new BadRequestException('Ce fichier référence des images non incluses dans le JSON ; leur import n’est pas encore disponible.');
     const withinInt = (value: number | undefined) => value === undefined || (value >= -2147483648 && value <= 2147483647);
     if (source.layers.some(layer => !withinInt(layer.order)) || source.objects.some(object => !withinInt(object.startYear) || !withinInt(object.endYear) || (object.kind === 'label' && (!object.name.trim() || object.name.length > 80)))) throw new BadRequestException('Une date, un ordre ou un texte dépasse les limites prises en charge.');
     const count = (object: MapObject): number => {
@@ -91,7 +92,7 @@ export class WorldsService {
       const snapshot = worldSchema.parse({
         schemaVersion: world.schemaVersion, id: world.id, name: world.name, slug: world.slug, radiusKm: world.radiusKm, revision: world.revision, status: input.visibility,
         layers: world.layers.filter(layer => selected.has(layer.id)),
-        objects: world.objects.filter(object => selected.has(object.layerId)).map(object => ({
+        objects: world.objects.filter(object => selected.has(object.layerId) && object.kind !== 'image_marker').map(object => ({
           id: object.id, layerId: object.layerId, name: object.name, kind: object.kind, geometry: object.geometry, style: object.style,
           properties: {}, ...(object.startYear === undefined ? {} : { startYear: object.startYear }), ...(object.endYear === undefined ? {} : { endYear: object.endYear }),
         })),
@@ -114,7 +115,7 @@ export class WorldsService {
       WHERE w.slug=$1 AND w.status IN ('unlisted','public')`, [slug]);
     if (!result.rows[0]) throw new NotFoundException('Carte publiée introuvable.');
     const snapshot = worldSchema.parse(result.rows[0].public_document);
-    return { ...snapshot, objects: snapshot.objects.map(object => ({ ...object, properties: {} })) };
+    return { ...snapshot, objects: snapshot.objects.filter(object => object.kind !== 'image_marker').map(object => ({ ...object, properties: {} })) };
   }
   async publicWorlds(): Promise<{ slug: string; name: string; revision: number }[]> {
     const result = await this.pool.query<{ slug: string; name: string; revision: number }>(`SELECT w.slug,p.public_document->>'name' AS name,p.revision FROM worlds w
@@ -206,7 +207,7 @@ export class WorldsService {
     }
     return world;
   }
-  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string; kind?: 'city' | 'label'; color?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
+  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string; kind?: 'city' | 'label' | 'image_marker'; color?: string; assetId?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
     const pointId = randomUUID();
     const client = await this.pool.connect();
     try {
@@ -215,9 +216,13 @@ export class WorldsService {
       if (world.revision !== input.revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       const layer = await client.query<{ id: string }>('SELECT id FROM layers WHERE world_id=$1 AND NOT locked AND ($2::uuid IS NULL OR id=$2) ORDER BY sort_order,id LIMIT 1 FOR UPDATE', [id, input.layerId ?? null]);
       if (!layer.rows[0]) throw new ConflictException('Aucun calque modifiable.');
-      await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style)
-        VALUES($1,$2,$3,$4,$5,ST_SetSRID(ST_MakePoint($6,$7),4326),$8::jsonb)`,
-      [pointId, id, layer.rows[0].id, input.kind ?? 'city', input.name, input.longitude, input.latitude, JSON.stringify({ color: input.kind === 'label' ? input.color ?? '#e6b96c' : '#e6b96c', opacity: 1 })]);
+      if (input.kind === 'image_marker') {
+        const asset = await client.query('SELECT 1 FROM assets WHERE world_id=$1 AND id=$2', [id,input.assetId]);
+        if (!asset.rowCount) throw new BadRequestException('Image introuvable dans ce monde.');
+      }
+      await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style,properties)
+        VALUES($1,$2,$3,$4,$5,ST_SetSRID(ST_MakePoint($6,$7),4326),$8::jsonb,$9::jsonb)`,
+      [pointId, id, layer.rows[0].id, input.kind ?? 'city', input.name, input.longitude, input.latitude, JSON.stringify({ color: input.kind === 'label' ? input.color ?? '#e6b96c' : '#e6b96c', opacity: 1 }), JSON.stringify(input.kind === 'image_marker' ? { assetId: input.assetId?.toLowerCase() } : {})]);
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
       const result = compact ? await this.get(userId, id, false, pointId, client) : undefined;
       await client.query('COMMIT');
@@ -266,6 +271,13 @@ export class WorldsService {
         FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id WHERE o.id=$1 FOR UPDATE OF o,l`, [point.id]);
       if (existing.rows[0] && (existing.rows[0].world_id !== id || existing.rows[0].locked || existing.rows[0].geometry_type !== geometryType || (geometryType === 'ST_Polygon' && existing.rows[0].kind !== 'territory'))) throw new ConflictException('Ce lieu ne peut pas être restauré.');
       if (geometryType === 'ST_Point' && point.kind === 'label' && (!point.name.trim() || point.name.length > 80)) throw new BadRequestException('Le texte doit contenir de 1 à 80 caractères.');
+      if (point.kind === 'image_marker') {
+        if (geometryType !== 'ST_Point' || !imageMarkerSchema.safeParse(point).success) throw new BadRequestException('Repère illustré invalide.');
+        const assetId = String(point.properties['assetId']).toLowerCase();
+        point = { ...point, properties: { assetId } };
+        const asset = await client.query('SELECT 1 FROM assets WHERE world_id=$1 AND id=$2', [id,assetId]);
+        if (!asset.rowCount) throw new BadRequestException('Image introuvable dans ce monde.');
+      }
       if (geometryType === 'ST_Polygon') {
         const validity = await client.query<{ valid: boolean }>(
           'SELECT ST_IsValid(g) AND ST_Area(g) > 0 AS valid FROM (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1),4326) AS g) shape', [JSON.stringify(point.geometry)]);

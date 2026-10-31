@@ -436,3 +436,10 @@ la base et les volumes de stockage ensemble dans les sauvegardes. Si un échec
 de stockage survient pendant une suppression ou une interruption de serveur,
 un fichier sans référence peut subsister dans le stockage ; son nettoyage
 automatique n’est pas encore disponible.
+
+Les fondations des repères illustrés sont en cours de développement côté API :
+une image utilisée par un repère ne peut pas être supprimée, et le repère
+reste exclu des publications. L’éditeur ne permet pas encore de placer ou
+d’afficher ces images sur la carte. Si un monde contient un tel repère créé
+par API, son export JSON est temporairement bloqué car le fichier ne contient
+pas les images nécessaires à sa restauration.

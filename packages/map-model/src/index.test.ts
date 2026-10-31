@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaObjectSchema, createDemoWorld, geometrySchema, isActiveAt, periodSchema, relationSchema, worldBackupSchema, worldSchema } from './index.js';
+import { areaObjectSchema, imageMarkerSchema, createDemoWorld, geometrySchema, isActiveAt, periodSchema, relationSchema, worldBackupSchema, worldSchema } from './index.js';
 
 describe('modèle géographique et temporel', () => {
   it('conserve une scène via JSON', () => {
@@ -54,4 +54,14 @@ it('valide un export de monde versionné et refuse les formats inconnus', () => 
   expect(worldBackupSchema.safeParse({ ...document, version: 2 }).success).toBe(false);
   expect(worldBackupSchema.safeParse({ ...document, format: 'autre-format' }).success).toBe(false);
   expect(worldBackupSchema.safeParse({ ...document, unexpected: true }).success).toBe(false);
+});
+
+
+it('valide un repère illustré lié à une image', () => {
+  const point = createDemoWorld().objects[0]!;
+  const marker = { ...point, kind: 'image_marker', properties: { assetId: '10000000-0000-4000-8000-000000000001' } };
+  expect(imageMarkerSchema.safeParse(marker).success).toBe(true);
+  expect(imageMarkerSchema.safeParse({ ...marker, properties: {} }).success).toBe(false);
+  expect(imageMarkerSchema.safeParse({ ...marker, properties: { assetId: 'autre-monde' } }).success).toBe(false);
+  expect(imageMarkerSchema.safeParse({ ...marker, geometry: { type: 'LineString', coordinates: [[0,0],[1,1]] } }).success).toBe(false);
 });

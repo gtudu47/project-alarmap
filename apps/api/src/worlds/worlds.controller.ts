@@ -71,7 +71,7 @@ export class WorldsController {
   @Header('Cache-Control', 'no-store')
   addPoint(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {
     const compact = parseInput(z.object({ compact: z.literal('1').optional() }).strict(), query).compact === '1';
-    const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90), revision: z.number().int().nonnegative(), layerId: z.uuid().optional(), kind: z.enum(['city','label']).optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }).strict().refine(value => value.kind !== 'label' || value.name.length <= 80, 'Le texte ne doit pas dépasser 80 caractères.'), body);
+    const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90), revision: z.number().int().nonnegative(), layerId: z.uuid().optional(), kind: z.enum(['city','label','image_marker']).optional(), assetId: z.uuid().optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }).strict().refine(value => value.kind !== 'label' || value.name.length <= 80, 'Le texte ne doit pas dépasser 80 caractères.').refine(value => value.kind === 'image_marker' ? !!value.assetId : !value.assetId, 'Choisissez une image pour ce repère.'), body);
     return this.worlds.addPoint(request.account.id, id, input, compact);
   }
 

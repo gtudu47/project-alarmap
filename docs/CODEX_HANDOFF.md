@@ -678,6 +678,23 @@ locaux sont sains ; recharger la page pour voir la correction. Chromium de test
 n’est pas installé localement, Edge a servi à ces essais. La largeur des cases
 est nominale à l’équateur et diminue vers les pôles.
 
-Les changements serveur de repères illustrés restent locaux et inachevés :
-leur interface et leurs rendus sont à développer avant livraison. L’API locale
-fonctionne toujours avec sa version précédente.
+Les fondations serveur des repères illustrés sont inachevées : leur interface
+et leurs rendus sont à développer. L’API locale fonctionne toujours avec sa
+version précédente ; le code préparé est destiné à la branche dev.
+
+Repères illustrés : ajout d’une protection de l’export JSON si le monde
+contient déjà un repère illustré, car les images ne sont pas comprises dans
+ce format et une telle sauvegarde ne serait pas réimportable. Le serveur vérifie
+également que l’image appartient au monde et empêche de la supprimer pendant
+son utilisation. Publication et sauvegarde portable des images restent à
+concevoir ; interface et rendus 2D/3D ne sont pas encore réalisés.
+
+Validation de la préparation : tests d’intégration HTTP/PostGIS réussis pour
+les permissions, la publication, l’import et la suppression concurrente ; lint
+et typage réussis. Quatre cas navigateur d’export réussis avec Edge : le cas
+normal a dû être relancé après dépassement du délai pendant la compilation.
+Le placement et le rendu restent à réaliser ; ne pas présenter cette étape
+comme une fonctionnalité complète.
+
+CI GitHub de la correction du quadrillage : qualité Windows et Linux, Docker,
+PostGIS et parcours navigateur réussis (exécution 41229170650).

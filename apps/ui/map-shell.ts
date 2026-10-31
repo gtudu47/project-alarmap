@@ -35,7 +35,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
         @if (personal() && role === 'owner') {
           <details class="tile-settings"><summary>Publier cette carte</summary>
-            <p>La publication rend accessibles le nom, la géométrie, les styles et les dates des objets des calques choisis. Les propriétés internes ne sont pas publiées. Les modifications ultérieures restent en brouillon jusqu’à une nouvelle publication.</p>
+            <p>La publication rend accessibles le nom, la géométrie, les styles et les dates des objets des calques choisis. Les propriétés internes, les repères illustrés et leurs images ne sont pas publiés. Les modifications ultérieures restent en brouillon jusqu’à une nouvelle publication.</p>
             <form class="point-form" (submit)="publishWorld($event)">
               <label>Visibilité<select name="visibility" [value]="world.status === 'public' ? 'public' : 'unlisted'"><option value="unlisted">Lien non répertorié</option><option value="public">Public et répertorié</option></select></label>
               <fieldset><legend>Calques à publier</legend>@for (layer of world.layers; track layer.id) { <label class="layer-lock"><input type="checkbox" name="layerId" [value]="layer.id">{{ layer.name }}</label> }</fieldset>
@@ -853,6 +853,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
         world = worldSchema.parse(access.world);
         if (world.id !== id || world.revision !== revision || this.world.revision !== revision) throw new Error('Le monde a changé. Rechargez-le avant de l’exporter.');
       }
+      if (world.objects.some(object => object.kind === 'image_marker')) throw new Error('Export JSON indisponible : les repères illustrés et leurs images ne sont pas encore pris en charge. Utilisez la sauvegarde complète de l’instance.');
       const document = worldBackupSchema.parse({ format: 'alarmap-world', version: 1, world });
       const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob); const link = window.document.createElement('a');

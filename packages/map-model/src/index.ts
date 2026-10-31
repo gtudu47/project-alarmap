@@ -38,6 +38,10 @@ export const objectSchema = z.object({
   style: z.object({ color: z.string().regex(/^#[0-9a-fA-F]{6}$/), opacity: z.number().min(0).max(1) }),
   properties: z.record(z.string(), z.unknown()), ...periodFields,
 }).refine(validPeriod, 'Période invalide.');
+/** Un repère illustré référence une image privée du même monde. */
+export const imageMarkerSchema = objectSchema.refine(object => object.kind === 'image_marker' && object.geometry.type === 'Point' &&
+  !!object.name.trim() && Object.keys(object.properties).length === 1 && z.uuid().safeParse(object.properties['assetId']).success,
+'Un repère illustré exige un point, un nom et une image valide.');
 export const lineObjectSchema = objectSchema.refine(object => {
   if (object.geometry.type !== 'LineString' || !['road','river'].includes(object.kind) || !object.name.trim()) return false;
   const points = object.geometry.coordinates;

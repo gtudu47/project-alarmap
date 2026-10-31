@@ -254,3 +254,9 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [ ] Remplir les territoires sur le globe et prendre en charge l’antiméridien et les pôles.
 
 - V0.1 quadrillage : méridiens continus communs aux vues plane et globe, largeur nominale à l’équateur, limites partielles et masquage du réseau superposé.
+
+### V0.1 — Repères illustrés (en cours)
+
+- [x] Contrôles serveur : image du même monde, permissions, suppression protégée et exclusion des publications.
+- [x] Empêcher un export JSON non restaurable lorsque des repères illustrés existent.
+- [ ] Placement et rendu des images en 2D et sur le globe ; export et publication adaptés.

@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Infrastructure } from '../infrastructure.js';
 import { MAX_ASSET_BYTES } from '../storage.js';
@@ -62,6 +62,8 @@ export class AssetsService {
     try {
       await client.query('BEGIN');
       await this.worlds.lockEditableWorld(client, worldId, userId);
+      const used = await client.query("SELECT 1 FROM map_objects WHERE world_id=$1 AND kind='image_marker' AND lower(properties->>'assetId')=$2 LIMIT 1", [worldId,id.toLowerCase()]);
+      if (used.rowCount) throw new ConflictException('Cette image est utilisée par un repère. Supprimez le repère avant de retirer l’image.');
       const result = await client.query<{ storage_key: string }>('DELETE FROM assets WHERE world_id=$1 AND id=$2 RETURNING storage_key', [worldId,id]);
       if (!result.rows[0]) throw new NotFoundException('Image introuvable.');
       key = result.rows[0].storage_key;

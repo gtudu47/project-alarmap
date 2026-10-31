@@ -446,6 +446,41 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal(largeImport.status, 201);
     assert.equal(((await largeImport.json()) as { world: World }).world.objects[0]!.properties['note'], 'x'.repeat(120000));
     assert.equal((await (await request('/worlds/' + labelWorld.id, tokens[0])).json() as { world: World }).world.id, sourceForImport.id);
+    // Les repères illustrés référencent uniquement des images du même monde.
+    const illustrated = (await (await request('/worlds', tokens[0], { name: 'Monde illustré', radiusKm: 100 })).json() as { world: World }).world;
+    const illustratedAssets = '/worlds/' + illustrated.id + '/assets'; const illustratedPoints = '/worlds/' + illustrated.id + '/points';
+    const illustratedImage = await (await request(illustratedAssets, tokens[0], { name: 'Symbole', data: png })).json() as { id: string };
+    const imageInput = { name: 'Repère privé', longitude: 12, latitude: -5, revision: 0, kind: 'image_marker', assetId: illustratedImage.id.toUpperCase() };
+    assert.equal((await request(illustratedPoints, tokens[0], { ...imageInput, assetId: image.id })).status, 400);
+    assert.equal((await request(illustratedPoints, tokens[0], { ...imageInput, assetId: undefined })).status, 400);
+    assert.equal((await request(illustratedPoints, tokens[1], imageInput)).status, 404);
+    const markerResponse = await request(illustratedPoints, tokens[0], imageInput); assert.equal(markerResponse.status, 201);
+    const markerWorld = (await markerResponse.json() as { world: World }).world;
+    const marker = markerWorld.objects[0]!;
+    assert.equal(marker.kind, 'image_marker'); assert.equal(marker.properties['assetId'], illustratedImage.id); assert.equal(markerWorld.revision, 1);
+    assert.equal((await request(illustratedAssets + '/' + illustratedImage.id, tokens[0], undefined, 'DELETE')).status, 409);
+    const illustratedImport = { name: 'Import sans image', document: { format: 'alarmap-world', version: 1, world: markerWorld } };
+    assert.equal((await request('/worlds/import', tokens[0], illustratedImport)).status, 400);
+    assert.equal((await request('/worlds/' + illustrated.id + '/publication', tokens[0], { revision: 1, visibility: 'public', layerIds: [illustrated.layers[0]!.id] })).status, 201);
+    const publicIllustrated = await (await request('/public/worlds/' + illustrated.slug)).json() as World;
+    assert.equal(publicIllustrated.objects.length, 0);
+    assert.equal(JSON.stringify(publicIllustrated).includes(illustratedImage.id), false);
+    const markerPath = illustratedPoints + '/' + marker.id;
+    assert.equal((await request(markerPath, tokens[0], { revision: 1 }, 'DELETE')).status, 200);
+    assert.equal((await request(illustratedAssets + '/' + illustratedImage.id, tokens[0], undefined, 'DELETE')).status, 204);
+    assert.equal((await request(markerPath, tokens[0], { revision: 2, point: marker }, 'PUT')).status, 400);
+    assert.equal((await (await request('/worlds/' + illustrated.id, tokens[0])).json() as { world: World }).world.revision, 2);
+    const concurrentImage = await (await request(illustratedAssets, tokens[0], { name: 'Course', data: png })).json() as { id: string };
+    const [concurrentDelete, concurrentMarker] = await Promise.all([
+      request(illustratedAssets + '/' + concurrentImage.id, tokens[0], undefined, 'DELETE'),
+      request(illustratedPoints, tokens[0], { ...imageInput, revision: 2, assetId: concurrentImage.id }),
+    ]);
+    assert.ok((concurrentDelete.status === 204 && concurrentMarker.status === 400) || (concurrentDelete.status === 409 && concurrentMarker.status === 201));
+    if (concurrentMarker.status === 201) {
+      const concurrentWorld = (await concurrentMarker.json() as { world: World }).world;
+      assert.equal((await request(illustratedPoints + '/' + concurrentWorld.objects[0]!.id, tokens[0], { revision: 3 }, 'DELETE')).status, 200);
+      assert.equal((await request(illustratedAssets + '/' + concurrentImage.id, tokens[0], undefined, 'DELETE')).status, 204);
+    }
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

@@ -634,3 +634,8 @@ lors de leur relance après compilation. Les 55 scénarios ont ainsi réussi.
 Correctif de reprise : le formulaire d’import est vidé lors d’un changement
 de monde pour éviter de réutiliser par inadvertance un fichier non envoyé.
 Validation : lint, typage et deux scénarios navigateur propriétaire et lecteur.
+
+
+Contrôle de reprise : la migration 003_assets locale a été normalisée en LF
+et son empreinte PostgreSQL réalignée après vérification que le contenu était
+identique à Git. Un test vérifie les fins de ligne de toutes les migrations.

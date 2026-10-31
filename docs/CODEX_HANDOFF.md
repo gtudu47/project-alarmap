@@ -629,3 +629,8 @@ image temporaires : import, rechargement, aperçu et suppression, puis nettoyage
 Suite navigateur complète : 54/55 au premier passage, un délai dépassé pendant
 les compilations concurrentes ; les deux variantes du test concerné réussissent
 lors de leur relance après compilation. Les 55 scénarios ont ainsi réussi.
+
+
+Correctif de reprise : le formulaire d’import est vidé lors d’un changement
+de monde pour éviter de réutiliser par inadvertance un fichier non envoyé.
+Validation : lint, typage et deux scénarios navigateur propriétaire et lecteur.

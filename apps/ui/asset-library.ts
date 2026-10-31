@@ -11,7 +11,7 @@ interface AssetData extends Asset { data: string }
     <details #panel class="tile-settings" (toggle)="toggle($event)"><summary>Images du monde</summary>
       <p>Bibliothèque privée de ce monde. Les images ne sont pas encore placées sur la carte ni publiées.</p>
       @if (role !== 'viewer') {
-        <form class="point-form" (submit)="upload($event)">
+        <form #uploadForm class="point-form" (submit)="upload($event)">
           <label>Nom de l’image<input name="name" required maxlength="120"></label>
           <label>Fichier PNG<input name="file" type="file" accept="image/png,.png" required></label>
           <p>PNG uniquement · 4 Mio maximum · 100 images par monde.</p>
@@ -41,6 +41,7 @@ export class AssetLibrary implements OnChanges, OnDestroy {
   @Input({ required: true }) worldId = '';
   @Input({ required: true }) role: MemberRole = 'viewer';
   @ViewChild('panel') private panel?: ElementRef<HTMLDetailsElement>;
+  @ViewChild('uploadForm') private uploadForm?: ElementRef<HTMLFormElement>;
   private readonly accounts = inject(AccountsClient);
   private generation = 0;
   readonly assets = signal<Asset[]>([]);
@@ -50,7 +51,7 @@ export class AssetLibrary implements OnChanges, OnDestroy {
   readonly busy = signal(false);
   readonly message = signal('');
   ngOnChanges(): void {
-    const generation = ++this.generation; this.assets.set([]); this.preview.set(null); this.confirmDelete.set(null); this.loaded.set(false); this.busy.set(false); this.message.set('');
+    const generation = ++this.generation; this.uploadForm?.nativeElement.reset(); this.assets.set([]); this.preview.set(null); this.confirmDelete.set(null); this.loaded.set(false); this.busy.set(false); this.message.set('');
     queueMicrotask(() => { if (generation === this.generation && this.panel?.nativeElement.open) void this.load(); });
   }
   ngOnDestroy(): void { this.generation++; }

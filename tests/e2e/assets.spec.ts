@@ -39,11 +39,19 @@ for (const role of ['owner', 'viewer'] as const) test('bibliothèque privée d�
   await library.getByRole('button', { name: 'Afficher' }).click();
   await expect(library.getByRole('img', { name: image.name })).toBeVisible();
   await expect(library.getByRole('img', { name: image.name })).toHaveAttribute('src', 'data:image/png;base64,' + png);
+  if (role === 'owner') {
+    await library.getByLabel('Nom de l’image').fill('Brouillon non envoyé');
+    await library.getByLabel('Fichier PNG').setInputFiles({ name: 'brouillon.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  }
   await page.getByRole('button', { name: 'Alice', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^Autre monde/ }).click();
   await expect(page.getByRole('heading', { name: other.name, exact: true })).toBeVisible();
   await expect(library.getByRole('img')).toHaveCount(0); await expect(library.getByText(image.name)).toHaveCount(0);
   await expect(library.getByText('Aucune image dans ce monde.')).toBeVisible();
+  if (role === 'owner') {
+    await expect(library.getByLabel('Nom de l’image')).toHaveValue('');
+    await expect(library.getByLabel('Fichier PNG')).toHaveValue('');
+  }
   await page.getByRole('button', { name: 'Alice', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
   await expect(library.getByText(image.name)).toBeVisible();

@@ -422,7 +422,7 @@ Dans un monde personnel, ouvrez **Images du monde**. Un propriétaire ou un
 éditeur peut donner un nom à un fichier PNG, l’importer, l’afficher, puis le
 supprimer après confirmation. Les lecteurs autorisés peuvent voir la liste et
 les aperçus, mais ne peuvent pas les modifier. La bibliothèque est propre au
-monde ; changer de monde retire l’aperçu précédent.
+monde ; changer de monde retire l’aperçu précédent et vide le formulaire d’import.
 
 Limites actuelles : PNG uniquement, 4 Mio par image, 100 images par monde,
 8 192 pixels par dimension et 25 millions de pixels. La structure des blocs et

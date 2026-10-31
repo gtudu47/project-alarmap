@@ -1,3 +1,4 @@
+import { sphericalPolygonVertices } from './globe-polygon.js';
 import { capViews, gridLineVertices } from './globe-grid.js';
 import { DEFAULT_GRID, visibleGrid, type GridOptions, type GridStats, type GridView } from './grid.js';
 import { CSS_PIXELS_PER_METRE } from './scale.js';
@@ -171,14 +172,23 @@ export class GlobeRenderer implements RendererAdapter {
           label.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(label);
         } else {
           const marker = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ color: object.style.color, transparent: opacity < 1, opacity }));
-          marker.userData['id'] = object.id;
+          marker.userData['id'] = object.id; marker.userData['pointMarker'] = true;
           marker.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(marker);
         }
       } else if (object.geometry.type === 'LineString') {
         this.objects.add(this.geographicLine(object.geometry.coordinates, object.style.color, opacity, object.id));
       } else if (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') {
         const polygons = object.geometry.type === 'Polygon' ? [object.geometry.coordinates] : object.geometry.coordinates;
-        for (const rings of polygons) for (const ring of rings) this.objects.add(this.geographicLine(ring, object.style.color, opacity, object.id));
+        for (const rings of polygons) {
+          const positions = sphericalPolygonVertices(rings);
+          if (positions.length) {
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            const material = new THREE.MeshBasicMaterial({ color: object.style.color, side: THREE.DoubleSide, transparent: opacity < 1, opacity, depthWrite: opacity === 1 });
+            const surface = new THREE.Mesh(geometry, material); surface.userData['id'] = object.id; this.objects.add(surface);
+          }
+          for (const ring of rings) this.objects.add(this.geographicLine(ring, object.style.color, opacity, object.id));
+        }
       }
     }
     this.render();
@@ -204,7 +214,7 @@ export class GlobeRenderer implements RendererAdapter {
         const pixel = Math.max(1e-12, -depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (Math.max(1,this.host.clientHeight) * this.camera.zoom));
         object.scale.set(pixel * Number(object.userData['pixelWidth']), pixel * Number(object.userData['pixelHeight']), 1);
         object.visible = this.camera.position.clone().sub(object.position).dot(object.position) > 0;
-      } else if (object instanceof THREE.Mesh) {
+      } else if (object instanceof THREE.Mesh && object.userData['pointMarker'] === true) {
         const depth = object.position.clone().applyMatrix4(this.camera.matrixWorldInverse).z;
         const size = Math.max(1e-12, -depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (Math.max(1,this.host.clientHeight) * this.camera.zoom) * 5);
         object.scale.setScalar(size / 0.015);

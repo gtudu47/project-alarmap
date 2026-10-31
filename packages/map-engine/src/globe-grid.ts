@@ -18,7 +18,7 @@ export function gridLineVertices(line: GridLine): number[] {
   const span = Math.max(Math.abs(line.to[0] - line.from[0]), Math.abs(line.to[1] - line.from[1]));
   const steps = Math.max(1, Math.ceil(span / 0.25)); const vertices: number[] = [];
   for (let index = 0; index < steps; index++) for (const t of [index / steps, (index + 1) / steps]) {
-    vertices.push(...toSphere([line.from[0] + (line.to[0] - line.from[0]) * t, line.from[1] + (line.to[1] - line.from[1]) * t], 1.00001));
+    vertices.push(...toSphere([line.from[0] + (line.to[0] - line.from[0]) * t, line.from[1] + (line.to[1] - line.from[1]) * t], 1.002));
   }
   return vertices;
 }

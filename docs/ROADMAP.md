@@ -155,7 +155,7 @@ L’historique durable et l’annulation des autres géométries restent à dév
 
 Sélection des points visibles par clic dans la carte plane et le globe,
 ouverture de la fiche existante et distinction avec le déplacement de caméra.
-La sélection des lignes fonctionne dans les deux vues. Les territoires simples sont sélectionnables par leur surface en vue plane et leur contour sur le globe.
+La sélection des lignes fonctionne dans les deux vues. Les territoires simples sont sélectionnables par leur surface et leur contour dans les deux vues.
 
 ### Gestion des calques
 
@@ -247,11 +247,12 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Contour simple dessiné en vue plane, nom, couleur, calque, sauvegarde,
   suppression confirmée et historique de session ; contrôle topologique PostGIS.
-- [x] Surface en 2D, sélection et localisation dans l’Atlas ; contour sur globe.
+- [x] Surface en 2D et sur globe, sélection et localisation dans l’Atlas.
 - [x] Modifier le nom, la couleur et les sommets d’un territoire simple en vue plane ; annuler ou rétablir la modification.
-- [x] Ajouter, modifier et restaurer des trous par coordonnées ; affichage et sélection en 2D, contours sur globe.
+- [x] Ajouter, modifier et restaurer des trous par coordonnées ; affichage et sélection dans les deux vues.
 - [x] Dessiner les trous à la souris en vue plane, puis valider la modification.
-- [ ] Remplir les territoires sur le globe et prendre en charge l’antiméridien et les pôles.
+- [x] Remplir et sélectionner les territoires simples sur le globe, avec leurs trous.
+- [ ] Prendre en charge les territoires traversant l’antiméridien ou les pôles.
 
 - V0.1 quadrillage : méridiens continus communs aux vues plane et globe, largeur nominale à l’équateur, limites partielles et masquage du réseau superposé.
 

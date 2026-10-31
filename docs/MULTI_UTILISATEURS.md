@@ -123,7 +123,7 @@ Un clic dans une zone vide ferme la fiche. Les déplacements de plus de cinq
 pixels sont traités comme des mouvements de caméra. Les objets invisibles
 (calque masqué ou opacité nulle) ne sont pas sélectionnables. Le globe teste
 également la sphère pour ne pas sélectionner un point derrière la planète.
-Les lignes sont sélectionnables dans les deux vues. Les territoires simples sont sélectionnables par leur surface en vue plane et par leur contour sur le globe.
+Les lignes sont sélectionnables dans les deux vues. Les territoires simples sont sélectionnables par leur surface et leur contour dans les deux vues.
 
 ## Gestion des calques
 
@@ -296,16 +296,16 @@ Sélectionnez une route ou une rivière dans votre monde, puis choisissez « Sup
 Dans un monde personnel, ouvrez **Territoires** en vue plane, choisissez un
 nom, une couleur et un calque déverrouillé, puis cliquez au moins trois fois sur
 la carte et enregistrez. Le dernier sommet peut être retiré ; Échap ou
-« Abandonner le territoire » annule le dessin en cours. La carte affiche la
-surface colorée ; le globe affiche son contour. Le territoire peut être
+« Abandonner le territoire » annule le dessin en cours. La carte et le globe affichent la
+surface colorée et les éventuels trous. Le territoire peut être
 localisé dans l’Atlas, sélectionné, supprimé après confirmation et restauré
 avec l’historique de session. Les lecteurs ne peuvent pas le modifier.
 
 Le dessin initial accepte un contour simple, sans traversée de
 l’antiméridien ou des pôles, avec 2 000 sommets au maximum. Le serveur refuse
-les contours croisés ou de surface nulle. Le remplissage sur le globe reste à
-développer. Les trous sont ajoutés et modifiés par coordonnées dans la fiche
-du territoire.
+les contours croisés ou de surface nulle. Les trous sont ajoutés et modifiés
+par coordonnées ou dessin dans la fiche du territoire. Le remplissage de
+polygones très complexes peut être limité ; leur contour reste visible.
 
 ### Modifier un territoire
 

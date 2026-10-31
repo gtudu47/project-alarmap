@@ -115,7 +115,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
                   <button class="account-primary" [disabled]="pointBusy() || areaPoints().length < 3">Enregistrer le territoire</button>@if (areaError()) { <p role="alert">{{ areaError() }}</p> }
                 }
               </form>
-              <p>Contour simple sans traversée de l’antiméridien ni pôle. Sur le globe, seul le contour est affiché pour le moment.</p>
+              <p>Contour simple sans traversée de l’antiméridien ni pôle. Les surfaces et leurs trous sont affichés sur la carte et sur le globe.</p>
             </details>
             <details class="tile-settings"><summary>Routes et rivières</summary>
               <form class="point-form" (submit)="saveLine($event)">

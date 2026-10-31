@@ -698,3 +698,30 @@ comme une fonctionnalité complète.
 
 CI GitHub de la correction du quadrillage : qualité Windows et Linux, Docker,
 PostGIS et parcours navigateur réussis (exécution 41229170650).
+
+
+## Travail en cours — remplissage des territoires sur le globe
+
+Demande utilisateur : l’intérieur des territoires n’apparaît pas en 3D. Le
+globe dessine actuellement uniquement leurs contours. Prévoir des surfaces
+projetées sur la sphère, les trous, la sélection, les calques et la face cachée ;
+valider dans l’éditeur et le Viewer. La prise en charge des territoires aux
+pôles et à l’antiméridien conserve les limites de l’éditeur actuel.
+
+Implémentation : triangulation des polygones simples et de leurs trous, puis
+subdivision et projection sur une sphère légèrement surélevée ; sélection par
+la surface et masquage par le globe. Le quadrillage est placé au-dessus des
+surfaces. Le nombre de triangles par polygone est borné ; au-delà seul le
+contour est dessiné. Tests géométriques réussis ; validation visuelle en cours.
+
+Validation intermédiaire : 45 tests unitaires, lint et typage réussis ; six
+parcours navigateur Edge réussis, dont surface, trou, calque masqué, face
+cachée et sélection des points et tracés. Reconstruction Docker et vérification
+du Viewer en cours. CI du précédent commit ecd9664 entièrement réussie.
+
+Validation finale : construction Docker Editor/Viewer réussie ; huit parcours
+supplémentaires avec Edge sur l’instance locale, incluant carte publiée,
+territoire rempli et grille, réussis. Les services sont sains. Recharger
+http://127.0.0.1:8080/?page=carte. Les territoires traversant l’antiméridien
+ou les pôles et le remplissage de polygones dépassant 200 000 triangles
+restent à prendre en charge ; leurs contours restent visibles.

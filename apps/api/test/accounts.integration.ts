@@ -8,6 +8,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from '../src/app.module.js';
 import { Infrastructure } from '../src/infrastructure.js';
+import { AssetsService } from '../src/assets/assets.service.js';
 import { migrate } from '../src/migrations.js';
 
 test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révocation', async () => {
@@ -51,6 +52,34 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(`/worlds/${world.id}`, tokens[1])).status, 404);
     const point = { name: 'Lieu de test', longitude: 175, latitude: -20, revision: 0 };
     assert.equal((await request(`/worlds/${world.id}/points`, tokens[1], point)).status, 404);
+    const assetsPath = '/worlds/' + world.id + '/assets';
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
+    assert.equal((await request(assetsPath)).status, 401);
+    assert.equal((await request(assetsPath, tokens[1])).status, 404);
+    assert.equal((await request(assetsPath, tokens[0], { name: 'Corrompue', data: 'not-a-png' })).status, 400);
+    const imageResponse = await request(assetsPath, tokens[0], { name: 'Symbole rouge', data: png });
+    assert.equal(imageResponse.status, 201);
+    const image = await imageResponse.json() as { id: string; name: string; byteSize: number; width: number; height: number };
+    assert.equal(image.name, 'Symbole rouge'); assert.equal(image.width, 1); assert.equal(image.height, 1); assert.equal('storageKey' in image, false);
+    assert.equal(image.byteSize, Buffer.from(png, 'base64').length);
+    assert.deepEqual(await (await request(assetsPath, tokens[0])).json(), [image]);
+    assert.equal((await request(assetsPath + '/' + image.id, tokens[1])).status, 404);
+    assert.equal((await request(assetsPath + '/' + image.id)).status, 401);
+    // Une erreur SQL après écriture du fichier ne doit pas laisser d’objet orphelin.
+    const originalPut = infra.storage.put; let rollbackKey = '';
+    infra.storage.put = async (key, data) => { rollbackKey = key; await originalPut(key, data); };
+    try { await assert.rejects(app.get(AssetsService).create(users[0]!, world.id, 'x'.repeat(121), png)); }
+    finally { infra.storage.put = originalPut; }
+    assert.ok(rollbackKey);
+    let rollbackFileExists = false;
+    try { await infra.storage.get(rollbackKey); rollbackFileExists = true; } catch { /* Nettoyage attendu. */ }
+    if (rollbackFileExists) await infra.storage.remove(rollbackKey);
+    assert.equal(rollbackFileExists, false);
+    assert.deepEqual(await (await request(assetsPath, tokens[0])).json(), [image]);
+    assert.equal((await request('/worlds/' + randomUUID() + '/assets/' + image.id, tokens[0])).status, 404);
+    const privateImageRead = await request(assetsPath + '/' + image.id, tokens[0]);
+    assert.match(privateImageRead.headers.get('cache-control') ?? '', /no-store/);
+    assert.equal((await privateImageRead.json() as { data: string }).data, png);
     const membersPath = '/worlds/' + world.id + '/members';
     assert.equal((await request(membersPath)).status, 401);
     assert.equal((await request(membersPath, tokens[1])).status, 404);
@@ -65,6 +94,16 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(membersPath, tokens[1])).status, 404);
     assert.equal((await request(membersPath + '/' + users[1], tokens[1], undefined, 'DELETE')).status, 404);
     assert.equal((await request(`/worlds/${world.id}`, tokens[1])).status, 200);
+    assert.deepEqual(await (await request(assetsPath, tokens[1])).json(), [image]);
+    assert.equal((await (await request(assetsPath + '/' + image.id, tokens[1])).json() as { data: string }).data, png);
+    assert.equal((await request(assetsPath, tokens[1], { name: 'Lecture seule', data: png })).status, 403);
+    assert.equal((await request(assetsPath + '/' + image.id, tokens[1], undefined, 'DELETE')).status, 403);
+    const temporaryImageResponse = await request(assetsPath, tokens[0], { name: 'À retirer', data: png });
+    assert.equal(temporaryImageResponse.status, 201);
+    const temporaryImage = await temporaryImageResponse.json() as { id: string };
+    assert.equal((await request(assetsPath + '/' + temporaryImage.id, tokens[0], undefined, 'DELETE')).status, 204);
+    assert.equal((await request(assetsPath + '/' + temporaryImage.id, tokens[0])).status, 404);
+    await assert.rejects(infra.storage.get(`assets/${world.id}/${temporaryImage.id}`));
     assert.equal((await request(`/worlds/${world.id}/points`, tokens[1], point)).status, 403);
     assert.equal((await request(`/worlds/${world.id}/points`, tokens[0], { ...point, latitude: 91 })).status, 400);
     const concurrent = await Promise.all([request(`/worlds/${world.id}/points`, tokens[0], point), request(`/worlds/${world.id}/points`, tokens[0], point)]);
@@ -95,6 +134,10 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.deepEqual(edited.world.objects[0]?.geometry.coordinates, [-179, 85]);
     assert.equal((await request(endpoint, tokens[0], { revision: 1 }, 'DELETE')).status, 409);
     assert.equal((await request(membersPath, tokens[0], { email: `${users[1]}@example.test`, role: 'editor' })).status, 201);
+    const editorImageResponse = await request(assetsPath, tokens[1], { name: 'Image éditrice', data: png });
+    assert.equal(editorImageResponse.status, 201);
+    const editorImage = await editorImageResponse.json() as { id: string };
+    assert.equal((await request(assetsPath + '/' + editorImage.id, tokens[1], undefined, 'DELETE')).status, 204);
     assert.equal((await request(membersPath, tokens[1], { email: `${users[1]}@example.test`, role: 'viewer' })).status, 404);
     assert.equal((await request(endpoint, tokens[1], { revision: 2 }, 'DELETE')).status, 200);
     const removed = await (await request('/worlds/' + world.id, tokens[0])).json() as { world: { revision: number; objects: unknown[] } };
@@ -274,6 +317,9 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     const restoredWithHole = await (await request('/worlds/' + other.world.id + '/objects/' + area.id, tokens[1])).json() as { world: World };
     assert.deepEqual(restoredWithHole.world.objects[0]!.geometry, modifiedArea.geometry);
     assert.equal((await request(membersPath + '/' + users[1], tokens[0], undefined, 'DELETE')).status, 200);
+    assert.equal((await request(assetsPath, tokens[1])).status, 404);
+    assert.equal((await request(assetsPath + '/' + image.id, tokens[1])).status, 404);
+    assert.equal((await request(assetsPath, tokens[1], { name: 'Révoqué', data: png })).status, 404);
     assert.equal((await request('/worlds/' + world.id, tokens[1])).status, 404);
     assert.equal((await request('/worlds/' + world.id + '/tiles' + tileQuery + '100', tokens[1])).status, 404);
     assert.equal((await request('/worlds/' + world.id + '/points', tokens[1], { ...point, revision: 11 })).status, 404);
@@ -297,16 +343,22 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
       await locker.query('SELECT 1 FROM worlds WHERE id=$1 FOR UPDATE', [publishedWorld.id]);
       await locker.query('DELETE FROM members WHERE world_id=$1 AND user_id=$2', [publishedWorld.id,users[1]]);
       const pendingEdit = request('/worlds/' + publishedWorld.id + '/points/' + publicPoint.id, tokens[1], { revision: 3, name: 'Modification interdite', longitude: 3, latitude: 4 }, 'PATCH');
+      const pendingImage = request('/worlds/' + publishedWorld.id + '/assets', tokens[1], { name: 'Image interdite', data: png });
       let waiting = false;
       for (let attempt = 0; attempt < 100 && !waiting; attempt++) {
-        const state = await infra.pool.query<{ waiting: boolean }>("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT revision,owner_id FROM worlds%') AS waiting");
-        waiting = state.rows[0]!.waiting;
+        const state = await infra.pool.query<{ waiting: number }>("SELECT count(*)::integer AS waiting FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT revision,owner_id FROM worlds%'");
+        waiting = state.rows[0]!.waiting >= 2;
         if (!waiting) await new Promise(resolve => setTimeout(resolve, 50));
       }
       await locker.query('COMMIT'); lockOpen = false;
-      const blockedEdit = await pendingEdit;
-      assert.equal(waiting, true); assert.equal(blockedEdit.status, 404);
+      const [blockedEdit, blockedImage] = await Promise.all([pendingEdit, pendingImage]);
+      assert.equal(waiting, true); assert.equal(blockedEdit.status, 404); assert.equal(blockedImage.status, 404);
     } finally { if (lockOpen) await locker.query('ROLLBACK'); locker.release(); }
+    assert.deepEqual(await (await request('/worlds/' + publishedWorld.id + '/assets', tokens[0])).json(), []);
+    const publicWorldAssets = '/worlds/' + publishedWorld.id + '/assets';
+    const privateImageResponse = await request(publicWorldAssets, tokens[0], { name: 'Illustration privée', data: png });
+    assert.equal(privateImageResponse.status, 201);
+    const privateImage = await privateImageResponse.json() as { id: string };
     assert.equal((await request('/worlds/' + publishedWorld.id + '/members', tokens[0], { email: `${users[1]}@example.test`, role: 'editor' })).status, 201);
     const publish = { revision: 3, visibility: 'unlisted', layerIds: [publicLayer] };
     assert.equal((await request(publishedPath, undefined, publish)).status, 401);
@@ -316,6 +368,9 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request(publishedPath, tokens[0], publish)).status, 201);
     await infra.pool.query("UPDATE publications SET public_document=jsonb_set(public_document,'{objects,0,properties}',$2::jsonb) WHERE world_id=$1", [publishedWorld.id, JSON.stringify({ injectedSecret: 'privé' })]);
     const publicResponse = await request(publicPath); assert.equal(publicResponse.status, 200); assert.match(publicResponse.headers.get('cache-control') ?? '', /no-store/);
+    assert.equal((await request(publicWorldAssets)).status, 401);
+    assert.equal((await request(publicWorldAssets + '/' + privateImage.id)).status, 401);
+    assert.equal((await request(publicPath + '/assets/' + privateImage.id)).status, 404);
     assert.equal(publicResponse.headers.get('set-cookie'), null);
     assert.equal((await request('/worlds/' + publishedWorld.id)).status, 401);
     const firstPublication = await publicResponse.json() as World;
@@ -394,6 +449,8 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {
+    const testAssets = await infra.pool.query<{ storage_key: string }>('SELECT a.storage_key FROM assets a JOIN worlds w ON w.id=a.world_id WHERE w.owner_id=ANY($1::uuid[])', [users]);
+    for (const asset of testAssets.rows) await infra.storage.remove(asset.storage_key);
     await infra.pool.query('DELETE FROM worlds WHERE owner_id=ANY($1::uuid[])', [users]);
     await infra.pool.query('DELETE FROM users WHERE id=ANY($1::uuid[])', [users]);
     await app.close();

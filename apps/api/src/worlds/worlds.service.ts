@@ -192,7 +192,7 @@ export class WorldsService {
     if (!access.world.objects.length) throw new NotFoundException('Objet introuvable.');
     return access;
   }
-  private async lockEditableWorld(client: PoolClient, id: string, userId: string): Promise<{ revision: number; owner_id: string }> {
+  async lockEditableWorld(client: PoolClient, id: string, userId: string): Promise<{ revision: number; owner_id: string }> {
     const access = await client.query(`SELECT 1 FROM worlds w WHERE w.id=$1 AND (w.owner_id=$2 OR EXISTS
       (SELECT 1 FROM members m WHERE m.world_id=w.id AND m.user_id=$2))`, [id,userId]);
     if (!access.rowCount) throw new NotFoundException('Monde introuvable.');

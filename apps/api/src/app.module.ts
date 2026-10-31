@@ -5,6 +5,8 @@ import { AuthService } from './auth/auth.service.js';
 import { AuthController, InvitationsController } from './auth/auth.controller.js';
 import { AdminGuard, AuthGuard } from './auth/auth.guard.js';
 import { WorldsService } from './worlds/worlds.service.js';
+import { AssetsController } from './assets/assets.controller.js';
+import { AssetsService } from './assets/assets.service.js';
 import { WorldsController, PublicWorldsController } from './worlds/worlds.controller.js';
 
 @ApiTags('health')
@@ -18,8 +20,8 @@ export class HealthController {
   @ApiOperation({ summary: 'Vérifie PostgreSQL, PostGIS, les migrations et le stockage.' })
   async ready(): Promise<{ status: string }> {
     try {
-      const result = await this.infrastructure.pool.query<{ count: string }>("SELECT count(*) FROM schema_migrations WHERE name IN ('001_foundations.sql','002_accounts.sql')");
-      if (result.rows[0]?.count !== '2') throw new Error('Migration absente.');
+      const result = await this.infrastructure.pool.query<{ count: string }>("SELECT count(*) FROM schema_migrations WHERE name IN ('001_foundations.sql','002_accounts.sql','003_assets.sql')");
+      if (result.rows[0]?.count !== '3') throw new Error('Migration absente.');
       await this.infrastructure.pool.query('SELECT PostGIS_Version()');
       await this.infrastructure.storage.ready();
       return { status: 'ok' };
@@ -27,7 +29,7 @@ export class HealthController {
   }
 }
 @Module({
-  controllers: [HealthController, AuthController, InvitationsController, WorldsController, PublicWorldsController],
-  providers: [Infrastructure, AuthService, AuthGuard, AdminGuard, WorldsService],
+  controllers: [HealthController, AuthController, InvitationsController, WorldsController, PublicWorldsController, AssetsController],
+  providers: [Infrastructure, AuthService, AuthGuard, AdminGuard, WorldsService, AssetsService],
 })
 export class AppModule {}

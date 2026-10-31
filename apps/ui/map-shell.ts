@@ -3,6 +3,7 @@ import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GR
 import { createDemoWorld, worldSchema, worldBackupSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
+import { AssetLibrary } from './asset-library';
 import { PublicCatalog } from './public-catalog';
 import { AccountsClient, type WorldAccess } from './accounts.client';
 import { fr } from '@alarmap/shared';
@@ -12,7 +13,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
 @Component({
   selector: 'alarmap-root',
   standalone: true,
-  imports: [AccountPanel, WorkspacePages, PublicCatalog],
+  imports: [AccountPanel, WorkspacePages, PublicCatalog, AssetLibrary],
   template: `
     <header class="topbar">
       <a class="brand" href="/" aria-label="AlarMap accueil"><span class="brand-mark" aria-hidden="true">A</span>{{ text.brand }}</a>
@@ -48,6 +49,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (publicationMessage()) { <p role="status">{{ publicationMessage() }}</p> }
           </details>
         }
+          @if (personal()) { <alarmap-asset-library [worldId]="world.id" [role]="role" /> }
           <details class="tile-settings"><summary>Exporter les données</summary>
             @if (personal()) { <p>Le fichier contient tous les calques et leurs propriétés, y compris les données privées et masquées. Ne le transmettez qu’aux personnes autorisées.</p> }
             @else if (publicStatus() === 'ready') { <p>Le fichier contient uniquement la copie publiée de cette carte.</p> }

@@ -26,13 +26,13 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Fonctions géographiques : sphère, distance, découpage de lignes à l’antiméridien.
 - [-] Moteur commun : prototype plan/globe, grille, points, lignes, zoom, déplacement, visibilité.
 - [-] Polygones avec trous et validation topologique ; territoires polaires à réaliser.
-- [ ] Sélection, culling, propriétés de caméra et événements publics.
+- [-] Sélection et chargement spatial initiaux ; propriétés de caméra et événements publics à compléter.
 - [ ] Tests complets de cohérence de rendu et d’interaction.
 
 ### Lot D — Édition
 - [-] Outils Point, Polyline, Polygon, Text, Select, Pan, Delete : premières versions disponibles, géométries avancées à poursuivre.
 - [-] Propriétés, calques et Undo/Redo des objets avec raccourcis ; historique des calques à développer.
-- [ ] Import d’images et gestion d’assets.
+- [-] Images PNG privées : import, aperçu et suppression ; placement sur carte, autres formats et publication à développer.
 - [-] Sauvegarde serveur et conflits de révisions pour les lieux ; édition complète à réaliser.
 
 ### Lot E — Consultation
@@ -132,12 +132,12 @@ et la validation initiale des coordonnées partagées.
 
 Accueil, Atlas du monde ouvert (recherche et filtre de géométrie), Guide et
 navigation avec historique du navigateur sont disponibles dans l’Editor.
-Les fonctions de publication et les modules métier avancés restent à développer.
+La publication par calques et le catalogue initial sont disponibles ; les modules métier avancés restent à développer.
 
 ### Export de consultation
 
 Export PNG de la vue courante dans Editor et Viewer (carte plane et globe).
-Visibilité indépendante des calques. Export JSON et import de sauvegarde à venir.
+Visibilité indépendante des calques. Export et import JSON versionné disponibles ; les fichiers d’images restent exclus.
 
 ### Édition de points
 

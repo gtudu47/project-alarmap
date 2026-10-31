@@ -604,3 +604,28 @@ L’export JSON reste téléchargeable lorsque les plafonds d’import sont dép
 mais affiche un avertissement pour éviter de confondre export et réimport possible.
 Les plafonds concernent la taille, les calques, les objets et les coordonnées.
 Validation : lint, typage et quatre parcours navigateur, dont un export de 2 001 objets.
+
+
+## Reprise — bibliothèque d’images privées (31 octobre 2026)
+
+Migration 003 et bibliothèque par monde : import PNG, aperçu, suppression
+confirmée ; limites 4 Mio, 100 images, 8 192 pixels par côté et 25 millions
+de pixels. Stockage local ou MinIO avec clés aléatoires, vérification des
+droits côté serveur, révocation vérifiée après verrouillage du monde et accès
+réservé aux membres. Le PNG est vérifié par structure et CRC, sans garantie
+de décodage complet. L’import de fichiers est distinct de la révision de carte.
+
+Les images restent exclues des publications et des échanges JSON. Pas encore
+de placement sur la carte ni d’autres formats. Une suppression ou un échec
+ambigu lors de la transaction peut laisser un fichier orphelin si le nettoyage
+du stockage échoue : prévoir un mécanisme de réconciliation. La sauvegarde doit
+préserver ensemble la base et le volume d’assets. Prochaine étape : concevoir
+le placement géographique des images et leur publication explicite avec droits.
+
+Validation : npm run check (38 tests unitaires, lint, typage et builds), tests
+HTTP/PostGIS des rôles, révocation concurrente, publication et nettoyage après
+échec SQL ; adaptateurs local et MinIO vérifiés. Parcours réel avec compte et
+image temporaires : import, rechargement, aperçu et suppression, puis nettoyage.
+Suite navigateur complète : 54/55 au premier passage, un délai dépassé pendant
+les compilations concurrentes ; les deux variantes du test concerné réussissent
+lors de leur relance après compilation. Les 55 scénarios ont ainsi réussi.

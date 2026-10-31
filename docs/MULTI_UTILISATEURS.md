@@ -414,3 +414,25 @@ sans empêcher son téléchargement.
 Les géométries invalides ou les champs non pris en charge sont refusés sans
 création partielle. Les fichiers d’assets ne sont pas importés. Les polygones
 traversant les pôles ou l’antiméridien ne sont pas encore affichés en 2D.
+
+
+## Images privées d’un monde
+
+Dans un monde personnel, ouvrez **Images du monde**. Un propriétaire ou un
+éditeur peut donner un nom à un fichier PNG, l’importer, l’afficher, puis le
+supprimer après confirmation. Les lecteurs autorisés peuvent voir la liste et
+les aperçus, mais ne peuvent pas les modifier. La bibliothèque est propre au
+monde ; changer de monde retire l’aperçu précédent.
+
+Limites actuelles : PNG uniquement, 4 Mio par image, 100 images par monde,
+8 192 pixels par dimension et 25 millions de pixels. La structure des blocs et
+leurs sommes de contrôle sont vérifiées. Le placement sur la carte et la
+publication des images ne sont pas encore disponibles. Une carte publiée ne
+rend pas ces fichiers accessibles au public.
+
+Les fichiers sont stockés séparément de PostgreSQL, dans le stockage local ou
+le volume MinIO de l’instance. L’export JSON ne les comprend pas : conserver
+la base et les volumes de stockage ensemble dans les sauvegardes. Si un échec
+de stockage survient pendant une suppression ou une interruption de serveur,
+un fichier sans référence peut subsister dans le stockage ; son nettoyage
+automatique n’est pas encore disponible.

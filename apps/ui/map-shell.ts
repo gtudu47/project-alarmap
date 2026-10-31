@@ -855,7 +855,17 @@ export class MapShell implements AfterViewInit, OnDestroy {
       const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob); const link = window.document.createElement('a');
       link.href = url; link.download = world.slug + '-monde.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-      this.exportJsonMessage.set('Données JSON prêtes à télécharger.');
+      const coordinateCount = world.objects.reduce((total, object) => {
+        const geometry = object.geometry;
+        if (geometry.type === 'Point') return total + 1;
+        if (geometry.type === 'LineString') return total + geometry.coordinates.length;
+        if (geometry.type === 'Polygon') return total + geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0);
+        return total + geometry.coordinates.reduce((sum, polygon) => sum + polygon.reduce((count, ring) => count + ring.length, 0), 0);
+      }, 0);
+      const tooLarge = blob.size > 8 * 1024 * 1024 || world.layers.length > 100 || world.objects.length > 2000 || coordinateCount > 100000;
+      this.exportJsonMessage.set(tooLarge
+        ? 'JSON téléchargé, mais il dépasse les limites actuelles de réimportation (8 Mio, 100 calques, 2 000 objets ou 100 000 coordonnées).'
+        : 'Données JSON prêtes à télécharger.');
     } catch (error) { this.exportJsonMessage.set(error instanceof Error ? error.message : 'Export JSON impossible.'); }
     finally { this.exportingJson.set(false); }
   }

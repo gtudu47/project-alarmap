@@ -409,6 +409,8 @@ sont renouvelés, et les références exactes à ces identifiants dans les
 propriétés sont mises à jour. Les références extérieures restent inchangées.
 
 Limites actuelles : 8 Mio, 100 calques, 2 000 objets et 100 000 coordonnées.
+Un avertissement après l’export signale si le fichier dépasse ces limites,
+sans empêcher son téléchargement.
 Les géométries invalides ou les champs non pris en charge sont refusés sans
 création partielle. Les fichiers d’assets ne sont pas importés. Les polygones
 traversant les pôles ou l’antiméridien ne sont pas encore affichés en 2D.

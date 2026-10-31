@@ -596,3 +596,11 @@ champs de saisie, fenêtres de dialogue, outils de tracé actifs et accès en
 lecture seule ne déclenchent pas ces commandes. L’historique reste limité
 aux objets et à la session ; les opérations de calque ne sont pas couvertes.
 Validation : lint, vérification TypeScript et deux parcours navigateur (monde complet et chargement partiel), avec test des champs et du dialogue.
+
+
+## Reprise — limites des exports (31 octobre 2026)
+
+L’export JSON reste téléchargeable lorsque les plafonds d’import sont dépassés,
+mais affiche un avertissement pour éviter de confondre export et réimport possible.
+Les plafonds concernent la taille, les calques, les objets et les coordonnées.
+Validation : lint, typage et quatre parcours navigateur, dont un export de 2 001 objets.

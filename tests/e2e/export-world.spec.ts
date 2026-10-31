@@ -48,3 +48,28 @@ test('le Viewer exporte seulement la copie publiée', async ({ page }) => {
   const data = worldBackupSchema.parse(JSON.parse(await readFile((await (await event).path())!, 'utf8')));
   expect(data.world).toEqual(world);
 });
+
+
+test('un export trop grand reste téléchargeable mais annonce la limite de réimportation', async ({ page }) => {
+  const world = createDemoWorld(); const first = world.objects[0]!;
+  world.objects = Array.from({ length: 2001 }, (_, index) => ({ ...first, id: `10000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}` }));
+  const user = { id: '00000000-0000-4000-8000-000000000050', email: 'alice@example.test', displayName: 'Alice', isAdmin: false };
+  await page.route('**/api/v1/**', async route => {
+    const url = new URL(route.request().url()); const path = url.pathname; let body: unknown = { initialized: true, status: 'ok' };
+    if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'test' };
+    else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
+    else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: [], total: world.objects.length, reduced: false };
+    else if (path.endsWith('/' + world.id)) {
+      const summary = url.searchParams.get('summary') === '1';
+      body = { world: summary ? { ...world, objects: [] } : world, role: 'owner', objectsComplete: !summary, objectCount: world.objects.length };
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Monde de démonstration/ }).click();
+  await page.getByText('Exporter les données', { exact: true }).click();
+  const event = page.waitForEvent('download'); await page.getByRole('button', { name: 'Télécharger le JSON' }).click();
+  const document = worldBackupSchema.parse(JSON.parse(await readFile((await (await event).path())!, 'utf8')));
+  expect(document.world.objects).toHaveLength(2001);
+  await expect(page.getByText(/dépasse les limites actuelles de réimportation/)).toBeVisible();
+});

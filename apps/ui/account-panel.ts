@@ -1,5 +1,6 @@
 import { Component, ElementRef, EventEmitter, Input, OnInit, Output, ViewChild, inject, signal } from '@angular/core';
 import { AccountsClient, type Invitation, type WorldAccess, type WorldSummary, type WorldMember } from './accounts.client';
+import { worldBackupSchema } from '@alarmap/map-model';
 
 @Component({
   selector: 'alarmap-account-panel', standalone: true,
@@ -29,6 +30,15 @@ import { AccountsClient, type Invitation, type WorldAccess, type WorldSummary, t
               <label>Rayon en km<input name="radiusKm" type="number" required min="1" max="1000000000" value="6371"></label>
               <button class="account-primary" type="submit" [disabled]="busy()">Créer un monde privé</button>
             </form>
+            <details class="invite-section"><summary>Importer un monde JSON</summary>
+              <p>Un nouveau monde privé sera créé ; aucun monde existant ne sera remplacé. Les fichiers d’assets ne sont pas inclus.</p>
+              <form class="account-form" (submit)="importWorld($event)">
+                <label>Nom du monde importé<input name="name" required maxlength="200"></label>
+                <label>Fichier du monde JSON<input name="file" type="file" accept=".json,application/json" required></label>
+                <p>Maximum : 8 Mio, 100 calques, 2 000 objets et 100 000 coordonnées.</p>
+                <button class="account-secondary" [disabled]="busy()">Importer le monde</button>
+              </form>
+            </details>
             <div class="account-worlds">
               @for (world of worlds(); track world.id) {
                 <button type="button" class="world-entry" [disabled]="busy()" (click)="openWorld(world.id)"><strong>{{ world.name }}</strong><span>{{ world.radiusKm }} km · {{ world.role === 'owner' ? 'Propriétaire' : world.role === 'editor' ? 'Éditeur' : 'Lecture seule' }}</span><span>Ouvrir →</span></button>
@@ -142,6 +152,18 @@ export class AccountPanel implements OnInit {
     event.preventDefault(); const form = event.target as HTMLFormElement; const data = new FormData(form);
     await this.run(async () => {
       const result = await this.client.request<WorldAccess>('/worlds', { method: 'POST', body: JSON.stringify({ name: data.get('name'), radiusKm: Number(data.get('radiusKm')) }) });
+      form.reset(); await this.reload(); this.worldOpened.emit(result);
+    });
+  }
+  async importWorld(event: Event): Promise<void> {
+    event.preventDefault(); const form = event.target as HTMLFormElement; const data = new FormData(form);
+    await this.run(async () => {
+      const file = data.get('file');
+      if (!(file instanceof File) || !file.size || file.size > 8 * 1024 * 1024) throw new Error('Choisissez un fichier JSON de 8 Mio maximum.');
+      let value: unknown;
+      try { value = JSON.parse(await file.text()); } catch { throw new Error('Le fichier JSON est illisible.'); }
+      if (!worldBackupSchema.safeParse(value).success) throw new Error('Ce fichier AlarMap est invalide ou sa version n’est pas prise en charge.');
+      const result = await this.client.request<WorldAccess>('/worlds/import', { method: 'POST', body: JSON.stringify({ name: String(data.get('name') ?? '').trim(), document: value }) });
       form.reset(); await this.reload(); this.worldOpened.emit(result);
     });
   }

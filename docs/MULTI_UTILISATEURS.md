@@ -391,6 +391,18 @@ son ouverture, rechargez-le avant de réessayer. Dans le Viewer, seul le contenu
 de la copie publiée est exporté.
 
 Le document est identifié par le format `alarmap-world` et une version de
-format. Il ne contient pas les fichiers d’assets et l’import n’est pas encore
-implémenté : cet export ne remplace donc pas une sauvegarde complète de
-l’instance et de ses volumes.
+format. Il ne contient pas les fichiers d’assets et ne remplace donc pas une
+sauvegarde complète de l’instance et de ses volumes.
+
+### Importer un monde JSON
+
+Dans **Mon espace**, ouvrez **Importer un monde JSON**, indiquez un nom et
+choisissez un fichier `alarmap-world` version 1. L’import crée un nouveau
+monde privé en brouillon et ne modifie pas le monde source. Les identifiants
+sont renouvelés, et les références exactes à ces identifiants dans les
+propriétés sont mises à jour. Les références extérieures restent inchangées.
+
+Limites actuelles : 8 Mio, 100 calques, 2 000 objets et 100 000 coordonnées.
+Les géométries invalides ou les champs non pris en charge sont refusés sans
+création partielle. Les fichiers d’assets ne sont pas importés. Les polygones
+traversant les pôles ou l’antiméridien ne sont pas encore affichés en 2D.

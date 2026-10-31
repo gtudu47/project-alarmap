@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Patch, Put, Get, Query, Header, Inject, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { objectSchema, lineObjectSchema, areaObjectSchema } from '@alarmap/map-model';
+import { objectSchema, lineObjectSchema, areaObjectSchema, worldBackupSchema } from '@alarmap/map-model';
 import { AuthGuard, type AuthRequest } from '../auth/auth.guard.js';
 import { parseInput } from '../validation.js';
 import { WorldsService } from './worlds.service.js';
@@ -20,6 +20,14 @@ export class WorldsController {
   create(@Body() body: unknown, @Req() request: AuthRequest) {
     const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), radiusKm: z.number().positive().max(1_000_000_000) }).strict(), body);
     return this.worlds.create(request.account.id, input);
+  }
+  @Post('import')
+  @Header('Cache-Control', 'no-store')
+  importWorld(@Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ name: z.string().trim().min(1).max(200), document: z.unknown() }).strict(), body);
+    this.worlds.validateImportShape(input.document);
+    const document = parseInput(worldBackupSchema, input.document);
+    return this.worlds.importWorld(request.account.id, input.name, document.world);
   }
   @Get(':id')
   @Header('Cache-Control', 'no-store')

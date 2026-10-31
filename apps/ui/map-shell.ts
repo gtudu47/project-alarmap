@@ -52,7 +52,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (personal()) { <p>Le fichier contient tous les calques et leurs propriétés, y compris les données privées et masquées. Ne le transmettez qu’aux personnes autorisées.</p> }
             @else if (publicStatus() === 'ready') { <p>Le fichier contient uniquement la copie publiée de cette carte.</p> }
             @else { <p>Le fichier contient les données de la scène de démonstration.</p> }
-            <p>Les fichiers d’assets ne sont pas inclus. La restauration depuis ce format reste à développer.</p>
+            <p>Les fichiers d’assets ne sont pas inclus. L’import crée un nouveau monde privé depuis Mon espace.</p>
             <button class="account-secondary" type="button" [disabled]="loading() || exportingJson()" (click)="exportWorldJson()">{{ exportingJson() ? 'Préparation…' : 'Télécharger le JSON' }}</button>
             @if (exportJsonMessage()) { <p role="status">{{ exportJsonMessage() }}</p> }
           </details>

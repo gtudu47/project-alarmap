@@ -1,13 +1,15 @@
 import 'reflect-metadata';
 import { rateLimit } from 'express-rate-limit';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { readConfig } from './config.js';
 
 async function bootstrap(): Promise<void> {
   const config = readConfig();
-  const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['error', 'warn', 'log'] });
+  app.useBodyParser('json', { limit: '9mb' });
   app.setGlobalPrefix('api/v1');
   if (config.TRUST_PROXY) app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.use('/api/v1/auth', rateLimit({ windowMs: 60000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, message: { message: 'Trop de tentatives. Réessayez dans une minute.' } }));

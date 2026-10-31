@@ -17,6 +17,67 @@ export class WorldsService {
       WHERE w.owner_id=$1 OR m.user_id=$1 ORDER BY w.updated_at DESC LIMIT 100`, [userId]);
     return result.rows;
   }
+  validateImportShape(value: unknown): void {
+    const record = (item: unknown): item is Record<string, unknown> => typeof item === 'object' && item !== null && !Array.isArray(item);
+    const exact = (item: unknown, keys: string[]): item is Record<string, unknown> => record(item) && Object.keys(item).every(key => keys.includes(key));
+    let encoded: string | undefined;
+    try { encoded = JSON.stringify(value); } catch { throw new BadRequestException('Structure JSON trop profonde.'); }
+    if (!encoded || Buffer.byteLength(encoded, 'utf8') > 8 * 1024 * 1024) throw new BadRequestException('Le fichier JSON doit être inférieur à 8 Mio.');
+    if (!exact(value, ['format','version','world']) || !exact(value['world'], ['schemaVersion','id','name','slug','radiusKm','revision','status','layers','objects'])) throw new BadRequestException('Format de monde non pris en charge.');
+    const world = value['world'];
+    if (!Array.isArray(world['layers']) || !world['layers'].every(layer => exact(layer, ['id','name','visible','locked','opacity','order'])) ||
+      !Array.isArray(world['objects']) || !world['objects'].every(object => exact(object, ['id','layerId','name','kind','geometry','style','properties','startYear','endYear']) &&
+        exact(object['geometry'], ['type','coordinates']) && exact(object['style'], ['color','opacity']))) throw new BadRequestException('Le fichier contient des champs non pris en charge.');
+  }
+  async importWorld(userId: string, name: string, source: World): Promise<{ world: World; role: MemberRole }> {
+    if (!source.layers.length || source.layers.length > 100 || source.objects.length > 2000) throw new BadRequestException('Import limité à 100 calques et 2 000 objets.');
+    const withinInt = (value: number | undefined) => value === undefined || (value >= -2147483648 && value <= 2147483647);
+    if (source.layers.some(layer => !withinInt(layer.order)) || source.objects.some(object => !withinInt(object.startYear) || !withinInt(object.endYear) || (object.kind === 'label' && (!object.name.trim() || object.name.length > 80)))) throw new BadRequestException('Une date, un ordre ou un texte dépasse les limites prises en charge.');
+    const count = (object: MapObject): number => {
+      const geometry = object.geometry;
+      if (geometry.type === 'Point') return 1;
+      if (geometry.type === 'LineString') return geometry.coordinates.length;
+      if (geometry.type === 'Polygon') return geometry.coordinates.reduce((total, ring) => total + ring.length, 0);
+      return geometry.coordinates.reduce((total, polygon) => total + polygon.reduce((sum, ring) => sum + ring.length, 0), 0);
+    };
+    if (source.objects.reduce((total, object) => total + count(object), 0) > 100000) throw new BadRequestException('Import limité à 100 000 coordonnées.');
+    const oldIds = [source.id, ...source.layers.map(layer => layer.id), ...source.objects.map(object => object.id)];
+    if (new Set(oldIds).size !== oldIds.length) throw new BadRequestException('Les identifiants du fichier doivent être distincts.');
+    const ids = new Map(oldIds.map(old => [old,randomUUID()])); const id = ids.get(source.id)!;
+    const remap = (value: unknown, depth = 0): unknown => {
+      if (depth > 100) throw new BadRequestException('Propriétés JSON trop profondes.');
+      if (typeof value === 'string') return ids.get(value) ?? value;
+      if (Array.isArray(value)) return value.map(item => remap(item, depth + 1));
+      if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key,item]) => [ids.get(key) ?? key,remap(item, depth + 1)]));
+      return value;
+    };
+    const layers = source.layers.map(layer => ({ ...layer, id: ids.get(layer.id)! }));
+    const objects = source.objects.map(object => ({ ...object, id: ids.get(object.id)!, layerId: ids.get(object.layerId)!, properties: remap(object.properties) }));
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      try {
+        const validity = await client.query<{ valid: boolean }>(`SELECT COALESCE(bool_and(ST_IsValid(ST_SetSRID(ST_GeomFromGeoJSON(x.geometry::text),4326))),true) AS valid
+          FROM jsonb_to_recordset($1::jsonb) AS x(geometry jsonb)`, [JSON.stringify(objects)]);
+        if (!validity.rows[0]?.valid) throw new BadRequestException('Le fichier contient une géométrie invalide.');
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' && (error.code.startsWith('22') || error.code === 'XX000' || error.code === '57014')) throw new BadRequestException('Le fichier contient une géométrie invalide ou trop complexe.');
+        throw error;
+      }
+      await client.query('INSERT INTO worlds(id,owner_id,name,slug,radius_km) VALUES($1,$2,$3,$4,$5)', [id,userId,name,`monde-${id}`,source.radiusKm]);
+      await client.query("INSERT INTO members(world_id,user_id,role) VALUES($1,$2,'owner')", [id,userId]);
+      await client.query(`INSERT INTO layers(id,world_id,name,visible,locked,opacity,sort_order)
+        SELECT x.id,$2,x.name,x.visible,x.locked,x.opacity,x."order" FROM jsonb_to_recordset($1::jsonb)
+        AS x(id uuid,name text,visible boolean,locked boolean,opacity double precision,"order" integer)`, [JSON.stringify(layers),id]);
+      await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style,properties,start_year,end_year)
+        SELECT x.id,$2,x."layerId",x.kind,x.name,ST_SetSRID(ST_GeomFromGeoJSON(x.geometry::text),4326),x.style,x.properties,x."startYear",x."endYear"
+        FROM jsonb_to_recordset($1::jsonb) AS x(id uuid,"layerId" uuid,kind text,name text,geometry jsonb,style jsonb,properties jsonb,"startYear" integer,"endYear" integer)`, [JSON.stringify(objects),id]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+    return this.get(userId,id);
+  }
   async publish(userId: string, id: string, input: { revision: number; visibility: 'public' | 'unlisted'; layerIds: string[] }): Promise<{ slug: string; revision: number; visibility: 'public' | 'unlisted' }> {
     const client = await this.pool.connect();
     try {

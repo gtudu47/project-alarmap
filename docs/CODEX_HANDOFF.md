@@ -564,9 +564,27 @@ Le bouton d’export produit un document `alarmap-world`, version 1, validé par
 `worldBackupSchema`. Pour un monde privé, il récupère la révision complète auprès
 de l’API et refuse un résultat partiel ou périmé ; tous les calques et propriétés
 sont présents, même masqués. Le Viewer exporte uniquement sa copie publiée.
-Attention : les fichiers d’assets et l’import ne sont pas encore pris en charge ;
+Attention : les fichiers d’assets ne sont pas pris en charge ;
 il ne s’agit pas d’une sauvegarde complète de l’instance.
 Validation : test réel avec un compte temporaire, un objet hors écran et un
 calque masqué ; le fichier téléchargé contient la révision complète et ses
 propriétés, puis les données de test ont été supprimées. Les tests navigateur
 couvrent aussi les réponses périmées ou partielles et le Viewer public.
+
+## Reprise — import JSON dans un nouveau monde (31 octobre 2026)
+
+L’import `alarmap-world` version 1 crée un monde privé en brouillon, sans jamais
+remplacer la source. Identifiants de monde, calques et objets renouvelés ; les
+références exactes dans les propriétés sont adaptées. Contrôle des champs,
+limites 8 Mio / 100 calques / 2 000 objets / 100 000 coordonnées, géométries
+validées par PostGIS et transaction atomique. Les assets ne sont pas inclus ;
+les polygones polaires et au raccordement ne sont pas encore rendus en 2D.
+
+Validation : npm run check (lint, typage, 34 tests unitaires et builds),
+`npm run test:integration` sur PostgreSQL/PostGIS (dont taille, version,
+références, géométrie invalide et profondeur), et test réel navigateur : export
+puis import dans une copie privée distincte avec conservation de la source ; 9 parcours navigateur import, export et comptes réussis.
+Les données temporaires ont été supprimées. CI GitHub du lot export 41176507437
+réussie. Prochaine étape : poursuivre la V0.1, notamment les assets et la
+sauvegarde complète ; l’import JSON actuel ne comprend pas les fichiers d’assets.
+Le déploiement Internet attend toujours un serveur et un domaine.

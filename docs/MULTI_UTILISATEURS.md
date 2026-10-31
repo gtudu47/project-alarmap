@@ -361,3 +361,11 @@ Exemple de code pour intégrer le lien fourni à une page web :
 ```html
 <iframe src="LIEN_DE_CONSULTATION" title="Carte AlarMap" width="100%" height="600"></iframe>
 ```
+
+### Découvrir les cartes publiques
+
+Le lien **Cartes publiques** de la navigation ouvre le catalogue de l’instance.
+Il affiche les cartes que leurs auteurs ont rendues publiques, avec leur
+révision publiée. Les cartes non répertoriées n’y apparaissent pas et restent
+accessibles uniquement par leur lien. Le catalogue affiche actuellement les
+100 publications les plus récentes ; la pagination reste à développer.

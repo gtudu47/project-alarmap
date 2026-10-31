@@ -3,6 +3,7 @@ import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GR
 import { createDemoWorld, worldSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
+import { PublicCatalog } from './public-catalog';
 import { AccountsClient, type WorldAccess } from './accounts.client';
 import { fr } from '@alarmap/shared';
 
@@ -11,7 +12,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
 @Component({
   selector: 'alarmap-root',
   standalone: true,
-  imports: [AccountPanel, WorkspacePages],
+  imports: [AccountPanel, WorkspacePages, PublicCatalog],
   template: `
     <header class="topbar">
       <a class="brand" href="/" aria-label="AlarMap accueil"><span class="brand-mark" aria-hidden="true">A</span>{{ text.brand }}</a>
@@ -19,15 +20,17 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
       @if (mode === 'editor') { <button type="button" class="account-secondary top-account" (click)="accountOpen.set(true)">{{ accounts.user()?.displayName ?? 'Mon espace' }}</button> }
       <span class="version">v0.1 · {{ publicStatus() === 'ready' ? 'Publication' : text.demo }}</span>
     </header>
-    @if (mode === 'editor') { <nav class="workspace-nav" aria-label="Navigation principale">@for (item of pages; track item) { <a [href]="'?page=' + item" [attr.aria-current]="page() === item ? 'page' : null" (click)="navigate(item, $event)">{{ labels[item] }}</a> }</nav> }
+    @if (mode === 'editor') { <nav class="workspace-nav" aria-label="Navigation principale">@for (item of pages; track item) { <a [href]="'?page=' + item" [attr.aria-current]="page() === item ? 'page' : null" (click)="navigate(item, $event)">{{ labels[item] }}</a> } <a href="/viewer/?catalogue=1">Cartes publiques</a></nav> }
     @if (mode === 'editor' && page() !== 'carte') { <alarmap-workspace-page [world]="world" [objectCount]="objectCount()" [personal]="personal()" [remote]="personal() && objectsPartial()" [page]="page()" (navigate)="navigate($event)" (account)="accountOpen.set(true)" (locate)="locateObject($event)" /> }
+    @if (publicCatalog) { <alarmap-public-catalog /> }
     @if (publicStatus() === 'loading') { <p role="status">Chargement de la carte publiée…</p> }
     @if (publicStatus() === 'error') { <p role="alert">Cette carte publiée est introuvable ou indisponible.</p> }
-    <main [hidden]="page() !== 'carte' || publicStatus() === 'loading' || publicStatus() === 'error'">
+    <main [hidden]="page() !== 'carte' || publicCatalog || publicStatus() === 'loading' || publicStatus() === 'error'">
       <aside class="sidebar">
         <div class="eyebrow">{{ personal() ? 'Mon monde privé' : publicStatus() === 'ready' ? 'Carte publiée' : text.demo }}</div>
         <h1>{{ world.name }}</h1>
         <p class="intro">{{ text.tagline }}</p>
+        @if (mode === 'viewer') { <a class="catalog-link" href="/viewer/?catalogue=1">Cartes publiques</a> }
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
         @if (personal() && role === 'owner') {
           <details class="tile-settings"><summary>Publier cette carte</summary>
@@ -253,7 +256,8 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
-  private readonly publicSlug = this.mode === 'viewer' && new URLSearchParams(location.search).has('world') ? new URLSearchParams(location.search).get('world') ?? '' : null;
+  readonly publicCatalog = this.mode === 'viewer' && new URLSearchParams(location.search).get('catalogue') === '1';
+  private readonly publicSlug = this.mode === 'viewer' && !this.publicCatalog && new URLSearchParams(location.search).has('world') ? new URLSearchParams(location.search).get('world') ?? '' : null;
   readonly publicStatus = signal<'sample' | 'loading' | 'ready' | 'error'>(this.publicSlug === null ? 'sample' : 'loading');
   readonly publicationUrl = signal('');
   readonly publicationMessage = signal('');
@@ -750,6 +754,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private engine?: MapEngine;
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
+    if (this.publicCatalog) return;
     this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); });
     window.addEventListener('keydown', this.cancelPlacement);
     this.engine.onCoordinate(([longitude, latitude]) => {

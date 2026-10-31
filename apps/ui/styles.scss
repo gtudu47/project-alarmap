@@ -195,3 +195,10 @@ select:focus-visible { outline: 3px solid #b5863b; outline-offset: 3px; }
 @media(max-width:760px) { .zoom-control { right: 12px; bottom: 48px; gap: 4px; padding: 6px 0; } .zoom-slider { height: 96px; } }
 
 .map-host.placing-point canvas { cursor: crosshair; }
+
+.catalog-link, .catalog-open { color: #326452; font-size: 13px; text-decoration: underline; }
+.catalog-open { display: inline-block; margin-top: 10px; }
+@media(max-width:760px) {
+  .workspace-nav { overflow-x: auto; justify-content: flex-start; }
+  .workspace-nav a { flex: 0 0 auto; padding-inline: 10px; }
+}

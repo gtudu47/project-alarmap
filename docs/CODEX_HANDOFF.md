@@ -531,3 +531,15 @@ Validation finale : `npm run check` (lint, types, 33 tests unitaires et builds),
 tests HTTP/PostGIS, parcours réel anonyme et 42 tests navigateur réussis.
 La publication nécessite un choix explicite des calques ; au maximum 100 calques
 par publication. Aucun partage Internet n’a été déployé automatiquement.
+
+## Reprise — catalogue public (31 octobre 2026)
+
+Le catalogue anonyme liste les cartes de visibilité publique, ouvre leur copie
+dans le Viewer et ne liste pas celles accessibles par lien non répertorié.
+L’interface valide la réponse, présente un état vide ou une erreur récupérable
+et fonctionne sur mobile. L’API limite actuellement la liste aux 100 dernières
+publications ; la pagination et la recherche restent à développer.
+Validation : lint, types et build Docker réussis ; 14 tests navigateur ciblés
+passés. Un essai réel avec deux mondes temporaires a confirmé qu’une carte
+publique apparaît au catalogue, qu’une carte non répertoriée reste absente et
+que le Viewer s’ouvre anonymement ; comptes et mondes de test supprimés.

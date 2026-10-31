@@ -588,3 +588,11 @@ Les données temporaires ont été supprimées. CI GitHub du lot export 41176507
 réussie. Prochaine étape : poursuivre la V0.1, notamment les assets et la
 sauvegarde complète ; l’import JSON actuel ne comprend pas les fichiers d’assets.
 Le déploiement Internet attend toujours un serveur et un domaine.
+
+## Reprise — raccourcis de l’historique (31 octobre 2026)
+
+Sur Carte, Ctrl/Cmd+Z annule ; Ctrl+Y ou Ctrl/Cmd+Maj+Z rétablit. Les
+champs de saisie, fenêtres de dialogue, outils de tracé actifs et accès en
+lecture seule ne déclenchent pas ces commandes. L’historique reste limité
+aux objets et à la session ; les opérations de calque ne sont pas couvertes.
+Validation : lint, vérification TypeScript et deux parcours navigateur (monde complet et chargement partiel), avec test des champs et du dialogue.

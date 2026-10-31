@@ -46,6 +46,9 @@ for (const partial of [false, true]) test('modifier puis supprimer un lieu avec 
   await selected.getByLabel('Latitude du lieu').fill('-15');
   await selected.getByRole('button', { name: 'Enregistrer les modifications' }).click();
   await expect(selected.getByRole('heading', { name: 'Nouvelle capitale' })).toBeVisible();
+  await selected.getByLabel('Nom du lieu sélectionné').focus();
+  await page.keyboard.press('Control+z');
+  expect(world.revision).toBe(1); // Le champ conserve son historique natif.
   await selected.getByRole('button', { name: 'Supprimer le lieu', exact: true }).click();
   await selected.getByRole('button', { name: 'Annuler', exact: true }).click();
   expect(deletions).toBe(0);
@@ -54,16 +57,22 @@ for (const partial of [false, true]) test('modifier puis supprimer un lieu avec 
   await expect(selected).toHaveCount(0);
   await expect(page.getByText('Lieu supprimé.', { exact: true })).toBeVisible();
   expect(deletions).toBe(1);
-  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await page.getByRole('button', { name: 'Alice', exact: true }).click();
+  await page.keyboard.press('Control+z');
+  expect(world.revision).toBe(2); // Une fenêtre de compte ne commande pas la carte.
+  await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).click();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+z');
   await expect(page.getByText('Action annulée.', { exact: true })).toBeVisible();
   await expect.poll(() => world.objects.find(object => object.name === 'Nouvelle capitale')).toBeDefined();
-  await page.getByRole('button', { name: 'Annuler l’action', exact: true }).click();
+  await page.keyboard.press('Meta+z');
   await expect(page.getByRole('button', { name: 'Annuler l’action', exact: true })).toBeDisabled();
   await expect.poll(() => world.objects.find(object => object.name === 'Origine')).toBeDefined();
-  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+Shift+z');
   await expect(page.getByText('Action rétablie.', { exact: true })).toBeVisible();
   await expect.poll(() => world.objects.find(object => object.name === 'Nouvelle capitale')).toBeDefined();
-  await page.getByRole('button', { name: 'Rétablir l’action', exact: true }).click();
+  await page.keyboard.press('Control+y');
   await expect(page.getByRole('button', { name: 'Rétablir l’action', exact: true })).toBeDisabled();
   await expect.poll(() => world.objects.some(object => object.geometry.type === 'Point')).toBe(false);
   expect(fullLoads).toBe(0);

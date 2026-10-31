@@ -131,8 +131,8 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             </details>
           }
           <div class="history-actions" aria-label="Historique des lieux">
-            <button class="account-secondary" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
-            <button class="account-secondary" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
+            <button class="account-secondary" title="Ctrl+Z (ou Cmd+Z)" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
+            <button class="account-secondary" title="Ctrl+Y ou Ctrl+Maj+Z (Cmd+Maj+Z sur Mac)" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
           </div>
           <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>{{ pointKind() === 'label' ? 'Ajouter un texte' : 'Ajouter un lieu' }}</h2>
@@ -394,6 +394,16 @@ export class MapShell implements AfterViewInit, OnDestroy {
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Action impossible.'); }
     finally { this.pointBusy.set(false); }
   }
+  private readonly historyShortcut = (event: KeyboardEvent): void => {
+    if (event.defaultPrevented || event.isComposing || event.repeat || event.altKey || !(event.ctrlKey || event.metaKey)) return;
+    if (this.mode !== 'editor' || this.page() !== 'carte' || this.accountOpen() || !this.personal() || this.role === 'viewer' || this.pointBusy() || this.placingPoint() || this.drawingLine() || this.drawingArea() || this.drawingHole() || this.lineEdit()) return;
+    const target = event.target;
+    if (target instanceof HTMLElement && (target.isContentEditable || !!target.closest('input, textarea, select, [contenteditable="true"], dialog'))) return;
+    const key = event.key.toLowerCase();
+    const direction = key === 'z' ? (event.shiftKey ? 'redo' : 'undo') : key === 'y' && !event.shiftKey ? 'redo' : undefined;
+    if (!direction || !this.historyState()[direction]) return;
+    event.preventDefault(); void this.applyHistory(direction);
+  };
   readonly selectedId = signal<string | null>(null);
   readonly deleteConfirm = signal<string | null>(null);
   selectedObject(): MapObject | undefined {
@@ -770,7 +780,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   async ngAfterViewInit(): Promise<void> {
     if (this.publicCatalog) return;
     this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); });
-    window.addEventListener('keydown', this.cancelPlacement);
+    window.addEventListener('keydown', this.cancelPlacement); window.addEventListener('keydown', this.historyShortcut);
     this.engine.onCoordinate(([longitude, latitude]) => {
       if (this.drawingHole() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
         if (this.holePoints().length < 2000) { this.holePoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.showHoleDraft(); }
@@ -870,5 +880,5 @@ export class MapShell implements AfterViewInit, OnDestroy {
       this.apiStatus.set(response.ok && typeof result === 'object' && result !== null && 'status' in result && result.status === 'ok' ? 'ready' : 'unavailable');
     } catch { if (!this.abort.signal.aborted) this.apiStatus.set('unavailable'); }
   }
-  ngOnDestroy(): void { window.removeEventListener('keydown', this.cancelPlacement); clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; window.removeEventListener('popstate', this.onPopState); this.abort.abort(); this.engine?.destroy(); }
+  ngOnDestroy(): void { window.removeEventListener('keydown', this.cancelPlacement); window.removeEventListener('keydown', this.historyShortcut); clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; window.removeEventListener('popstate', this.onPopState); this.abort.abort(); this.engine?.destroy(); }
 }

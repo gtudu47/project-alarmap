@@ -110,6 +110,12 @@ Une nouvelle action après une annulation efface la suite de rétablissement.
 Un conflit serveur laisse les piles intactes ; recharger abandonne l’historique.
 Ce mécanisme ne remplace pas une sauvegarde ou le futur historique durable.
 
+Sur la page Carte, utilisez aussi Ctrl+Z pour annuler et Ctrl+Y ou
+Ctrl+Maj+Z pour rétablir (Cmd+Z et Cmd+Maj+Z sur Mac). Les raccourcis
+respectent l’historique du texte dans les champs et sont inactifs dans les
+fenêtres de dialogue ou pendant un tracé ou une modification de géométrie.
+
+
 ### Sélection directe
 
 Cliquer sur un point dans la carte plane ou le globe ouvre sa fiche.

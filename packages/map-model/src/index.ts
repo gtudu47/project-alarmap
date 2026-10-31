@@ -67,6 +67,10 @@ export const worldSchema = z.object({
 });
 export type World = z.infer<typeof worldSchema>;
 
+/** Format portable versionné ; les fichiers d’assets ne sont pas inclus. */
+export const worldBackupSchema = z.object({ format: z.literal('alarmap-world'), version: z.literal(1), world: worldSchema }).strict();
+export type WorldBackup = z.infer<typeof worldBackupSchema>;
+
 export const religionSchema = z.object({
   id: z.uuid(), worldId: z.uuid(), name: z.string().min(1), slug: z.string().min(1),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/), description: z.string().optional(),

@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
-import { createDemoWorld, worldSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
+import { createDemoWorld, worldSchema, worldBackupSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
 import { PublicCatalog } from './public-catalog';
@@ -48,6 +48,14 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (publicationMessage()) { <p role="status">{{ publicationMessage() }}</p> }
           </details>
         }
+          <details class="tile-settings"><summary>Exporter les données</summary>
+            @if (personal()) { <p>Le fichier contient tous les calques et leurs propriétés, y compris les données privées et masquées. Ne le transmettez qu’aux personnes autorisées.</p> }
+            @else if (publicStatus() === 'ready') { <p>Le fichier contient uniquement la copie publiée de cette carte.</p> }
+            @else { <p>Le fichier contient les données de la scène de démonstration.</p> }
+            <p>Les fichiers d’assets ne sont pas inclus. La restauration depuis ce format reste à développer.</p>
+            <button class="account-secondary" type="button" [disabled]="loading() || exportingJson()" (click)="exportWorldJson()">{{ exportingJson() ? 'Préparation…' : 'Télécharger le JSON' }}</button>
+            @if (exportJsonMessage()) { <p role="status">{{ exportJsonMessage() }}</p> }
+          </details>
           <details class="tile-settings"><summary>Échelle cartographique</summary>
             <form class="point-form" (submit)="applyScale($event)">
               <label>Échelle 1:<input name="denominator" type="number" min="100" max="1000000000" step="1" value="25000" list="scale-presets" required></label>
@@ -423,7 +431,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.objectsPartial.set(access.objectsComplete === false);
     this.objectCount.set(access.objectCount ?? null);
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
-    this.publicationUrl.set(this.world.status === 'public' || this.world.status === 'unlisted' ? this.viewerUrl(this.world.slug) : ''); this.publicationMessage.set(''); this.unpublishConfirm.set(false);
+    this.publicationUrl.set(this.world.status === 'public' || this.world.status === 'unlisted' ? this.viewerUrl(this.world.slug) : ''); this.publicationMessage.set(''); this.unpublishConfirm.set(false); this.exportJsonMessage.set('');
     this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
     this.syncScene(); this.engine?.reset(); this.accountOpen.set(false); this.pointMessage.set('');
   }
@@ -678,6 +686,8 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly layerVisibility = signal<Record<string, boolean>>({});
   readonly exporting = signal(false);
   readonly exportMessage = signal('');
+  readonly exportingJson = signal(false);
+  readonly exportJsonMessage = signal('');
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
   @ViewChild('pointForm') private pointForm?: ElementRef<HTMLFormElement>;
   readonly placingPoint = signal(false);
@@ -817,6 +827,27 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const visible = !this.layerIsVisible(id);
     this.layerVisibility.update(values => ({ ...values, [id]: visible }));
     this.engine?.setLayerVisible(id, visible);
+  }
+  async exportWorldJson(): Promise<void> {
+    if (this.exportingJson()) return;
+    const id = this.world.id; const revision = this.world.revision; const personal = this.personal();
+    this.exportingJson.set(true); this.exportJsonMessage.set('');
+    try {
+      let world = this.world;
+      if (personal) {
+        const access = await this.accounts.request<WorldAccess>('/worlds/' + id);
+        if (!this.personal() || !this.accounts.user() || this.world.id !== id) return;
+        if (access.objectsComplete !== true) throw new Error('Le monde complet est indisponible. Réessayez.');
+        world = worldSchema.parse(access.world);
+        if (world.id !== id || world.revision !== revision || this.world.revision !== revision) throw new Error('Le monde a changé. Rechargez-le avant de l’exporter.');
+      }
+      const document = worldBackupSchema.parse({ format: 'alarmap-world', version: 1, world });
+      const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob); const link = window.document.createElement('a');
+      link.href = url; link.download = world.slug + '-monde.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.exportJsonMessage.set('Données JSON prêtes à télécharger.');
+    } catch (error) { this.exportJsonMessage.set(error instanceof Error ? error.message : 'Export JSON impossible.'); }
+    finally { this.exportingJson.set(false); }
   }
   async exportPng(): Promise<void> {
     if (!this.engine || this.exporting()) return;

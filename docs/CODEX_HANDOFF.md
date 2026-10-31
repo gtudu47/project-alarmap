@@ -557,3 +557,16 @@ comparatives 2D/globe et masquage de la face cachée, 47 parcours navigateur
 réussis. Un compte et un monde temporaires ont confirmé la création, la
 publication et la consultation anonyme sur globe ; ils ont été supprimés.
 La CI GitHub 41174902281 du catalogue public est réussie. Prochain lot : export JSON versionné.
+
+## Reprise — export JSON d’un monde (31 octobre 2026)
+
+Le bouton d’export produit un document `alarmap-world`, version 1, validé par
+`worldBackupSchema`. Pour un monde privé, il récupère la révision complète auprès
+de l’API et refuse un résultat partiel ou périmé ; tous les calques et propriétés
+sont présents, même masqués. Le Viewer exporte uniquement sa copie publiée.
+Attention : les fichiers d’assets et l’import ne sont pas encore pris en charge ;
+il ne s’agit pas d’une sauvegarde complète de l’instance.
+Validation : test réel avec un compte temporaire, un objet hors écran et un
+calque masqué ; le fichier téléchargé contient la révision complète et ses
+propriétés, puis les données de test ont été supprimées. Les tests navigateur
+couvrent aussi les réponses périmées ou partielles et le Viewer public.

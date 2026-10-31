@@ -380,3 +380,17 @@ le globe, il disparaît derrière la planète. Sélectionnez son texte pour modi
 son contenu, sa couleur ou ses coordonnées. La suppression et Annuler/Rétablir
 fonctionnent pendant la session. Les polices et tailles personnalisables restent
 à développer.
+
+## Exporter les données JSON
+
+Dans la carte, ouvrez **Exporter les données**, puis **Télécharger le JSON**.
+Pour un monde privé, le fichier contient tous les calques et objets autorisés,
+y compris ceux qui sont masqués ou hors de la zone affichée, ainsi que leurs
+propriétés. Conservez-le comme un document privé. Si le monde a changé depuis
+son ouverture, rechargez-le avant de réessayer. Dans le Viewer, seul le contenu
+de la copie publiée est exporté.
+
+Le document est identifié par le format `alarmap-world` et une version de
+format. Il ne contient pas les fichiers d’assets et l’import n’est pas encore
+implémenté : cet export ne remplace donc pas une sauvegarde complète de
+l’instance et de ses volumes.

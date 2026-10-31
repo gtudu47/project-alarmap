@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaObjectSchema, createDemoWorld, geometrySchema, isActiveAt, periodSchema, relationSchema, worldSchema } from './index.js';
+import { areaObjectSchema, createDemoWorld, geometrySchema, isActiveAt, periodSchema, relationSchema, worldBackupSchema, worldSchema } from './index.js';
 
 describe('modèle géographique et temporel', () => {
   it('conserve une scène via JSON', () => {
@@ -46,4 +46,12 @@ it('valide les territoires avec trous et rejette les géométries non prises en 
   const tooMany = Array.from({ length: 2001 }, (_, i) => [i % 10, Math.floor(i / 10) % 10]);
   tooMany.push(tooMany[0]!);
   expect(areaObjectSchema.safeParse({ ...area, geometry: { type: 'Polygon', coordinates: [tooMany] } }).success).toBe(false);
+});
+
+it('valide un export de monde versionné et refuse les formats inconnus', () => {
+  const document = { format: 'alarmap-world', version: 1, world: createDemoWorld() };
+  expect(worldBackupSchema.parse(JSON.parse(JSON.stringify(document)))).toEqual(document);
+  expect(worldBackupSchema.safeParse({ ...document, version: 2 }).success).toBe(false);
+  expect(worldBackupSchema.safeParse({ ...document, format: 'autre-format' }).success).toBe(false);
+  expect(worldBackupSchema.safeParse({ ...document, unexpected: true }).success).toBe(false);
 });

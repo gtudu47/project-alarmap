@@ -42,7 +42,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [x] Tests API des comptes/mondes sur PostgreSQL/PostGIS réel : isolation, lecture seule, concurrence et révocation.
 - [-] Autorisations owner/editor/viewer et partage privé entre comptes inscrits ; tests HTTP/PostGIS exécutés.
 - [-] Publication explicite par calques en mode public ou lien non répertorié ; propriétés et assets exclus, catégories avancées à développer.
-- [-] Viewer, catalogue public et iframe sur copie publiée, retrait d’accès et export PNG ; pagination, personnalisation et tests d’exploitation à poursuivre.
+- [-] Viewer, catalogue public et iframe sur copie publiée, retrait d’accès, export PNG et export JSON versionné ; import JSON, pagination et personnalisation à poursuivre.
 
 ### Lot F — Distribution
 - [ ] Installation depuis une release en une commande sous Windows/Linux.

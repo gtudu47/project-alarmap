@@ -725,3 +725,28 @@ territoire rempli et grille, réussis. Les services sont sains. Recharger
 http://127.0.0.1:8080/?page=carte. Les territoires traversant l’antiméridien
 ou les pôles et le remplissage de polygones dépassant 200 000 triangles
 restent à prendre en charge ; leurs contours restent visibles.
+
+
+## Travail en cours — ouverture des fiches de territoire
+
+Signalement utilisateur : cliquer sur la surface ne donne pas accès à la fiche.
+La fiche existe, mais elle apparaît en bas d’un panneau latéral défilant et
+peut donc rester hors écran. Correction en cours : affichage prioritaire de la
+fiche et vérification des clics en vues plane et globe, y compris en chargement
+progressif. La demande de refonte de l’URL nécessite une précision utilisateur.
+
+Reproduction confirmée : la fiche était bien créée, mais située hors de la
+partie visible du panneau. Elle est maintenant placée en haut ; le panneau
+défile si besoin après une sélection sur la carte ou depuis l’Atlas. Le test
+spécifique passe en 2D et sur globe avec des objets chargés progressivement.
+Le cas MultiPolygon utilise également le libellé de territoire.
+
+Validation en cours : lint, typage et sept parcours navigateur Edge réussis,
+notamment fiche en zone visible, sélection plane/globe, édition et historique.
+La CI du précédent commit 7ddfbe4 est entièrement réussie. Reconstruction des
+interfaces Docker en cours.
+
+Validation finale : interfaces Docker reconstruites et services sains. Trois
+parcours Edge supplémentaires réussis sur l’instance locale, dont la fiche
+visible en 2D/3D et la consultation publique. La question sur la refonte de
+l’URL reste en attente de précision ; aucune modification des liens effectuée.

@@ -123,7 +123,7 @@ Un clic dans une zone vide ferme la fiche. Les déplacements de plus de cinq
 pixels sont traités comme des mouvements de caméra. Les objets invisibles
 (calque masqué ou opacité nulle) ne sont pas sélectionnables. Le globe teste
 également la sphère pour ne pas sélectionner un point derrière la planète.
-Les lignes sont sélectionnables dans les deux vues. Les territoires simples sont sélectionnables par leur surface et leur contour dans les deux vues.
+Les lignes sont sélectionnables dans les deux vues. Les territoires simples sont sélectionnables par leur surface et leur contour dans les deux vues. La fiche apparaît en haut du panneau latéral ; le panneau défile pour la rendre visible si nécessaire.
 
 ## Gestion des calques
 

@@ -33,6 +33,71 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <p class="intro">{{ text.tagline }}</p>
         @if (mode === 'viewer') { <a class="catalog-link" href="/viewer/?catalogue=1">Cartes publiques</a> }
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
+        @if (selectedObject(); as object) { <section #selectedPanel class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné' : 'Lieu sélectionné') : (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') ? 'Territoire sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné.' : 'Lieu sélectionné.') : (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') ? 'Territoire sélectionné.' : 'Tracé sélectionné.' }}</p>
+          @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
+            <form class="point-form" (submit)="updatePoint($event)">
+              <label>{{ object.kind === 'label' ? 'Texte sélectionné' : 'Nom du lieu sélectionné' }}<input name="name" [value]="object.name" required [attr.maxlength]="object.kind === 'label' ? 80 : 200"></label>
+              @if (object.kind === 'label') { <label>Couleur du texte sélectionné<input name="color" type="color" [value]="object.style.color"></label> }
+              <label>Longitude du lieu<input name="longitude" type="number" [value]="object.geometry.coordinates[0]" required min="-180" max="180" step="any"></label>
+              <label>Latitude du lieu<input name="latitude" type="number" [value]="object.geometry.coordinates[1]" required min="-90" max="90" step="any"></label>
+              <button class="account-primary" [disabled]="pointBusy()">Enregistrer les modifications</button>
+            </form>
+            @if (deleteConfirm() === object.id) {
+              <p>Supprimer définitivement {{ object.kind === 'label' ? 'ce texte' : 'ce lieu' }} ?</p>
+              <button class="account-secondary" [disabled]="pointBusy()" (click)="deletePoint()">Confirmer la suppression</button>
+              <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler</button>
+            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">{{ object.kind === 'label' ? 'Supprimer le texte' : 'Supprimer le lieu' }}</button> }
+          }
+          @if (personal() && role !== 'viewer' && object.geometry.type === 'LineString') {
+            @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
+              <form class="point-form" (submit)="updateLine($event)">
+                <label>Nom du tracé sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
+                <label>Sommets du tracé<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatLineCoordinates(edit.object)" (input)="syncLineVertices($any($event.target).value)"></textarea></label>
+                <p>Un sommet par ligne : longitude, latitude. En vue plane, déplacez les points dorés à la souris. Enregistrez pour appliquer.</p>
+                <button class="account-primary" [disabled]="pointBusy()">Enregistrer le tracé modifié</button>
+                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
+              </form>
+            } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginLineEdit(object)">Modifier le tracé</button> }
+            @if (!lineEdit()) {
+              @if (deleteConfirm() === object.id) {
+                <p>Supprimer ce tracé ? Vous pourrez annuler pendant cette session.</p>
+                <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteLine()">Confirmer la suppression du tracé</button>
+                <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
+              } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le tracé</button> }
+            }
+            @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
+          }
+          @if (personal() && role !== 'viewer' && object.geometry.type === 'Polygon' && object.kind === 'territory') {
+            @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
+              <form class="point-form" (submit)="updateArea($event)">
+                <label>Nom du territoire sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
+                <label>Couleur du territoire sélectionné<input name="color" type="color" [value]="edit.object.style.color"></label>
+                <label>Sommets du territoire<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatAreaCoordinates(edit.object)" (input)="syncAreaVertices($any($event.target).value)"></textarea></label>
+                <label>Trous du territoire<textarea #areaHoles name="holes" rows="5" [value]="formatAreaHoles(edit.object)"></textarea></label>
+                @if (view() === 'plane') {
+                  @if (drawingHole()) {
+                    <p role="status">{{ holePoints().length }} sommet(s) du trou. Cliquez sur la carte ; Échap abandonne le trou.</p>
+                    <button class="account-secondary" type="button" [disabled]="!holePoints().length" (click)="removeHoleVertex()">Retirer le dernier sommet du trou</button>
+                    <button class="account-link" type="button" (click)="cancelHole()">Abandonner le trou</button>
+                    <button class="account-secondary" type="button" [disabled]="holePoints().length < 3" (click)="finishHole()">Terminer le trou</button>
+                  } @else { <button class="account-secondary" type="button" [disabled]="pointBusy()" (click)="startHole()">Dessiner un trou</button> }
+                }
+                <p>Un sommet par ligne : longitude, latitude. Séparez les trous par une ligne vide. Chaque contour se ferme automatiquement. En vue plane, déplacez les points dorés du contour extérieur à la souris.</p>
+                <button class="account-primary" [disabled]="pointBusy() || drawingHole()">Enregistrer le territoire modifié</button>
+                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
+              </form>
+            } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginAreaEdit(object)">Modifier le territoire</button> }
+            @if (!lineEdit()) {
+              @if (deleteConfirm() === object.id) {
+                <p>Supprimer ce territoire ? Vous pourrez annuler pendant cette session.</p>
+                <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteArea()">Confirmer la suppression du territoire</button>
+                <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
+              } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le territoire</button> }
+            }
+            @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
+          }
+
+<button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
         @if (personal() && role === 'owner') {
           <details class="tile-settings"><summary>Publier cette carte</summary>
             <p>La publication rend accessibles le nom, la géométrie, les styles et les dates des objets des calques choisis. Les propriétés internes, les repères illustrés et leurs images ne sont pas publiés. Les modifications ultérieures restent en brouillon jusqu’à une nouvelle publication.</p>
@@ -153,71 +218,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
-        @if (selectedObject(); as object) { <section class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné' : 'Lieu sélectionné') : object.geometry.type === 'Polygon' ? 'Territoire sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné.' : 'Lieu sélectionné.') : object.geometry.type === 'Polygon' ? 'Territoire sélectionné.' : 'Tracé sélectionné.' }}</p>
-          @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
-            <form class="point-form" (submit)="updatePoint($event)">
-              <label>{{ object.kind === 'label' ? 'Texte sélectionné' : 'Nom du lieu sélectionné' }}<input name="name" [value]="object.name" required [attr.maxlength]="object.kind === 'label' ? 80 : 200"></label>
-              @if (object.kind === 'label') { <label>Couleur du texte sélectionné<input name="color" type="color" [value]="object.style.color"></label> }
-              <label>Longitude du lieu<input name="longitude" type="number" [value]="object.geometry.coordinates[0]" required min="-180" max="180" step="any"></label>
-              <label>Latitude du lieu<input name="latitude" type="number" [value]="object.geometry.coordinates[1]" required min="-90" max="90" step="any"></label>
-              <button class="account-primary" [disabled]="pointBusy()">Enregistrer les modifications</button>
-            </form>
-            @if (deleteConfirm() === object.id) {
-              <p>Supprimer définitivement {{ object.kind === 'label' ? 'ce texte' : 'ce lieu' }} ?</p>
-              <button class="account-secondary" [disabled]="pointBusy()" (click)="deletePoint()">Confirmer la suppression</button>
-              <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler</button>
-            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">{{ object.kind === 'label' ? 'Supprimer le texte' : 'Supprimer le lieu' }}</button> }
-          }
-          @if (personal() && role !== 'viewer' && object.geometry.type === 'LineString') {
-            @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
-              <form class="point-form" (submit)="updateLine($event)">
-                <label>Nom du tracé sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
-                <label>Sommets du tracé<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatLineCoordinates(edit.object)" (input)="syncLineVertices($any($event.target).value)"></textarea></label>
-                <p>Un sommet par ligne : longitude, latitude. En vue plane, déplacez les points dorés à la souris. Enregistrez pour appliquer.</p>
-                <button class="account-primary" [disabled]="pointBusy()">Enregistrer le tracé modifié</button>
-                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
-              </form>
-            } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginLineEdit(object)">Modifier le tracé</button> }
-            @if (!lineEdit()) {
-              @if (deleteConfirm() === object.id) {
-                <p>Supprimer ce tracé ? Vous pourrez annuler pendant cette session.</p>
-                <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteLine()">Confirmer la suppression du tracé</button>
-                <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
-              } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le tracé</button> }
-            }
-            @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
-          }
-          @if (personal() && role !== 'viewer' && object.geometry.type === 'Polygon' && object.kind === 'territory') {
-            @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
-              <form class="point-form" (submit)="updateArea($event)">
-                <label>Nom du territoire sélectionné<input name="name" [value]="edit.object.name" required maxlength="200"></label>
-                <label>Couleur du territoire sélectionné<input name="color" type="color" [value]="edit.object.style.color"></label>
-                <label>Sommets du territoire<textarea #lineCoordinates name="coordinates" rows="6" required [value]="formatAreaCoordinates(edit.object)" (input)="syncAreaVertices($any($event.target).value)"></textarea></label>
-                <label>Trous du territoire<textarea #areaHoles name="holes" rows="5" [value]="formatAreaHoles(edit.object)"></textarea></label>
-                @if (view() === 'plane') {
-                  @if (drawingHole()) {
-                    <p role="status">{{ holePoints().length }} sommet(s) du trou. Cliquez sur la carte ; Échap abandonne le trou.</p>
-                    <button class="account-secondary" type="button" [disabled]="!holePoints().length" (click)="removeHoleVertex()">Retirer le dernier sommet du trou</button>
-                    <button class="account-link" type="button" (click)="cancelHole()">Abandonner le trou</button>
-                    <button class="account-secondary" type="button" [disabled]="holePoints().length < 3" (click)="finishHole()">Terminer le trou</button>
-                  } @else { <button class="account-secondary" type="button" [disabled]="pointBusy()" (click)="startHole()">Dessiner un trou</button> }
-                }
-                <p>Un sommet par ligne : longitude, latitude. Séparez les trous par une ligne vide. Chaque contour se ferme automatiquement. En vue plane, déplacez les points dorés du contour extérieur à la souris.</p>
-                <button class="account-primary" [disabled]="pointBusy() || drawingHole()">Enregistrer le territoire modifié</button>
-                <button class="account-link" type="button" [disabled]="pointBusy()" (click)="cancelLineEdit()">Annuler la modification</button>
-              </form>
-            } } @else { <button class="account-secondary" [disabled]="pointBusy()" (click)="beginAreaEdit(object)">Modifier le territoire</button> }
-            @if (!lineEdit()) {
-              @if (deleteConfirm() === object.id) {
-                <p>Supprimer ce territoire ? Vous pourrez annuler pendant cette session.</p>
-                <button class="account-secondary" [disabled]="pointBusy()" (click)="deleteArea()">Confirmer la suppression du territoire</button>
-                <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler la suppression</button>
-              } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le territoire</button> }
-            }
-            @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
-          }
 
-<button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
         <div class="status" [class.ready]="apiStatus() === 'ready'" role="status"><span class="status-dot"></span>{{ apiLabel() }}</div>
         <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : publicStatus() === 'ready' ? 'Révision publiée en lecture seule.' : text.sample }}</p>
       </aside>
@@ -247,6 +248,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
 })
 export class MapShell implements AfterViewInit, OnDestroy {
   @ViewChild('mapHost', { static: true }) private host!: ElementRef<HTMLElement>;
+  @ViewChild('selectedPanel') private selectedPanel?: ElementRef<HTMLElement>;
   readonly mode = inject(APP_MODE);
   readonly pages = ['accueil', 'carte', 'atlas', 'guide'] as const;
   readonly labels = pageText;
@@ -407,6 +409,16 @@ export class MapShell implements AfterViewInit, OnDestroy {
     event.preventDefault(); void this.applyHistory(direction);
   };
   readonly selectedId = signal<string | null>(null);
+  private revealSelected(id: string): void {
+    requestAnimationFrame(() => {
+      if (this.selectedId() !== id || this.page() !== 'carte') return;
+      const panel = this.selectedPanel?.nativeElement; const sidebar = panel?.closest<HTMLElement>('.sidebar');
+      if (!panel || !sidebar) return;
+      const bounds = panel.getBoundingClientRect(); const container = sidebar.getBoundingClientRect();
+      if (bounds.top < container.top || bounds.bottom > container.bottom) sidebar.scrollTop += bounds.top - container.top - 8;
+    });
+  }
+
   readonly deleteConfirm = signal<string | null>(null);
   selectedObject(): MapObject | undefined {
     const id = this.selectedId(); const edit = this.lineEdit();
@@ -420,7 +432,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.deleteConfirm.set(null); this.selectedId.set(id);
     this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));
     this.engine?.setLayerVisible(object.layerId, true);
-    this.navigate('carte');
+    this.navigate('carte'); this.revealSelected(id);
     const coordinate = object.geometry.type === 'Point' ? object.geometry.coordinates : object.geometry.type === 'LineString' ? object.geometry.coordinates[0]! : object.geometry.coordinates[0]![0]!;
     requestAnimationFrame(() => { if (this.selectedId() === id) this.engine?.focus(coordinate); });
   }
@@ -781,7 +793,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
     if (this.publicCatalog) return;
-    this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); });
+    this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); if (id) this.revealSelected(id); });
     window.addEventListener('keydown', this.cancelPlacement); window.addEventListener('keydown', this.historyShortcut);
     this.engine.onCoordinate(([longitude, latitude]) => {
       if (this.drawingHole() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {

@@ -145,7 +145,7 @@ export class WorldsService {
     }
     return world;
   }
-  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
+  async addPoint(userId: string, id: string, input: { name: string; longitude: number; latitude: number; revision: number; layerId?: string; kind?: 'city' | 'label'; color?: string }, compact = false): Promise<{ world: World; role: MemberRole }> {
     const pointId = randomUUID();
     const client = await this.pool.connect();
     try {
@@ -155,8 +155,8 @@ export class WorldsService {
       const layer = await client.query<{ id: string }>('SELECT id FROM layers WHERE world_id=$1 AND NOT locked AND ($2::uuid IS NULL OR id=$2) ORDER BY sort_order,id LIMIT 1 FOR UPDATE', [id, input.layerId ?? null]);
       if (!layer.rows[0]) throw new ConflictException('Aucun calque modifiable.');
       await client.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style)
-        VALUES($1,$2,$3,'city',$4,ST_SetSRID(ST_MakePoint($5,$6),4326),$7::jsonb)`,
-      [pointId, id, layer.rows[0].id, input.name, input.longitude, input.latitude, JSON.stringify({ color: '#e6b96c', opacity: 1 })]);
+        VALUES($1,$2,$3,$4,$5,ST_SetSRID(ST_MakePoint($6,$7),4326),$8::jsonb)`,
+      [pointId, id, layer.rows[0].id, input.kind ?? 'city', input.name, input.longitude, input.latitude, JSON.stringify({ color: input.kind === 'label' ? input.color ?? '#e6b96c' : '#e6b96c', opacity: 1 })]);
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
       const result = compact ? await this.get(userId, id, false, pointId, client) : undefined;
       await client.query('COMMIT');
@@ -166,17 +166,22 @@ export class WorldsService {
     return this.get(userId, id);
   }
 
-  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number }, geometryType = 'ST_Point', compact = false): Promise<{ world: World; role: MemberRole }> {
+  async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number; color?: string }, geometryType = 'ST_Point', compact = false): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const world = await this.lockEditableWorld(client, id, userId);
       if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
-      const point = await client.query<{ locked: boolean }>(`SELECT l.locked FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id
+      const point = await client.query<{ locked: boolean; kind: string }>(`SELECT l.locked,o.kind FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id
         WHERE o.id=$1 AND o.world_id=$2 AND ST_GeometryType(o.geometry)=$3 AND ($3 <> 'ST_Polygon' OR o.kind='territory') FOR UPDATE OF o,l`, [pointId, id, geometryType]);
       if (!point.rows[0]) throw new NotFoundException('Lieu introuvable.');
       if (point.rows[0].locked) throw new ConflictException('Ce calque est verrouillé.');
-      if (update) await client.query('UPDATE map_objects SET name=$3,geometry=ST_SetSRID(ST_MakePoint($4,$5),4326) WHERE id=$1 AND world_id=$2', [pointId, id, update.name, update.longitude, update.latitude]);
+      if (update) {
+        if (point.rows[0].kind === 'label' && update.name.length > 80) throw new BadRequestException('Le texte ne doit pas dépasser 80 caractères.');
+        if (update.color !== undefined && point.rows[0].kind !== 'label') throw new BadRequestException('La couleur ne peut être modifiée ici que pour un texte.');
+        await client.query(`UPDATE map_objects SET name=$3,geometry=ST_SetSRID(ST_MakePoint($4,$5),4326),
+          style=CASE WHEN $6::text IS NULL THEN style ELSE jsonb_set(style,'{color}',to_jsonb($6::text),true) END WHERE id=$1 AND world_id=$2`, [pointId,id,update.name,update.longitude,update.latitude,update.color ?? null]);
+      }
       else await client.query('DELETE FROM map_objects WHERE id=$1 AND world_id=$2', [pointId, id]);
       await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
       const result = compact ? await this.get(userId, id, false, pointId, client) : undefined;
@@ -199,6 +204,7 @@ export class WorldsService {
       const existing = await client.query<{ world_id: string; locked: boolean; geometry_type: string; kind: string }>(`SELECT o.world_id,l.locked,o.kind,ST_GeometryType(o.geometry) AS geometry_type
         FROM map_objects o JOIN layers l ON l.id=o.layer_id AND l.world_id=o.world_id WHERE o.id=$1 FOR UPDATE OF o,l`, [point.id]);
       if (existing.rows[0] && (existing.rows[0].world_id !== id || existing.rows[0].locked || existing.rows[0].geometry_type !== geometryType || (geometryType === 'ST_Polygon' && existing.rows[0].kind !== 'territory'))) throw new ConflictException('Ce lieu ne peut pas être restauré.');
+      if (geometryType === 'ST_Point' && point.kind === 'label' && (!point.name.trim() || point.name.length > 80)) throw new BadRequestException('Le texte doit contenir de 1 à 80 caractères.');
       if (geometryType === 'ST_Polygon') {
         const validity = await client.query<{ valid: boolean }>(
           'SELECT ST_IsValid(g) AND ST_Area(g) > 0 AS valid FROM (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1),4326) AS g) shape', [JSON.stringify(point.geometry)]);

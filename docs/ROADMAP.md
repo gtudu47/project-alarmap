@@ -30,7 +30,7 @@ Une case terminée décrit du travail réellement vérifié, pas une intention.
 - [ ] Tests complets de cohérence de rendu et d’interaction.
 
 ### Lot D — Édition
-- [ ] Outils Point, Polyline, Polygon, Text, Select, Pan, Delete.
+- [-] Outils Point, Polyline, Polygon, Text, Select, Pan, Delete : premières versions disponibles, géométries avancées à poursuivre.
 - [ ] Propriétés, gestion complète des calques, commandes Undo/Redo.
 - [ ] Import d’images et gestion d’assets.
 - [-] Sauvegarde serveur et conflits de révisions pour les lieux ; édition complète à réaliser.

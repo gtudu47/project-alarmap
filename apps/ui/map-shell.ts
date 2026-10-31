@@ -127,33 +127,36 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             <button class="account-secondary" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
           </div>
           <form #pointForm class="point-form" (submit)="addPoint($event)">
-            <h2>Ajouter un lieu</h2>
+            <h2>{{ pointKind() === 'label' ? 'Ajouter un texte' : 'Ajouter un lieu' }}</h2>
             @if (view() === 'plane') {
               <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading() || !!lineEdit()" (click)="cancelLine(); cancelArea(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
               @if (placingPoint()) { <p role="status">Cliquez sur la carte pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
             }
-            <label>Calque du lieu<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
-            <label>Nom du lieu<input name="name" required maxlength="200"></label>
+            <label>Type de repère<select name="kind" [value]="pointKind()" (change)="pointKind.set($any($event.target).value)"><option value="city">Lieu</option><option value="label">Texte</option></select></label>
+            @if (pointKind() === 'label') { <label>Couleur du texte<input name="color" type="color" value="#e6b96c"></label> }
+            <label>{{ pointKind() === 'label' ? 'Calque du texte' : 'Calque du lieu' }}<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
+            <label>{{ pointKind() === 'label' ? 'Texte à afficher' : 'Nom du lieu' }}<input name="name" required [attr.maxlength]="pointKind() === 'label' ? 80 : 200"></label>
             <label>Longitude<input name="longitude" type="number" required min="-180" max="180" step="any" value="0"></label>
             <label>Latitude<input name="latitude" type="number" required min="-90" max="90" step="any" value="0"></label>
-            <button class="account-primary" [disabled]="pointBusy()" type="submit">Enregistrer le lieu</button>
+            <button class="account-primary" [disabled]="pointBusy()" type="submit">{{ pointKind() === 'label' ? 'Enregistrer le texte' : 'Enregistrer le lieu' }}</button>
             <button class="account-link" [disabled]="pointBusy()" type="button" (click)="reloadWorld()">Recharger le monde</button>
             @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
-        @if (selectedObject(); as object) { <section class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? 'Lieu sélectionné' : object.geometry.type === 'Polygon' ? 'Territoire sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? 'Lieu sélectionné.' : object.geometry.type === 'Polygon' ? 'Territoire sélectionné.' : 'Tracé sélectionné.' }}</p>
+        @if (selectedObject(); as object) { <section class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné' : 'Lieu sélectionné') : object.geometry.type === 'Polygon' ? 'Territoire sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné.' : 'Lieu sélectionné.') : object.geometry.type === 'Polygon' ? 'Territoire sélectionné.' : 'Tracé sélectionné.' }}</p>
           @if (personal() && role !== 'viewer' && object.geometry.type === 'Point') {
             <form class="point-form" (submit)="updatePoint($event)">
-              <label>Nom du lieu sélectionné<input name="name" [value]="object.name" required maxlength="200"></label>
+              <label>{{ object.kind === 'label' ? 'Texte sélectionné' : 'Nom du lieu sélectionné' }}<input name="name" [value]="object.name" required [attr.maxlength]="object.kind === 'label' ? 80 : 200"></label>
+              @if (object.kind === 'label') { <label>Couleur du texte sélectionné<input name="color" type="color" [value]="object.style.color"></label> }
               <label>Longitude du lieu<input name="longitude" type="number" [value]="object.geometry.coordinates[0]" required min="-180" max="180" step="any"></label>
               <label>Latitude du lieu<input name="latitude" type="number" [value]="object.geometry.coordinates[1]" required min="-90" max="90" step="any"></label>
               <button class="account-primary" [disabled]="pointBusy()">Enregistrer les modifications</button>
             </form>
             @if (deleteConfirm() === object.id) {
-              <p>Supprimer définitivement ce lieu ?</p>
+              <p>Supprimer définitivement {{ object.kind === 'label' ? 'ce texte' : 'ce lieu' }} ?</p>
               <button class="account-secondary" [disabled]="pointBusy()" (click)="deletePoint()">Confirmer la suppression</button>
               <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(null)">Annuler</button>
-            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">Supprimer le lieu</button> }
+            } @else { <button class="account-link" [disabled]="pointBusy()" (click)="deleteConfirm.set(object.id)">{{ object.kind === 'label' ? 'Supprimer le texte' : 'Supprimer le lieu' }}</button> }
           }
           @if (personal() && role !== 'viewer' && object.geometry.type === 'LineString') {
             @if (lineEdit(); as edit) { @if (edit.object.id === object.id) {
@@ -436,20 +439,20 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const existingIds = new Set(this.world.objects.map(object => object.id));
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points?compact=1', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision, layerId: fields.get('layerId') }) });
-      if (this.personal() && this.world.id === worldId && this.accounts.user()) { const saved = worldSchema.parse(result.world); const added = saved.objects.filter(object => !existingIds.has(object.id)); if (added.length !== 1) throw new Error('Réponse de création invalide. Rechargez le monde.'); this.applyObjectResult(result, added[0]!.id, previousRevision); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); form.reset(); this.placingPoint.set(false); this.pointMessage.set('Lieu enregistré.'); }
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/points?compact=1', { method: 'POST', body: JSON.stringify({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), revision: this.world.revision, layerId: fields.get('layerId'), ...(this.pointKind() === 'label' ? { kind: 'label', color: fields.get('color') } : {}) }) });
+      if (this.personal() && this.world.id === worldId && this.accounts.user()) { const saved = worldSchema.parse(result.world); const added = saved.objects.filter(object => !existingIds.has(object.id)); if (added.length !== 1) throw new Error('Réponse de création invalide. Rechargez le monde.'); this.applyObjectResult(result, added[0]!.id, previousRevision); if (added.length === 1 && this.world.revision === previousRevision + 1) this.recordHistory({ before: null, after: added[0]! }); else this.clearHistory(); const isLabel = added[0]!.kind === 'label'; form.reset(); this.pointKind.set('city'); this.placingPoint.set(false); this.pointMessage.set(isLabel ? 'Texte enregistré.' : 'Lieu enregistré.'); }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Enregistrement impossible.'); }
     finally { this.pointBusy.set(false); }
   }
   async updatePoint(event: Event): Promise<void> {
     event.preventDefault(); const fields = new FormData(event.target as HTMLFormElement);
-    await this.changePoint({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')) });
+    await this.changePoint({ name: fields.get('name'), longitude: Number(fields.get('longitude')), latitude: Number(fields.get('latitude')), ...(this.selectedObject()?.kind === 'label' ? { color: fields.get('color') } : {}) });
   }
   async deletePoint(): Promise<void> {
     if (this.deleteConfirm() !== this.selectedId()) return;
     await this.changePoint();
   }
-  private async changePoint(update?: { name: FormDataEntryValue | null; longitude: number; latitude: number }): Promise<void> {
+  private async changePoint(update?: { name: FormDataEntryValue | null; longitude: number; latitude: number; color?: FormDataEntryValue | null }): Promise<void> {
     const id = this.selectedId(); const worldId = this.world.id; const previousRevision = this.world.revision;
     const before = this.world.objects.find(object => object.id === id);
     if (!id || !this.personal() || this.role === 'viewer' || this.pointBusy()) return;
@@ -459,8 +462,8 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
         this.applyObjectResult(result, id, previousRevision); this.deleteConfirm.set(null);
         if (before && this.world.revision === previousRevision + 1) this.recordHistory({ before, after: this.world.objects.find(object => object.id === id) ?? null }); else this.clearHistory();
-        if (!update) { if (this.selectedId() === id) this.selectedId.set(null); this.pointMessage.set('Lieu supprimé.'); }
-        else { this.pointMessage.set('Lieu modifié.'); if (this.selectedId() === id) this.engine?.focus([update.longitude, update.latitude]); }
+        if (!update) { if (this.selectedId() === id) this.selectedId.set(null); this.pointMessage.set(before?.kind === 'label' ? 'Texte supprimé.' : 'Lieu supprimé.'); }
+        else { this.pointMessage.set(before?.kind === 'label' ? 'Texte modifié.' : 'Lieu modifié.'); if (this.selectedId() === id) this.engine?.focus([update.longitude, update.latitude]); }
       }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Modification impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -678,6 +681,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly apiStatus = signal<'checking' | 'ready' | 'unavailable'>('checking');
   @ViewChild('pointForm') private pointForm?: ElementRef<HTMLFormElement>;
   readonly placingPoint = signal(false);
+  readonly pointKind = signal<'city' | 'label'>('city');
   private readonly cancelPlacement = (event: KeyboardEvent): void => { if (event.key === 'Escape' && !this.pointBusy()) { this.placingPoint.set(false); this.cancelLine(); this.cancelArea(); this.cancelHole(); } };
   readonly drawingArea = signal(false);
   readonly areaPoints = signal<Coordinate[]>([]);

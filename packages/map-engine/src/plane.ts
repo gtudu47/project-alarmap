@@ -23,6 +23,7 @@ export class PlaneRenderer implements RendererAdapter {
   private gridGraphics?: Graphics;
   private gridListener: (stats: GridStats, view: GridView, regions?: GridView[]) => void = () => {};
   private points: Graphics[] = [];
+  private readonly labelBounds = new Map<string, { width: number; height: number }>();
   private offset = { x: 0, y: 0 };
   private drag?: { x: number; y: number; startX: number; startY: number; moved: boolean; id: number };
   private readonly events = new AbortController();
@@ -81,7 +82,10 @@ export class PlaneRenderer implements RendererAdapter {
           if (object.layerId !== layer.id || object.style.opacity === 0) continue;
           if (object.geometry.type === 'Point') {
             const [longitude, latitude] = object.geometry.coordinates;
-            const delta = Math.hypot(x - (this.scene.x + longitude * this.scene.scale.x), y - (this.scene.y - latitude * this.scene.scale.y));
+            const anchorX = this.scene.x + longitude * this.scene.scale.x; const anchorY = this.scene.y - latitude * this.scene.scale.y;
+            const bounds = this.labelBounds.get(object.id);
+            const insideLabel = bounds && x >= anchorX - 3 && x <= anchorX + bounds.width + 3 && y >= anchorY - bounds.height / 2 - 3 && y <= anchorY + bounds.height / 2 + 3;
+            const delta = insideLabel ? 0 : Math.hypot(x - anchorX, y - anchorY);
             if (delta <= distance) { distance = delta; nearest = object.id; }
           } else if (object.geometry.type === 'Polygon' && pointInPolygon([longitude, latitude], object.geometry.coordinates)) {
             areaHit = object.id;
@@ -179,7 +183,7 @@ export class PlaneRenderer implements RendererAdapter {
     }
     this.scene.scale.set(scale);
     this.scene.position.set(this.host.clientWidth / 2 + this.offset.x, this.host.clientHeight / 2 + this.offset.y);
-    for (const point of this.points) { point.scale.set(1 / scale); for (const child of point.children) child.visible = scale > 50; }
+    for (const point of this.points) { point.scale.set(1 / scale); for (const child of point.children) child.visible = point.label === 'annotation' || scale > 50; }
     if (this.world && this.gridGraphics) {
       const view: GridView = { west: -this.scene.x / scale, east: (this.host.clientWidth - this.scene.x) / scale, north: this.scene.y / scale, south: (this.scene.y - this.host.clientHeight) / scale, pixelsPerDegree: scale };
       const { lines, stats } = visibleGrid(this.gridOptions, this.world.radiusKm, view);
@@ -191,7 +195,7 @@ export class PlaneRenderer implements RendererAdapter {
   }
   private draw(): void {
     for (const child of this.scene.removeChildren()) child.destroy({ children: true });
-    this.points = [];
+    this.points = []; this.labelBounds.clear();
     this.draftGraphic = undefined; this.vertexGraphic = undefined;
     const grid = new Graphics();
     grid.rect(-180, -90, 360, 180).fill('#142b3b');
@@ -210,9 +214,13 @@ export class PlaneRenderer implements RendererAdapter {
         graphics.alpha = layer.opacity * object.style.opacity;
         if (object.geometry.type === 'Point') {
           const [longitude, latitude] = object.geometry.coordinates;
-          graphics.position.set(longitude, -latitude); graphics.circle(0, 0, 5).fill(object.style.color); this.points.push(graphics);
-          const label = new Text({ text: object.name, style: { fill: '#e9eddf', fontSize: 12, fontFamily: 'sans-serif' } });
-          label.position.set(9,-8); graphics.addChild(label);
+          graphics.position.set(longitude, -latitude); this.points.push(graphics);
+          const annotation = object.kind === 'label';
+          if (annotation) graphics.label = 'annotation'; else graphics.circle(0, 0, 5).fill(object.style.color);
+          const label = new Text({ text: annotation ? object.name.slice(0, 80) : object.name, style: { fill: annotation ? object.style.color : '#e9eddf', fontSize: annotation ? 16 : 12, fontFamily: 'sans-serif' } });
+          if (annotation) { label.position.set(0, -label.height / 2); this.labelBounds.set(object.id, { width: label.width, height: label.height }); }
+          else label.position.set(9,-8);
+          graphics.addChild(label);
         } else if (object.geometry.type === 'LineString') {
           for (const segment of splitAntimeridian(object.geometry.coordinates)) {
             segment.forEach(([longitude, latitude], index) => index === 0 ? graphics.moveTo(longitude, -latitude) : graphics.lineTo(longitude, -latitude));

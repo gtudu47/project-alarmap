@@ -369,3 +369,14 @@ Il affiche les cartes que leurs auteurs ont rendues publiques, avec leur
 révision publiée. Les cartes non répertoriées n’y apparaissent pas et restent
 accessibles uniquement par leur lien. Le catalogue affiche actuellement les
 100 publications les plus récentes ; la pagination reste à développer.
+
+## Ajouter une annotation textuelle
+
+Dans un monde personnel, choisissez **Texte** dans **Type de repère**, saisissez
+jusqu’à 80 caractères, choisissez une couleur et un calque, puis indiquez les
+coordonnées ou utilisez **Placer sur la carte**. Enregistrez pour créer le texte.
+Il reste lisible à taille d’écran constante sur la carte et sur le globe ; sur
+le globe, il disparaît derrière la planète. Sélectionnez son texte pour modifier
+son contenu, sa couleur ou ses coordonnées. La suppression et Annuler/Rétablir
+fonctionnent pendant la session. Les polices et tailles personnalisables restent
+à développer.

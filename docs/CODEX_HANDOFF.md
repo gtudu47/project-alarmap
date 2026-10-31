@@ -543,3 +543,17 @@ Validation : lint, types et build Docker réussis ; 14 tests navigateur ciblés
 passés. Un essai réel avec deux mondes temporaires a confirmé qu’une carte
 publique apparaît au catalogue, qu’une carte non répertoriée reste absente et
 que le Viewer s’ouvre anonymement ; comptes et mondes de test supprimés.
+
+## Reprise — annotations textuelles (31 octobre 2026)
+
+Le formulaire de repère permet de créer un texte géolocalisé (80 caractères
+maximum), avec couleur et calque. Modification, suppression et historique
+réutilisent les contrôles de droits et de révision des points. Le rendu affiche
+le texte à taille d’écran constante en 2D et sur le globe, où la face cachée est
+masquée. Les textures du globe sont libérées lors du changement de scène.
+Polices, tailles personnalisées et placement direct sur globe restent à faire.
+Validation : tests HTTP/PostGIS (y compris la publication du texte), captures
+comparatives 2D/globe et masquage de la face cachée, 47 parcours navigateur
+réussis. Un compte et un monde temporaires ont confirmé la création, la
+publication et la consultation anonyme sur globe ; ils ont été supprimés.
+La CI GitHub 41174902281 du catalogue public est réussie. Prochain lot : export JSON versionné.

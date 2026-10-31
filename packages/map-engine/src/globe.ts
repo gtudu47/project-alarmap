@@ -59,7 +59,7 @@ export class GlobeRenderer implements RendererAdapter {
       const surface = sphereHit?.point ?? this.controls.target;
       const depth = Math.max(1e-9, -surface.clone().applyMatrix4(this.camera.matrixWorldInverse).z);
       ray.params.Line = { threshold: 10 * depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (rect.height * this.camera.zoom) };
-      const candidates = [sphere, ...this.objects.children.filter(child => (child instanceof THREE.Mesh || child instanceof THREE.Line) && child.userData['id'])];
+      const candidates = [sphere, ...this.objects.children.filter(child => child.visible && (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Sprite) && child.userData['id'])];
       // La sphère masque les tracés situés sur la face opposée.
       const hit = ray.intersectObjects(candidates, false)[0];
       onSelect(typeof hit?.object.userData['id'] === 'string' ? hit.object.userData['id'] : null);
@@ -91,6 +91,17 @@ export class GlobeRenderer implements RendererAdapter {
       new THREE.BufferGeometry().setFromPoints(coordinates.map((point) => new THREE.Vector3(...toSphere(point, 1.003)))),
       new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }),
     );
+  }
+  private annotation(text: string, color: string, opacity: number, id: string): THREE.Sprite {
+    const canvas = document.createElement('canvas'); const context = canvas.getContext('2d');
+    if (!context) throw new Error('Impossible de dessiner le texte.');
+    context.font = '600 32px sans-serif';
+    canvas.width = Math.ceil(context.measureText(text).width) + 16; canvas.height = 48;
+    context.font = '600 32px sans-serif'; context.fillStyle = color; context.textBaseline = 'middle'; context.fillText(text, 8, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, opacity, depthTest: true, depthWrite: false }));
+    sprite.center.set(0, 0.5); sprite.userData['id'] = id; sprite.userData['pixelWidth'] = canvas.width / 2; sprite.userData['pixelHeight'] = canvas.height / 2;
+    return sprite;
   }
   private geographicLine(coordinates: Coordinate[], color: string, opacity: number, id: string): THREE.Line {
     const dense: Coordinate[] = [];
@@ -158,9 +169,14 @@ export class GlobeRenderer implements RendererAdapter {
       const opacity = layer.opacity * object.style.opacity;
       if (opacity === 0) continue;
       if (object.geometry.type === 'Point') {
-        const marker = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ color: object.style.color, transparent: opacity < 1, opacity }));
-        marker.userData['id'] = object.id;
-        marker.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(marker);
+        if (object.kind === 'label') {
+          const label = this.annotation(object.name.slice(0, 80), object.style.color, opacity, object.id);
+          label.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(label);
+        } else {
+          const marker = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ color: object.style.color, transparent: opacity < 1, opacity }));
+          marker.userData['id'] = object.id;
+          marker.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(marker);
+        }
       } else if (object.geometry.type === 'LineString') {
         this.objects.add(this.geographicLine(object.geometry.coordinates, object.style.color, opacity, object.id));
       } else if (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') {
@@ -186,7 +202,12 @@ export class GlobeRenderer implements RendererAdapter {
     this.zoomListener(Math.max(0, Math.min(100, 100 * (Math.log10(magnification) + 6) / 14)));
     if (this.host.clientHeight) this.scaleListener(globeScaleDenominator(this.radiusKm, distance, this.camera.fov, this.host.clientHeight, this.camera.zoom));
     for (const object of this.objects.children) {
-      if (object instanceof THREE.Mesh) {
+      if (object instanceof THREE.Sprite) {
+        const depth = object.position.clone().applyMatrix4(this.camera.matrixWorldInverse).z;
+        const pixel = Math.max(1e-12, -depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (Math.max(1,this.host.clientHeight) * this.camera.zoom));
+        object.scale.set(pixel * Number(object.userData['pixelWidth']), pixel * Number(object.userData['pixelHeight']), 1);
+        object.visible = this.camera.position.clone().sub(object.position).dot(object.position) > 0;
+      } else if (object instanceof THREE.Mesh) {
         const depth = object.position.clone().applyMatrix4(this.camera.matrixWorldInverse).z;
         const size = Math.max(1e-12, -depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (Math.max(1,this.host.clientHeight) * this.camera.zoom) * 5);
         object.scale.setScalar(size / 0.015);
@@ -197,7 +218,9 @@ export class GlobeRenderer implements RendererAdapter {
   };
   private disposeObject(object: THREE.Object3D): void {
     object.traverse((child) => {
-      if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
+      if (child instanceof THREE.Sprite) {
+        child.material.map?.dispose(); child.material.dispose();
+      } else if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
         child.geometry.dispose();
         for (const material of Array.isArray(child.material) ? child.material : [child.material]) material.dispose();
       }

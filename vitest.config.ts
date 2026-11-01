@@ -8,5 +8,5 @@ export default defineConfig({
       '@alarmap/' + name, fileURLToPath(new URL('./packages/' + name + '/src/index.ts', import.meta.url)),
     ])),
   },
-  test: { include: ['packages/**/*.test.ts', 'apps/api/**/*.test.ts', 'scripts/**/*.test.ts'] },
+  test: { include: ['packages/**/*.test.ts', 'apps/api/**/*.test.ts', 'apps/ui/**/*.test.ts', 'scripts/**/*.test.ts'] },
 });

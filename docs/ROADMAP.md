@@ -261,3 +261,5 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 - [x] Contrôles serveur : image du même monde, permissions, suppression protégée et exclusion des publications.
 - [x] Empêcher un export JSON non restaurable lorsque des repères illustrés existent.
 - [ ] Placement et rendu des images en 2D et sur le globe ; export et publication adaptés.
+
+- V0.1 liens : adresses opaques stables pour mondes et fiches, ouverture après connexion, historique navigateur et liens de publication compatibles avec les anciens.

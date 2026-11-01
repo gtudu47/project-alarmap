@@ -1,12 +1,13 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
 import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
-import { createDemoWorld, worldSchema, worldBackupSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject } from '@alarmap/map-model';
+import { createDemoWorld, worldSchema, worldBackupSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject, type World } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
 import { AssetLibrary } from './asset-library';
 import { PublicCatalog } from './public-catalog';
 import { AccountsClient, type WorldAccess } from './accounts.client';
 import { fr } from '@alarmap/shared';
+import { formatMapLink, objectLinkType, parseMapLink, type LinkKeys, type MapLink } from './link-path';
 
 export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
 
@@ -31,6 +32,7 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
         <div class="eyebrow">{{ personal() ? 'Mon monde privé' : publicStatus() === 'ready' ? 'Carte publiée' : text.demo }}</div>
         <h1>{{ world.name }}</h1>
         <p class="intro">{{ text.tagline }}</p>
+        @if (linkMessage()) { <p role="status">{{ linkMessage() }}</p> }
         @if (mode === 'viewer') { <a class="catalog-link" href="/viewer/?catalogue=1">Cartes publiques</a> }
         <div class="world-card"><span class="mini-globe" aria-hidden="true">◎</span><div><strong>{{ text.radius }}</strong><span>{{ world.radiusKm }} km</span></div></div>
         @if (selectedObject(); as object) { <section #selectedPanel class="selected-place" [attr.aria-label]="object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné' : 'Lieu sélectionné') : (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') ? 'Territoire sélectionné' : 'Tracé sélectionné'"><h2>{{ object.name }}</h2><p>{{ object.geometry.type === 'Point' ? (object.kind === 'label' ? 'Texte sélectionné.' : 'Lieu sélectionné.') : (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') ? 'Territoire sélectionné.' : 'Tracé sélectionné.' }}</p>
@@ -97,7 +99,9 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
 
-<button class="account-link" (click)="cancelLineEdit(); selectedId.set(null)">Fermer la fiche</button></section> }
+<button class="account-link" (click)="closeSelected()">Fermer la fiche</button></section> }
+        @if (selectedObject()) { <button class="account-secondary sidebar-tools-toggle" type="button" [attr.aria-expanded]="toolsExpanded()" (click)="toolsExpanded.set(!toolsExpanded())">{{ toolsExpanded() ? 'Masquer les outils de la carte' : 'Afficher les outils de la carte' }}</button> }
+        <div class="sidebar-tools" [hidden]="!!selectedObject() && !toolsExpanded()">
         @if (personal() && role === 'owner') {
           <details class="tile-settings"><summary>Publier cette carte</summary>
             <p>La publication rend accessibles le nom, la géométrie, les styles et les dates des objets des calques choisis. Les propriétés internes, les repères illustrés et leurs images ne sont pas publiés. Les modifications ultérieures restent en brouillon jusqu’à une nouvelle publication.</p>
@@ -197,10 +201,6 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
               </form>
             </details>
           }
-          <div class="history-actions" aria-label="Historique des lieux">
-            <button class="account-secondary" title="Ctrl+Z (ou Cmd+Z)" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
-            <button class="account-secondary" title="Ctrl+Y ou Ctrl+Maj+Z (Cmd+Maj+Z sur Mac)" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
-          </div>
           <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>{{ pointKind() === 'label' ? 'Ajouter un texte' : 'Ajouter un lieu' }}</h2>
             @if (view() === 'plane') {
@@ -215,10 +215,18 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             <label>Latitude<input name="latitude" type="number" required min="-90" max="90" step="any" value="0"></label>
             <button class="account-primary" [disabled]="pointBusy()" type="submit">{{ pointKind() === 'label' ? 'Enregistrer le texte' : 'Enregistrer le lieu' }}</button>
             <button class="account-link" [disabled]="pointBusy()" type="button" (click)="reloadWorld()">Recharger le monde</button>
-            @if (pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
+            @if (pointMessage() && !selectedObject()) { <p role="status">{{ pointMessage() }}</p> }
           </form>
         }
 
+        </div>
+        @if (selectedObject() && pointMessage()) { <p role="status">{{ pointMessage() }}</p> }
+        @if (personal() && role !== 'viewer') {
+          <div class="history-actions" aria-label="Historique des lieux">
+            <button class="account-secondary" title="Ctrl+Z (ou Cmd+Z)" [disabled]="pointBusy() || !historyState().undo" (click)="applyHistory('undo')">Annuler l’action</button>
+            <button class="account-secondary" title="Ctrl+Y ou Ctrl+Maj+Z (Cmd+Maj+Z sur Mac)" [disabled]="pointBusy() || !historyState().redo" (click)="applyHistory('redo')">Rétablir l’action</button>
+          </div>
+        }
         <div class="status" [class.ready]="apiStatus() === 'ready'" role="status"><span class="status-dot"></span>{{ apiLabel() }}</div>
         <p class="scope-note">{{ personal() ? 'Monde enregistré dans votre espace personnel.' : publicStatus() === 'ready' ? 'Révision publiée en lecture seule.' : text.sample }}</p>
       </aside>
@@ -257,11 +265,12 @@ export class MapShell implements AfterViewInit, OnDestroy {
     const value = new URLSearchParams(location.search).get('page');
     return this.mode === 'editor' && (value === 'accueil' || value === 'atlas' || value === 'guide') ? value : 'carte';
   }
-  private readonly onPopState = () => { this.page.set(this.readPage()); };
+  private readonly onPopState = () => { if (this.lineEdit() && this.editAddress) { history.pushState(null,'',this.editAddress); this.lineEditError.set('Enregistrez ou annulez la modification avant de changer de page.'); return; } ++this.linkRequest; this.pendingPrivateLink = undefined; this.page.set(this.readPage()); const link = parseMapLink(location.pathname); if (link && this.engine) void this.openLink(link); else { this.cancelLineEdit(); this.selectedId.set(null); } };
   navigate(page: WorkspacePage, event?: Event): void {
     if (event instanceof MouseEvent && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     event?.preventDefault();
-    this.page.set(page);
+    if (this.lineEdit() && page !== 'carte') { this.lineEditError.set('Enregistrez ou annulez la modification avant de changer de page.'); return; }
+    ++this.linkRequest; this.pendingPrivateLink = undefined; this.page.set(page);
     const url = new URL(location.href); url.searchParams.set('page', page);
     history.pushState(null, '', url);
     requestAnimationFrame(() => { document.querySelector<HTMLElement>('#page-title')?.focus(); window.dispatchEvent(new Event('resize')); });
@@ -271,13 +280,24 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly accounts = inject(AccountsClient);
   readonly accountOpen = signal(location.hash.startsWith('#invite=') || location.hash.startsWith('#setup='));
   readonly personal = signal(false);
+  private readonly initialLink = parseMapLink(location.pathname);
+  private pendingPrivateLink?: MapLink;
+  private linkRequest = 0;
+  readonly linkMessage = signal('');
   readonly publicCatalog = this.mode === 'viewer' && new URLSearchParams(location.search).get('catalogue') === '1';
   private readonly publicSlug = this.mode === 'viewer' && !this.publicCatalog && new URLSearchParams(location.search).has('world') ? new URLSearchParams(location.search).get('world') ?? '' : null;
-  readonly publicStatus = signal<'sample' | 'loading' | 'ready' | 'error'>(this.publicSlug === null ? 'sample' : 'loading');
+  readonly publicStatus = signal<'sample' | 'loading' | 'ready' | 'error'>(this.publicSlug !== null || (this.mode === 'viewer' && this.initialLink) ? 'loading' : 'sample');
   readonly publicationUrl = signal('');
   readonly publicationMessage = signal('');
   readonly unpublishConfirm = signal(false);
   private viewerUrl(slug: string): string { const url = new URL('/viewer/', location.origin); url.searchParams.set('world', slug); return url.toString(); }
+  private async refreshPublicationUrl(slug: string, worldId: string): Promise<void> {
+    try {
+      const keys = await this.accounts.request<LinkKeys>('/links/public/worlds/' + encodeURIComponent(slug),{},false);
+      if (this.world.id === worldId && (this.world.status === 'public' || this.world.status === 'unlisted')) this.publicationUrl.set(location.origin + formatMapLink(keys,undefined,'viewer'));
+    } catch { /* Les anciennes adresses restent valides si la nouvelle est indisponible. */ }
+  }
+
   async publishWorld(event: Event): Promise<void> {
     event.preventDefault();
     if (!this.personal() || this.role !== 'owner' || this.pointBusy()) return;
@@ -288,7 +308,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     try {
       const result = await this.accounts.request<{ slug: string; revision: number; visibility: 'public' | 'unlisted' }>('/worlds/' + worldId + '/publication', { method: 'POST', body: JSON.stringify({ revision, visibility: fields.get('visibility'), layerIds }) });
       if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
-      this.world = { ...this.world, status: result.visibility }; this.publicationUrl.set(this.viewerUrl(result.slug));
+      this.world = { ...this.world, status: result.visibility }; this.publicationUrl.set(this.viewerUrl(result.slug)); void this.refreshPublicationUrl(result.slug,worldId);
       this.unpublishConfirm.set(false); this.publicationMessage.set('Révision ' + result.revision + ' publiée.');
     } catch (error) { this.publicationMessage.set(error instanceof Error ? error.message : 'Publication impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -349,7 +369,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (results.some(result => result.revision !== revision) || this.world.revision !== revision) { this.tileMessage.set('Le monde a changé : rechargez-le pour consulter les détails.'); return; }
       if (results.some(result => !Array.isArray(result.objects))) throw new Error('Réponse de détail invalide.');
       const objects = [...new Map(results.flatMap(result => result.objects).map(object => [object.id,object])).values()];
-      if (this.objectsPartial()) { this.world = { ...this.world, objects }; this.syncScene(); }
+      if (this.objectsPartial()) { const selected = this.world.objects.find(item => item.id === this.selectedId()); this.world = { ...this.world, objects: selected && !objects.some(item => item.id === selected.id) ? [...objects,selected] : objects }; this.syncScene(); }
       this.engine?.setVisibleObjects(objects);
       this.tileMessage.set(objects.length + ' objet(s) chargé(s)' + (results.some(result => result.reduced) ? ' · zoomez pour davantage de détails' : ' dans cette zone'));
     } catch { if (!abort.signal.aborted && request === this.tileRequest) this.tileMessage.set('Détails indisponibles. La scène déjà chargée reste visible.'); }
@@ -376,6 +396,59 @@ export class MapShell implements AfterViewInit, OnDestroy {
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Modification du calque impossible.'); return false; }
     finally { this.pointBusy.set(false); }
   }
+  /** Les clés de l’URL masquent les noms ; les droits restent contrôlés par le serveur. */
+  private async updateAddress(objectId: string | null, replace = false): Promise<void> {
+    if (this.page() !== 'carte' || (!this.personal() && this.publicStatus() !== 'ready')) return;
+    const worldId = this.world.id; const object = objectId ? this.world.objects.find(item => item.id === objectId) : undefined;
+    if (objectId && !object) return;
+    const request = ++this.linkRequest;
+    try {
+      const root = this.personal() ? '/links/private/worlds/' + worldId : '/links/public/worlds/' + encodeURIComponent(this.world.slug);
+      const keys = await this.accounts.request<LinkKeys>(root + (object ? '/objects/' + object.id : ''), {}, this.personal());
+      if (request !== this.linkRequest || this.world.id !== worldId || this.selectedId() !== objectId || this.page() !== 'carte') return;
+      const path = formatMapLink(keys, object, this.mode);
+      if (location.pathname !== path || location.search) history[replace ? 'replaceState' : 'pushState'](null,'',path);
+      if (this.lineEdit()) this.editAddress = location.href;
+      this.linkMessage.set('');
+    } catch { if (request === this.linkRequest) this.linkMessage.set('Adresse du monde indisponible pour le moment.'); }
+  }
+  private async openLink(link: MapLink): Promise<void> {
+    const request = ++this.linkRequest; this.linkMessage.set('');
+    if (this.mode === 'editor' && !this.accounts.user()) {
+      this.pendingPrivateLink = link; this.accountOpen.set(true); this.linkMessage.set('Connectez-vous pour ouvrir ce monde privé.'); return;
+    }
+    try {
+      const root = this.mode === 'editor' ? '/links/private/resolve/' : '/links/public/resolve/';
+      const path = root + link.ownerKey + '/' + link.worldKey + (link.objectKey ? '/' + link.objectKey : '');
+      if (this.mode === 'viewer') {
+        this.publicStatus.set('loading');
+        const result = await this.accounts.request<{ world: World; object?: MapObject }>(path,{},false);
+        if (request !== this.linkRequest) return;
+        const world = worldSchema.parse(result.world); const object = result.object ? world.objects.find(item => item.id === result.object!.id) : undefined;
+        if (link.objectKey && (!object || objectLinkType(object) !== link.type)) throw new Error('Lien invalide.');
+        this.world = world; this.publicStatus.set('ready'); this.layerVisibility.set({}); this.syncScene(); this.toolsExpanded.set(false); this.selectedId.set(object?.id ?? null);
+        if (object) this.focusLinkedObject(object);
+      } else {
+        const result = await this.accounts.request<WorldAccess>(path);
+        if (request !== this.linkRequest || !this.accounts.user()) return;
+        const object = link.objectKey ? result.world.objects[0] : undefined;
+        if (link.objectKey && (!object || objectLinkType(object) !== link.type)) throw new Error('Lien invalide.');
+        this.openWorld(result,true); this.toolsExpanded.set(false); this.selectedId.set(object?.id ?? null);
+        if (object) this.focusLinkedObject(object);
+      }
+    } catch {
+      if (request !== this.linkRequest) return;
+      if (this.mode === 'viewer') this.publicStatus.set('error');
+      else this.linkMessage.set('Ce lien est introuvable ou vous n’avez pas accès à ce monde.');
+    }
+  }
+  private focusLinkedObject(object: MapObject): void {
+    const geometry = object.geometry;
+    const point = geometry.type === 'Point' ? geometry.coordinates : geometry.type === 'LineString' ? geometry.coordinates[0] : geometry.type === 'Polygon' ? geometry.coordinates[0]?.[0] : geometry.coordinates[0]?.[0]?.[0];
+    if (point) this.engine?.focus(point);
+    this.revealSelected(object.id);
+  }
+  closeSelected(): void { this.cancelLineEdit(); this.selectedId.set(null); void this.updateAddress(null); }
   private readonly history = new PointHistory();
   readonly historyState = signal({ undo: false, redo: false });
   private refreshHistory(): void { this.historyState.set({ undo: this.history.canUndo, redo: this.history.canRedo }); }
@@ -392,7 +465,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
         this.applyObjectResult(result, pointId, previousRevision); this.deleteConfirm.set(null);
         if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
-        if (!target && this.selectedId() === pointId) this.selectedId.set(null);
+        if (!target && this.selectedId() === pointId) { this.selectedId.set(null); void this.updateAddress(null); }
         this.pointMessage.set(direction === 'undo' ? 'Action annulée.' : 'Action rétablie.');
       }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Action impossible.'); }
@@ -409,6 +482,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     event.preventDefault(); void this.applyHistory(direction);
   };
   readonly selectedId = signal<string | null>(null);
+  readonly toolsExpanded = signal(false);
   private revealSelected(id: string): void {
     requestAnimationFrame(() => {
       if (this.selectedId() !== id || this.page() !== 'carte') return;
@@ -429,10 +503,10 @@ export class MapShell implements AfterViewInit, OnDestroy {
     if (!this.world.objects.some(item => item.id === id)) { this.world = { ...this.world, objects: [...this.world.objects,object] }; this.syncScene(); }
     if (object.geometry.type !== 'Point' && object.geometry.type !== 'LineString' && object.geometry.type !== 'Polygon') return;
     if (this.selectedId() !== id) { this.cancelLineEdit(); }
-    this.deleteConfirm.set(null); this.selectedId.set(id);
+    this.deleteConfirm.set(null); this.toolsExpanded.set(false); this.selectedId.set(id);
     this.layerVisibility.update(values => ({ ...values, [object.layerId]: true }));
     this.engine?.setLayerVisible(object.layerId, true);
-    this.navigate('carte'); this.revealSelected(id);
+    this.navigate('carte'); this.revealSelected(id); void this.updateAddress(id);
     const coordinate = object.geometry.type === 'Point' ? object.geometry.coordinates : object.geometry.type === 'LineString' ? object.geometry.coordinates[0]! : object.geometry.coordinates[0]![0]!;
     requestAnimationFrame(() => { if (this.selectedId() === id) this.engine?.focus(coordinate); });
   }
@@ -442,13 +516,14 @@ export class MapShell implements AfterViewInit, OnDestroy {
   constructor() {
     window.addEventListener('popstate', this.onPopState);
     effect(() => {
+      if (this.accounts.user() && this.pendingPrivateLink && this.engine) { const link = this.pendingPrivateLink; this.pendingPrivateLink = undefined; queueMicrotask(() => { void this.openLink(link); }); }
       if (this.personal() && !this.accounts.user()) {
-        this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.cancelLineEdit(); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
+        ++this.linkRequest; this.pendingPrivateLink = undefined; this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.cancelLineEdit(); this.clearHistory(); this.selectedId.set(null); this.personal.set(false); this.objectsPartial.set(false); this.world = createDemoWorld(); this.layerVisibility.set({});
         this.syncScene(); this.pointMessage.set('');
       }
     });
   }
-  openWorld(access: WorldAccess): void {
+  openWorld(access: WorldAccess, preserveAddress = false): void {
     this.placingPoint.set(false); this.cancelLine(); this.cancelArea(); this.cancelLineEdit();
     if (!this.accounts.user()) return;
     clearTimeout(this.tileTimer); this.tileAbort?.abort(); ++this.tileRequest; this.tileKey = '';
@@ -456,8 +531,10 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.objectCount.set(access.objectCount ?? null);
     this.clearHistory(); this.selectedId.set(null); this.world = worldSchema.parse(access.world); this.role = access.role;
     this.publicationUrl.set(this.world.status === 'public' || this.world.status === 'unlisted' ? this.viewerUrl(this.world.slug) : ''); this.publicationMessage.set(''); this.unpublishConfirm.set(false); this.exportJsonMessage.set('');
-    this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
+    if (this.world.status === 'public' || this.world.status === 'unlisted') void this.refreshPublicationUrl(this.world.slug,this.world.id);
+    if (preserveAddress) this.page.set(this.readPage()); else this.navigate('carte'); this.personal.set(true); this.layerVisibility.set({});
     this.syncScene(); this.engine?.reset(); this.accountOpen.set(false); this.pointMessage.set('');
+    if (!preserveAddress) void this.updateAddress(null);
   }
   async reloadWorld(): Promise<void> {
     this.pointBusy.set(true);
@@ -494,7 +571,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (this.personal() && this.world.id === worldId && this.accounts.user()) {
         this.applyObjectResult(result, id, previousRevision); this.deleteConfirm.set(null);
         if (before && this.world.revision === previousRevision + 1) this.recordHistory({ before, after: this.world.objects.find(object => object.id === id) ?? null }); else this.clearHistory();
-        if (!update) { if (this.selectedId() === id) this.selectedId.set(null); this.pointMessage.set(before?.kind === 'label' ? 'Texte supprimé.' : 'Lieu supprimé.'); }
+        if (!update) { if (this.selectedId() === id) { this.selectedId.set(null); void this.updateAddress(null); } this.pointMessage.set(before?.kind === 'label' ? 'Texte supprimé.' : 'Lieu supprimé.'); }
         else { this.pointMessage.set(before?.kind === 'label' ? 'Texte modifié.' : 'Lieu modifié.'); if (this.selectedId() === id) this.engine?.focus([update.longitude, update.latitude]); }
       }
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Modification impossible.'); }
@@ -513,6 +590,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   @ViewChild('lineCoordinates') private lineCoordinates?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('areaHoles') private areaHoles?: ElementRef<HTMLTextAreaElement>;
+  private editAddress = '';
   readonly lineEdit = signal<{ object: MapObject; revision: number } | null>(null);
   readonly lineEditError = signal('');
   formatLineCoordinates(object: MapObject): string {
@@ -520,7 +598,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   cancelLineEdit(): void {
     if (this.drawingHole()) this.cancelHole();
-    this.engine?.setEditableVertices(null); this.lineEdit.set(null); this.lineEditError.set('');
+    this.engine?.setEditableVertices(null); this.lineEdit.set(null); this.editAddress = ''; this.lineEditError.set('');
   }
   private showEditableVertices(points: Coordinate[] | null): void {
     this.engine?.setEditableVertices(points, vertices => {
@@ -548,7 +626,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       const full = world.objects.find(item => item.id === object.id && item.geometry.type === 'LineString');
       if (!full) throw new Error('Tracé introuvable.');
       if (full.geometry.type !== 'LineString') throw new Error('Tracé introuvable.');
-      this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.lineEdit.set({ object: full, revision });
+      this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.editAddress = location.href; this.lineEdit.set({ object: full, revision });
       this.showEditableVertices(full.geometry.coordinates);
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Chargement du tracé impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -631,7 +709,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       const full = world.objects.find(item => item.id === object.id && item.geometry.type === 'Polygon' && item.kind === 'territory');
       if (!full || full.geometry.type !== 'Polygon') throw new Error('Territoire introuvable.');
       if (!areaObjectSchema.safeParse(full).success) throw new Error('Ce contour ne peut pas encore être modifié.');
-      this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.lineEdit.set({ object: full, revision });
+      this.cancelLine(); this.cancelArea(); this.placingPoint.set(false); this.editAddress = location.href; this.lineEdit.set({ object: full, revision });
       this.showEditableVertices(full.geometry.coordinates[0]!.slice(0, -1));
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Chargement du territoire impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -677,7 +755,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (!this.personal() || !this.accounts.user() || this.world.id !== worldId) return;
       if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
       this.applyObjectResult(result, id, revision); this.recordHistory({ before, after: null });
-      this.deleteConfirm.set(null); if (this.selectedId() === id) this.selectedId.set(null);
+      this.deleteConfirm.set(null); if (this.selectedId() === id) { this.selectedId.set(null); void this.updateAddress(null); }
       this.pointMessage.set('Tracé supprimé.');
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Suppression du tracé impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -699,7 +777,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
       if (!this.personal() || !this.accounts.user() || this.world.id !== worldId) return;
       if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
       this.applyObjectResult(result, id, revision); this.recordHistory({ before, after: null });
-      this.deleteConfirm.set(null); if (this.selectedId() === id) this.selectedId.set(null);
+      this.deleteConfirm.set(null); if (this.selectedId() === id) { this.selectedId.set(null); void this.updateAddress(null); }
       this.pointMessage.set('Territoire supprimé.');
     } catch (error) { this.lineEditError.set(error instanceof Error ? error.message : 'Suppression du territoire impossible.'); }
     finally { this.pointBusy.set(false); }
@@ -793,7 +871,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   private readonly abort = new AbortController();
   async ngAfterViewInit(): Promise<void> {
     if (this.publicCatalog) return;
-    this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; this.selectedId.set(id); this.deleteConfirm.set(null); if (id) this.revealSelected(id); });
+    this.engine = new MapEngine(this.host.nativeElement, id => { if (this.lineEdit() && this.selectedId() !== id) return; if (this.selectedId() !== id) this.toolsExpanded.set(false); this.selectedId.set(id); this.deleteConfirm.set(null); if (id) this.revealSelected(id); void this.updateAddress(id); });
     window.addEventListener('keydown', this.cancelPlacement); window.addEventListener('keydown', this.historyShortcut);
     this.engine.onCoordinate(([longitude, latitude]) => {
       if (this.drawingHole() && this.personal() && this.role !== 'viewer' && !this.pointBusy() && this.view() === 'plane') {
@@ -831,6 +909,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
     this.engine.setGrid(this.gridOptions, this.gridChanged);
     void this.checkApi();
     await this.setView('plane');
+    if (this.initialLink) { if (this.mode === 'editor') await this.accounts.restore(); await this.openLink(this.initialLink); }
   }
   async setView(mode: ViewMode): Promise<void> {
     if (this.drawingHole()) return;

@@ -11,6 +11,7 @@ test('publier les calques choisis puis retirer la publication', async ({ page })
     let body: unknown = { initialized: true, status: 'ok' };
     if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'token-test' };
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
+    else if (path.endsWith('/links/public/worlds/' + world.slug)) body = { ownerKey: 'a'.repeat(50), worldKey: 'b'.repeat(50) };
     else if (path.endsWith('/publication') && method === 'POST') {
       expect(route.request().postDataJSON()).toEqual({ revision: world.revision, visibility: 'unlisted', layerIds: [world.layers[0]!.id] });
       published = true; body = { slug: world.slug, revision: world.revision, visibility: 'unlisted' };
@@ -30,7 +31,7 @@ test('publier les calques choisis puis retirer la publication', async ({ page })
   await layers.getByLabel(world.layers[0]!.name, { exact: true }).check();
   await page.getByRole('button', { name: 'Publier la révision actuelle' }).click();
   await expect(page.getByText('Révision ' + world.revision + ' publiée.')).toBeVisible(); expect(published).toBe(true);
-  await expect(page.getByLabel('Lien de consultation')).toHaveValue(new URL('/viewer/?world=' + world.slug, page.url()).toString());
+  await expect(page.getByLabel('Lien de consultation')).toHaveValue(new URL('/viewer/' + 'a'.repeat(50) + '/monde/' + 'b'.repeat(50), page.url()).toString());
   await page.getByRole('button', { name: 'Retirer la publication', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmer le retrait de la publication' }).click();
   await expect(page.getByText('Publication retirée.')).toBeVisible(); expect(published).toBe(false);

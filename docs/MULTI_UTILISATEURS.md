@@ -443,3 +443,25 @@ reste exclu des publications. L’éditeur ne permet pas encore de placer ou
 d’afficher ces images sur la carte. Si un monde contient un tel repère créé
 par API, son export JSON est temporairement bloqué car le fichier ne contient
 pas les images nécessaires à sa restauration.
+
+
+## Adresses des mondes et des fiches
+
+Chaque monde possède une adresse stable composée de segments opaques de
+50 caractères, par exemple `/[propriétaire]/monde/[monde]`. Sélectionner
+un objet ajoute son type et son propre identifiant ; la fiche reste sur la
+carte. Copiez l’adresse du navigateur pour retrouver ou partager cette fiche.
+Quand une fiche est ouverte, les outils du panneau sont repliés ; utilisez
+« Afficher les outils de la carte » pour les retrouver. L’historique reste
+disponible. Si une modification de tracé ou de territoire est en cours,
+enregistrez-la ou annulez-la avant de changer de page avec le navigateur.
+
+Les liens privés demandent toujours une connexion et une autorisation sur le
+monde. Une carte publiée utilise le préfixe `/viewer/` et ne donne accès qu’à
+sa révision publiée. Les noms ne sont pas inclus dans les segments opaques ;
+ce sont des identifiants aléatoires, et non des mots de passe.
+
+Les anciennes adresses de cartes publiées restent acceptées. Si un objet est
+supprimé, son lien devient indisponible et redevient utilisable si l’objet est
+restauré par l’historique. Les identifiants sont conservés dans PostgreSQL :
+inclure la base dans les sauvegardes de l’instance.

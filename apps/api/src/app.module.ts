@@ -1,3 +1,5 @@
+import { LinksService } from './worlds/links.service.js';
+import { LinksController } from './worlds/links.controller.js';
 import { Controller, Get, Inject, Module, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Infrastructure } from './infrastructure.js';
@@ -29,7 +31,7 @@ export class HealthController {
   }
 }
 @Module({
-  controllers: [HealthController, AuthController, InvitationsController, WorldsController, PublicWorldsController, AssetsController],
-  providers: [Infrastructure, AuthService, AuthGuard, AdminGuard, WorldsService, AssetsService],
+  controllers: [HealthController, AuthController, InvitationsController, WorldsController, PublicWorldsController, AssetsController, LinksController],
+  providers: [Infrastructure, AuthService, AuthGuard, AdminGuard, WorldsService, AssetsService, LinksService],
 })
 export class AppModule {}

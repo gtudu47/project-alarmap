@@ -1,10 +1,12 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { z } from 'zod';
+import { formatMapLink } from './link-path';
 
 const catalogSchema = z.array(z.object({
   slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100),
   name: z.string().min(1).max(200),
   revision: z.number().int().nonnegative(),
+  ownerKey: z.string().regex(/^[a-f0-9]{50}$/).optional(), worldKey: z.string().regex(/^[a-f0-9]{50}$/).optional(),
 }).strict()).max(100);
 type PublicWorld = z.infer<typeof catalogSchema>[number];
 
@@ -20,7 +22,7 @@ type PublicWorld = z.infer<typeof catalogSchema>[number];
       @else {
         <ul class="atlas-list">
           @for (world of worlds(); track world.slug) {
-            <li><span class="object-symbol" aria-hidden="true">◎</span><div><h2>{{ world.name }}</h2><p>Révision publiée {{ world.revision }}</p><a class="catalog-open" [href]="'/viewer/?world=' + world.slug" [attr.aria-label]="'Consulter ' + world.name">Consulter la carte →</a></div></li>
+            <li><span class="object-symbol" aria-hidden="true">◎</span><div><h2>{{ world.name }}</h2><p>Révision publiée {{ world.revision }}</p><a class="catalog-open" [href]="worldLink(world)" [attr.aria-label]="'Consulter ' + world.name">Consulter la carte →</a></div></li>
           } @empty { <li class="empty-atlas">Aucune carte publique pour le moment.</li> }
         </ul>
       }
@@ -35,11 +37,13 @@ export class PublicCatalog implements OnInit, OnDestroy {
   private abort?: AbortController;
   ngOnInit(): void { void this.load(); }
   ngOnDestroy(): void { this.abort?.abort(); }
+  worldLink(world: PublicWorld): string { return world.ownerKey && world.worldKey ? formatMapLink({ ownerKey: world.ownerKey, worldKey: world.worldKey },undefined,'viewer') : '/viewer/?world=' + world.slug; }
   async load(): Promise<void> {
     this.abort?.abort(); const abort = new AbortController(); this.abort = abort;
     this.loading.set(true); this.error.set(false);
     try {
-      const response = await fetch('/api/v1/public/worlds', { credentials: 'omit', signal: abort.signal });
+      let response = await fetch('/api/v1/links/public/catalog', { credentials: 'omit', signal: abort.signal });
+      if (response.status === 404) response = await fetch('/api/v1/public/worlds', { credentials: 'omit', signal: abort.signal });
       if (!response.ok) throw new Error('Catalogue indisponible.');
       const worlds = catalogSchema.parse(await response.json());
       if (!abort.signal.aborted) this.worlds.set(worlds);

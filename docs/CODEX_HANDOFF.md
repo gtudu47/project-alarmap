@@ -750,3 +750,60 @@ Validation finale : interfaces Docker reconstruites et services sains. Trois
 parcours Edge supplémentaires réussis sur l’instance locale, dont la fiche
 visible en 2D/3D et la consultation publique. La question sur la refonte de
 l’URL reste en attente de précision ; aucune modification des liens effectuée.
+
+
+## Travail en cours — adresses des mondes et fiches
+
+Demande confirmée : adresses propres aux mondes et objets, segments opaques
+alphanumériques de 50 caractères ; ces identifiants masquent les noms mais ne
+donnent aucun droit supplémentaire. Les fiches restent sur la carte. Prévoir
+un lien stable au rechargement et lors de l’annulation d’une suppression, les
+droits privés et la publication existante, ainsi que la compatibilité avec les
+anciennes adresses. Une véritable clé de chiffrement n’est pas nécessaire :
+l’utilisateur a confirmé préférer des identifiants aléatoires opaques.
+
+Socle serveur des liens : migration additive avec clés aléatoires en hexadécimal
+de 50 caractères ; la clé d’un objet survit à sa suppression puis restauration.
+Routes privées avec contrôle d’appartenance, routes publiques limitées à la
+révision publiée ; tests PostGIS/HTTP des permissions et de la révocation
+réussis. L’intégration navigateur et la compatibilité des anciennes adresses
+sont en cours ; la fonctionnalité n’est pas encore livrée.
+
+Navigation en cours : format /[propriétaire]/monde/[monde]/[type]/[objet],
+avec suffixe objet facultatif ; les quatre types prévus sont point, trace,
+territoire et objet. Les anciennes URL restent reconnues. La fiche reste sur
+la carte. Chargement direct, historique navigateur, connexion et Viewer
+demandent encore des tests et corrections avant livraison.
+
+Avancement : les clés et routes côté serveur passent les tests PostgreSQL ;
+les essais navigateur couvrent lien privé, connexion, rechargement, historique,
+fiche publiée et catalogue. Les anciennes URL de publication sont conservées.
+Le lien public s’écrit /viewer/[propriétaire]/monde/[monde]/[type]/[objet].
+Reste à reconstruire l’API et les interfaces Docker, exécuter les tests finaux
+et vérifier les accès avec la vraie instance avant de considérer le lot livré.
+
+Validation : 47 tests unitaires, lint, typage et tests PostgreSQL réussis.
+Treize des quatorze parcours navigateur ont réussi au premier passage ; le
+parcours iframe a dépassé son délai et a réussi à la relance isolée. Un vrai
+compte et un vrai monde temporaires ont confirmé les liens du monde et d’un
+territoire, le rechargement et le refus anonyme ; ils ont été supprimés.
+Un premier chargement de tuiles a atteint le délai SQL après redémarrage ; les
+essais suivants ont réussi. La migration 005 prépare les liens des objets
+encore présents dans d’anciennes publications mais supprimés du brouillon ;
+son test PostGIS est réussi. Reconstruction finale des images en cours.
+
+Allègement du panneau : quand une fiche est sélectionnée, les autres outils
+sont repliés et restent accessibles par un bouton ; l’historique et les
+messages de modification restent visibles. Retour navigateur bloqué pendant
+une modification non enregistrée, pour conserver le brouillon. Vérifications
+navigateur en cours avant la reconstruction finale.
+
+Validation finale du 1er novembre 2026 : reconstruction Docker réussie ; API,
+PostgreSQL, stockage, Editor et Viewer opérationnels. Lint, typage, contrôle des
+secrets et 47 tests unitaires réussis. Les 17 parcours navigateur ciblés passent
+sur les conteneurs reconstruits, notamment fiches 2D/3D, liens privés et publics,
+connexion, historique, publication, catalogue et iframe. Les tests PostgreSQL et
+le parcours réel avec compte temporaire avaient également réussi précédemment.
+Les identifiants masquent les noms sans remplacer les contrôles d'autorisation.
+Prochaine étape : poursuivre la roadmap depuis l'état réellement livré et
+surveiller les résultats CI après l'envoi de ce lot sur dev.

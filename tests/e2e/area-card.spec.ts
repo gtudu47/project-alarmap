@@ -25,6 +25,10 @@ test('la fiche d’un territoire chargé progressivement apparaît après un cli
   await clickCentre(); await expect(card).toContainText('Territoire choisi');
   await expect(card).toBeInViewport({ ratio: 0.1 });
   await expect(card.getByRole('button', { name: 'Modifier le territoire' })).toBeVisible();
+  await expect(page.getByText('Publier cette carte', { exact: true })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Afficher les outils de la carte' }).click();
+  await expect(page.getByText('Publier cette carte', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Masquer les outils de la carte' }).click();
   await card.getByRole('button', { name: 'Fermer la fiche' }).click();
   await page.getByRole('button', { name: 'Globe 3D', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Globe 3D', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });

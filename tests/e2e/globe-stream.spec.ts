@@ -11,7 +11,7 @@ test('détails 3D des deux côtés de l’antiméridien, dédoublonnage et révi
     else if (url.pathname.endsWith('/tiles')) {
       expect(route.request().headers()['authorization']).toBe('Bearer stream-test'); requests.push(url);
       body = {revision:world.revision + (stale ? 1 : 0),objects:[world.objects[0]],total:1,reduced:false};
-    } else if (url.pathname.endsWith('/'+world.id)) body = {world,role:'owner'};
+    } else if (url.pathname === '/api/v1/worlds/' + world.id) body = {world,role:'owner'};
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
   await page.goto('/'); await page.getByRole('button',{name:'Alice',exact:true}).click();
@@ -20,6 +20,7 @@ test('détails 3D des deux côtés de l’antiméridien, dédoublonnage et révi
   await page.getByRole('button',{name:'Localiser Origine',exact:true}).click();
   await page.getByRole('button',{name:'Globe 3D',exact:true}).click();
   await expect(page.getByRole('button',{name:'Globe 3D',exact:true})).toHaveAttribute('aria-pressed','true',{timeout:15000});
+  await page.getByRole('button',{name:'Afficher les outils de la carte',exact:true}).click();
   await page.getByText('Détail et tuiles',{exact:true}).click();
   await page.getByRole('button',{name:'Voir ce niveau de détail'}).click();
   await expect.poll(()=>requests.filter(u=>u.searchParams.get('detailKm')==='1').length).toBeGreaterThanOrEqual(2);

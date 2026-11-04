@@ -32,7 +32,7 @@ for (const partial of [false, true]) test('modifier puis supprimer un lieu avec 
       world.objects = world.objects.filter(object => object.id !== input.point.id);
       world.objects.push(input.point); world.revision++;
       body = response(world.objects.filter(object => object.id === path.split('/').at(-1)));
-    } else if (path.endsWith('/' + world.id)) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
+    } else if (path === '/api/v1/worlds/' + world.id) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/');

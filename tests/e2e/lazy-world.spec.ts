@@ -9,7 +9,7 @@ test('ouvrir sans objets puis parcourir l’Atlas par pages sans chargement comp
     else if(url.pathname.endsWith('/worlds')) body=[{...world,role:'owner'}];
     else if(url.pathname.endsWith('/atlas')) body={revision:world.revision,objects:url.searchParams.get('cursor')?[]:[world.objects[0]],nextCursor:url.searchParams.get('cursor')?null:world.objects[0]!.id};
     else if(url.pathname.endsWith('/tiles')) body={revision:world.revision,objects:[world.objects[0]],total:1,reduced:false};
-    else if(url.pathname.endsWith('/'+world.id)) {
+    else if(url.pathname === '/api/v1/worlds/' + world.id) {
       const summary=url.searchParams.get('summary')==='1'; if(summary) summaries++; else fullLoads++;
       body={world:summary?{...world,objects:[]}:world,role:'owner',objectsComplete:!summary,objectCount:world.objects.length};
     }

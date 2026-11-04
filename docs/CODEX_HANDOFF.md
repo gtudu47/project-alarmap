@@ -807,3 +807,15 @@ le parcours réel avec compte temporaire avaient également réussi précédemme
 Les identifiants masquent les noms sans remplacer les contrôles d'autorisation.
 Prochaine étape : poursuivre la roadmap depuis l'état réellement livré et
 surveiller les résultats CI après l'envoi de ce lot sur dev.
+
+## Correction CI du 3 novembre 2026
+
+La CI du commit d59bb29 avait échoué sur 13 parcours navigateur. Les faux
+serveurs de plusieurs tests confondaient les nouvelles routes de liens avec les
+routes de lecture d'un monde ou d'un objet ; les compteurs sont maintenant
+limités aux chemins exacts. Le test du globe ouvre aussi les outils repliés
+avant de choisir les détails. Les 14 parcours concernés ont réussi localement
+sur l'éditeur de développement avec Edge sans interface. Docker Desktop était
+arrêté : la validation complète avec conteneurs reste à confirmer par la CI.
+D'autres faux serveurs utilisent encore des correspondances larges, sans échec
+observé ; les resserrer lors d'une prochaine intervention sur ces tests.

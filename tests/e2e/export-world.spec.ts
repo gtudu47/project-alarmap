@@ -14,7 +14,7 @@ for (const mode of ['complete', 'stale', 'partial', 'image-marker']) test('expor
     if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'test' };
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
     else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: [world.objects[0]], total: 1, reduced: false };
-    else if (path.endsWith('/' + world.id)) {
+    else if (path === '/api/v1/worlds/' + world.id) {
       const summary = url.searchParams.get('summary') === '1'; if (!summary) fullLoads++;
       body = { world: summary ? { ...world, objects: [] } : { ...world, revision: world.revision + (mode === 'stale' ? 1 : 0) }, role: 'owner', objectsComplete: !summary && mode !== 'partial', objectCount: world.objects.length };
     }
@@ -60,7 +60,7 @@ test('un export trop grand reste téléchargeable mais annonce la limite de réi
     if (path.endsWith('/auth/refresh')) body = { user, accessToken: 'test' };
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
     else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: [], total: world.objects.length, reduced: false };
-    else if (path.endsWith('/' + world.id)) {
+    else if (path === '/api/v1/worlds/' + world.id) {
       const summary = url.searchParams.get('summary') === '1';
       body = { world: summary ? { ...world, objects: [] } : world, role: 'owner', objectsComplete: !summary, objectCount: world.objects.length };
     }

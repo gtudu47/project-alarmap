@@ -16,7 +16,7 @@ test('modifier et supprimer un tracé complet puis annuler et rétablir', async 
     else if (path.endsWith('/worlds')) body = [{ ...world, role: 'owner' }];
     else if (path.endsWith('/atlas')) body = { revision: world.revision, objects: simplified(), nextCursor: null };
     else if (path.endsWith('/tiles')) body = { revision: world.revision, objects: simplified(), total: 1, reduced: false };
-    else if (path.endsWith('/objects/' + line.id)) { objectLoads++; body = { world: { ...world, objects: [world.objects.find(o => o.id === line.id)] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length }; }
+    else if (path === '/api/v1/worlds/' + world.id + '/objects/' + line.id) { objectLoads++; body = { world: { ...world, objects: [world.objects.find(o => o.id === line.id)] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length }; }
     else if (path.endsWith('/lines/' + line.id) && method === 'PUT') {
       const input = route.request().postDataJSON(); expect(input.revision).toBe(world.revision); expect(url.searchParams.get('compact')).toBe('1');
       writes++; world.objects = [...world.objects.filter(o => o.id !== line.id), input.point]; world.revision++;
@@ -25,7 +25,7 @@ test('modifier et supprimer un tracé complet puis annuler et rétablir', async 
       expect(route.request().postDataJSON().revision).toBe(world.revision); expect(url.searchParams.get('compact')).toBe('1');
       writes++; world.objects = world.objects.filter(o => o.id !== line.id); world.revision++;
       body = { world: { ...world, objects: [] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
-    } else if (path.endsWith('/' + world.id)) {
+    } else if (path === '/api/v1/worlds/' + world.id) {
       if (!url.searchParams.has('summary')) fullLoads++;
       body = { world: { ...world, objects: [] }, role: 'owner', objectsComplete: false, objectCount: world.objects.length };
     }

@@ -20,7 +20,7 @@ for (const partial of [false, true]) test('placer un lieu par clic, enregistrer 
       world.revision++; created = true; body = response([world.objects.at(-1)!]);
     } else if (path.includes('/points/') && method === 'DELETE') {
       world.objects = world.objects.filter(o => o.id !== '00000000-0000-4000-8000-000000000099'); world.revision++; body = response([]);
-    } else if (path.endsWith('/' + world.id)) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
+    } else if (path === '/api/v1/worlds/' + world.id) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();

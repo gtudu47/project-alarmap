@@ -18,7 +18,7 @@ for (const partial of [false, true]) test('dessiner une rivière, retirer un som
       if (method === 'PUT') { expect(input.point.geometry.type).toBe('LineString'); expect(input.point.geometry.coordinates).toHaveLength(2); world.objects.push(input.point); }
       else world.objects = world.objects.filter(o => o.id !== path.split('/').at(-1));
       world.revision++; body = response(method === 'PUT' ? [input.point] : []);
-    } else if (path.endsWith('/' + world.id)) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
+    } else if (path === '/api/v1/worlds/' + world.id) { if (!url.searchParams.has('summary')) fullLoads++; body = response([]); }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/'); await page.getByRole('button', { name: 'Alice', exact: true }).click();

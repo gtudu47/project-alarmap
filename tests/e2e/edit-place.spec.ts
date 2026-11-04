@@ -68,6 +68,7 @@ for (const partial of [false, true]) test('modifier puis supprimer un lieu avec 
   await page.keyboard.press('Meta+z');
   await expect(page.getByRole('button', { name: 'Annuler l’action', exact: true })).toBeDisabled();
   await expect.poll(() => world.objects.find(object => object.name === 'Origine')).toBeDefined();
+  await expect(page.getByRole('button', { name: 'Rétablir l’action', exact: true })).toBeEnabled();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Control+Shift+z');
   await expect(page.getByText('Action rétablie.', { exact: true })).toBeVisible();

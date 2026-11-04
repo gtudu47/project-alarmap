@@ -819,3 +819,9 @@ sur l'éditeur de développement avec Edge sans interface. Docker Desktop était
 arrêté : la validation complète avec conteneurs reste à confirmer par la CI.
 D'autres faux serveurs utilisent encore des correspondances larges, sans échec
 observé ; les resserrer lors d'une prochaine intervention sur ces tests.
+
+Le 4 novembre, la CI 41895890009 a validé Windows, Linux, Docker et 64 des
+65 tests navigateur. Le test restant enchaînait les raccourcis d'historique
+avant la fin possible d'une réponse. Il attend maintenant la disponibilité de
+Rétablir avant le raccourci suivant ; huit répétitions locales avec deux
+workers ont réussi. Relancer et vérifier la CI complète après le correctif.

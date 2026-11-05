@@ -143,13 +143,13 @@ Visibilité indépendante des calques. Export et import JSON versionné disponib
 
 Ajout, modification du nom et des coordonnées, suppression confirmée depuis
 la fiche d’un point. Permissions, verrouillage de calque et révisions vérifiés
-sur PostgreSQL/PostGIS réel. Annulation et dessin des autres géométries à venir.
+sur PostgreSQL/PostGIS réel. Annulation et dessin des tracés et territoires simples disponibles.
 
 ### Annuler et rétablir les lieux
 
 Historique de session limité à 50 actions : ajout, modification et suppression.
 Les opérations inverses sont sauvegardées avec contrôle de révision et de droits.
-L’historique durable et l’annulation des autres géométries restent à développer.
+L’historique de session couvre aussi les tracés et territoires ; l’historique durable reste à développer.
 
 ### Sélection directe des lieux
 
@@ -169,8 +169,8 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
   subdivision au zoom et cadrage au niveau choisi.
 - [x] Objets demandés selon la zone visible et la résolution pour les mondes
   privés, permissions serveur, regroupement des points et simplification.
-- [ ] Même grille sur globe ; streaming sans chargement initial intégral,
-  pagination, cache et benchmark des grandes cartes (V0.9).
+- [x] Même grille sur globe. À poursuivre : pagination, cache et mesures des grandes cartes.
+
 
 ### Échelle cartographique plane
 
@@ -187,7 +187,7 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Choix des coordonnées par clic en vue plane, validation par formulaire,
   sauvegarde et historique des points existant.
-- [ ] Placement sur globe, dessin des lignes et polygones.
+- [ ] Placement des lieux sur globe ; dessin des lignes et territoires simples disponible en vue plane.
 
 ### Premiers tracés
 
@@ -199,26 +199,26 @@ Réordonnancement, déplacement d’objets et Undo/Redo des calques restent à f
 
 - [x] Rapport d’échelle local au centre, grossissement perspective, indication
   actualisée et curseur synchronisé ; marqueurs de taille écran constante.
-- [ ] Grille kilométrique adaptative et streaming spatial sur le globe.
+- [x] Grille kilométrique adaptative et premiers chargements spatiaux sur le globe.
 
 ### Grille métrique 3D
 
 - [x] Dimensions partagées, grille adaptative sur la sphère, cadrage au détail
   choisi et emprises traversant l’antiméridien ou couvrant un pôle.
-- [ ] Streaming des objets 3D selon la zone visible et mesures de performances.
+- [x] Chargement des objets 3D selon la zone visible ; mesures de performances à réaliser.
 
 ### Détails selon la vue 3D
 
 - [x] Chargement des objets pour les emprises du globe, niveau de détail,
   requêtes jumelées au raccordement et dédoublonnage. Contrôle des révisions.
-- [ ] Ouverture sans chargement intégral, pagination et cache spatial.
+- [-] Ouverture légère disponible ; pagination et cache spatial restent à développer.
 
 ### Ouverture légère
 
 - [x] Ouverture/rechargement avec paramètres et calques seuls ; objets visibles
   demandés ensuite. Sélection des points reçus par zone.
 - [x] Chargement complet explicite avant les pages de synthèse et l’édition.
-- [ ] Atlas paginé, réponses de mutation partielles et édition sans liste complète.
+- [-] Atlas paginé et réponses de mutation partielles disponibles ; opérations sur calques à poursuivre.
 
 ### Atlas à la demande
 

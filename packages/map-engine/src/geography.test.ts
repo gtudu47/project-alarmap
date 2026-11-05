@@ -5,6 +5,28 @@ it('traverse l’antiméridien par deux segments courts', () => {
   expect(splitAntimeridian([[170, 20], [-170, 30]])).toEqual([[[170, 20], [180, 25]], [[-180, 25], [-170, 30]]]);
   expect(splitAntimeridian([[-170, 30], [170, 20]])).toEqual([[[-170, 30], [-180, 25]], [[180, 25], [170, 20]]]);
 });
+it('conserve une ligne située sur les deux représentations de l’antiméridien', () => {
+  expect(splitAntimeridian([[180, 0], [-180, 10], [-170, 20]])).toEqual([
+    [[180, 0], [180, 10]],
+    [[-180, 10], [-170, 20]],
+  ]);
+  expect(splitAntimeridian([[-180, -10], [180, 5], [170, 20]])).toEqual([
+    [[-180, -10], [-180, 5]],
+    [[180, 5], [170, 20]],
+  ]);
+  for (const segments of [
+    splitAntimeridian([[180, 0], [-180, 10], [170, 20]]),
+    splitAntimeridian([[170, 0], [180, 10], [-170, 20]]),
+    splitAntimeridian([[-170, 0], [-180, 10], [170, 20]]),
+  ]) {
+    for (const segment of segments) {
+      for (const [index, point] of segment.entries()) {
+        expect(point.every(Number.isFinite)).toBe(true);
+        if (index > 0) expect(Math.abs(point[0] - segment[index - 1]![0])).toBeLessThanOrEqual(180);
+      }
+    }
+  }
+});
 it('calcule les distances à partir du rayon de la planète', () => {
   expect(distanceKm([0, 0], [90, 0], 100)).toBeCloseTo(Math.PI * 50);
   expect(distanceKm([170, 0], [-170, 0], 100)).toBeCloseTo(Math.PI * 100 / 9);

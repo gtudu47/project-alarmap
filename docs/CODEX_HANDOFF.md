@@ -825,3 +825,18 @@ Le 4 novembre, la CI 41895890009 a validé Windows, Linux, Docker et 64 des
 avant la fin possible d'une réponse. Il attend maintenant la disponibilité de
 Rétablir avant le raccourci suivant ; huit répétitions locales avec deux
 workers ont réussi. Relancer et vérifier la CI complète après le correctif.
+
+## Reprise multi-agent — 4 novembre 2026
+
+La CI 41897544242 du commit bf5e305 est réussie (Windows, Linux, Docker et
+suite navigateur). La roadmap a été actualisée pour refléter les fonctions déjà
+livrées. Travaux en cours : ordre des calques, précision des routes simulées
+dans les tests et correction du découpage d'une ligne sur l'antiméridien.
+Docker Desktop est arrêté localement ; la validation PostGIS locale dépend de
+son redémarrage ou d'une exécution CI. Aucun de ces lots n'est encore livré.
+
+Reprise : correction de splitAntimeridian pour les extrémités +180/-180,
+qui représentent le même méridien et provoquaient une division par zéro.
+Six tests géographiques réussis, dont les deux sens et les segments qui touchent
+le raccordement. Le réordonnancement des calques et les autres faux serveurs
+n'ont pas été modifiés : commandes des agents interrompues avant validation.

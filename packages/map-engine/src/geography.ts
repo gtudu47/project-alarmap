@@ -29,7 +29,11 @@ export function splitAntimeridian(points: Coordinate[]): Coordinate[][] {
   let previous = first;
   for (const point of points.slice(1)) {
     const delta = point[0] - previous[0];
-    if (Math.abs(delta) > 180) {
+    if (Math.abs(delta) === 360) {
+      // Les deux bornes représentent le même méridien : conserver la latitude sans division par zéro.
+      segments.at(-1)?.push([previous[0], point[1]]);
+      segments.push([point]);
+    } else if (Math.abs(delta) > 180) {
       const unwrapped = point[0] + (delta > 0 ? -360 : 360);
       const seam = delta > 0 ? -180 : 180;
       const fraction = (seam - previous[0]) / (unwrapped - previous[0]);

@@ -848,3 +848,8 @@ superposés sur le globe ajoutés. Lint, typage et 48 tests unitaires réussis ;
 quatre parcours navigateur ciblés et huit parcours globe existants réussis.
 Docker Desktop ne démarre pas sur cette machine (délai dépassé), donc les tests
 PostgreSQL/PostGIS et la validation finale du lot restent à confirmer en CI.
+
+Validation CI 42406646858 réussie : Windows, Linux, PostgreSQL/PostGIS et
+suite navigateur complète. Commit fonctionnel 2ab8096. Les objets ponctuels
+et tracés proches gardent la priorité de sélection sur les surfaces, comme
+avant le réordonnancement. Docker Desktop local n'a pas démarré.

@@ -134,6 +134,12 @@ export class WorldsController {
     const input = parseInput(z.object({ revision: z.number().int().nonnegative(), name: z.string().trim().min(1).max(120) }).strict(), body);
     return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'create', name: input.name });
   }
+  @Put(':id/layers/order')
+  @Header('Cache-Control', 'no-store')
+  reorderLayers(@Param('id', ParseUUIDPipe) id: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), layerIds: z.array(z.uuid()).min(1).max(10000) }).strict(), body);
+    return this.worlds.changeLayer(request.account.id,id,input.revision,{ type: 'reorder', layerIds: input.layerIds });
+  }
   @Patch(':id/layers/:layerId')
   @Header('Cache-Control', 'no-store')
   updateLayer(@Param('id', ParseUUIDPipe) id: string, @Param('layerId', ParseUUIDPipe) layerId: string, @Body() body: unknown, @Req() request: AuthRequest) {

@@ -151,9 +151,12 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           <p class="tile-readout" role="status">{{ tileMessage() }}</p>
         <section class="layer-section" aria-labelledby="layers-heading">
           <h2 id="layers-heading">{{ text.layers }} <span>{{ world.layers.length }}</span></h2>
-          @for (layer of world.layers; track layer.id) {
+          @if (personal() && role !== 'viewer') { <p>Le dernier calque de la liste est dessiné au-dessus des précédents.</p> }
+          @for (layer of world.layers; track layer.id; let layerIndex = $index) {
             <label class="layer-row"><input type="checkbox" [checked]="layerIsVisible(layer.id)" (change)="toggleLayer(layer.id)"><span class="layer-dot"></span>{{ layer.name }} {{ layer.locked ? '🔒' : '' }}</label>
             @if (personal() && role !== 'viewer') {
+              <button type="button" class="account-link" [attr.aria-label]="'Monter ' + layer.name" [disabled]="pointBusy() || layerIndex === 0" (click)="moveLayer(layer.id, -1)">Monter</button>
+              <button type="button" class="account-link" [attr.aria-label]="'Descendre ' + layer.name" [disabled]="pointBusy() || layerIndex === world.layers.length - 1" (click)="moveLayer(layer.id, 1)">Descendre</button>
               <details class="layer-settings"><summary>Réglages de {{ layer.name }}</summary>
                 <form class="point-form" (submit)="saveLayer($event, layer.id)">
                   <label>Nom du calque<input name="name" [value]="layer.name" required maxlength="120"></label>
@@ -383,6 +386,13 @@ export class MapShell implements AfterViewInit, OnDestroy {
   async saveLayer(event: Event, id: string): Promise<void> {
     event.preventDefault(); const fields = new FormData(event.target as HTMLFormElement);
     await this.changeLayer('PATCH', id, { name: fields.get('name'), opacity: Number(fields.get('opacity')) / 100, locked: fields.has('locked') });
+  }
+  async moveLayer(id: string, direction: -1 | 1): Promise<void> {
+    const layerIds = this.world.layers.map(layer => layer.id);
+    const index = layerIds.indexOf(id); const next = index + direction;
+    if (index < 0 || next < 0 || next >= layerIds.length) return;
+    [layerIds[index],layerIds[next]] = [layerIds[next]!,layerIds[index]!];
+    await this.changeLayer('PUT', 'order', { layerIds });
   }
   async deleteLayer(id: string): Promise<void> { if (this.layerDeleteConfirm() === id) await this.changeLayer('DELETE', id, {}); }
   private async changeLayer(method: string, id: string, data: Record<string, unknown>): Promise<boolean> {

@@ -840,3 +840,11 @@ qui représentent le même méridien et provoquaient une division par zéro.
 Six tests géographiques réussis, dont les deux sens et les segments qui touchent
 le raccordement. Le réordonnancement des calques et les autres faux serveurs
 n'ont pas été modifiés : commandes des agents interrompues avant validation.
+
+## Réordonnancement des calques — travail en cours
+
+API transactionnelle, boutons de déplacement, rendu et sélection des territoires
+superposés sur le globe ajoutés. Lint, typage et 48 tests unitaires réussis ;
+quatre parcours navigateur ciblés et huit parcours globe existants réussis.
+Docker Desktop ne démarre pas sur cette machine (délai dépassé), donc les tests
+PostgreSQL/PostGIS et la validation finale du lot restent à confirmer en CI.

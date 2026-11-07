@@ -298,7 +298,7 @@ export class WorldsService {
     return this.get(userId, id);
   }
 
-  async changeLayer(userId: string, id: string, revision: number, command: { type: 'create'; name: string } | { type: 'update'; layerId: string; name: string; opacity: number; locked: boolean } | { type: 'delete'; layerId: string }): Promise<{ world: World; role: MemberRole }> {
+  async changeLayer(userId: string, id: string, revision: number, command: { type: 'create'; name: string } | { type: 'update'; layerId: string; name: string; opacity: number; locked: boolean } | { type: 'delete'; layerId: string } | { type: 'reorder'; layerIds: string[] }): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -306,6 +306,13 @@ export class WorldsService {
       if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
       if (command.type === 'create') {
         await client.query('INSERT INTO layers(id,world_id,name,sort_order) SELECT $1,$2,$3,COALESCE(MAX(sort_order),-1)+1 FROM layers WHERE world_id=$2', [randomUUID(),id,command.name]);
+      } else if (command.type === 'reorder') {
+        const existing = await client.query<{ id: string }>('SELECT id FROM layers WHERE world_id=$1 ORDER BY sort_order,id FOR UPDATE', [id]);
+        const ids = command.layerIds.map(layerId => layerId.toLowerCase());
+        if (ids.length !== existing.rows.length || new Set(ids).size !== ids.length || ids.some(layerId => !existing.rows.some(layer => layer.id === layerId))) {
+          throw new BadRequestException('La liste doit contenir chaque calque du monde une seule fois.');
+        }
+        await client.query('UPDATE layers AS l SET sort_order=(ordered.position - 1)::integer FROM unnest($2::uuid[]) WITH ORDINALITY AS ordered(id,position) WHERE l.world_id=$1 AND l.id=ordered.id', [id,ids]);
       } else {
         const layer = await client.query<{ locked: boolean }>('SELECT locked FROM layers WHERE id=$1 AND world_id=$2 FOR UPDATE', [command.layerId,id]);
         if (!layer.rows[0]) throw new NotFoundException('Calque introuvable.');

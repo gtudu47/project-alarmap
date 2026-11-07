@@ -465,3 +465,12 @@ Les anciennes adresses de cartes publiées restent acceptées. Si un objet est
 supprimé, son lien devient indisponible et redevient utilisable si l’objet est
 restauré par l’historique. Les identifiants sont conservés dans PostgreSQL :
 inclure la base dans les sauvegardes de l’instance.
+
+## Changer l’ordre des calques
+
+Dans un monde personnel, un propriétaire ou éditeur utilise **Monter** et
+**Descendre** dans la liste des calques. Le dernier calque est dessiné au-dessus
+des précédents, sur la carte et sur le globe. Les lecteurs ne peuvent pas changer
+cet ordre. La modification est sauvegardée avec contrôle de la révision et
+réinitialise l’historique de session, comme les autres opérations de calque.
+La carte publiée conserve son ordre jusqu’à une nouvelle publication.

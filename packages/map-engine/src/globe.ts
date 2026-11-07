@@ -61,8 +61,14 @@ export class GlobeRenderer implements RendererAdapter {
       const depth = Math.max(1e-9, -surface.clone().applyMatrix4(this.camera.matrixWorldInverse).z);
       ray.params.Line = { threshold: 10 * depth * 2 * Math.tan(this.camera.fov * Math.PI / 360) / (rect.height * this.camera.zoom) };
       const candidates = [sphere, ...this.objects.children.filter(child => child.visible && (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Sprite) && child.userData['id'])];
-      // La sphère masque les tracés situés sur la face opposée.
-      const hit = ray.intersectObjects(candidates, false)[0];
+      // La sphère masque la face opposée, y compris les objets des calques supérieurs.
+      const hits = ray.intersectObjects(candidates, false).filter(hit =>
+        hit.object !== sphere && (!sphereHit || hit.distance <= sphereHit.distance + 1e-6));
+      // Comme en 2D, les points et tracés à proximité prennent priorité sur une surface.
+      const foreground = hits.find(hit => hit.object.userData['selectionKind'] === 'foreground');
+      const area = hits.filter(hit => hit.object.userData['selectionKind'] === 'area')
+        .sort((a, b) => Number(b.object.userData['selectionOrder']) - Number(a.object.userData['selectionOrder']))[0];
+      const hit = foreground ?? area;
       onSelect(typeof hit?.object.userData['id'] === 'string' ? hit.object.userData['id'] : null);
     }, options);
     canvas.addEventListener('pointercancel', () => { press = undefined; }, options);
@@ -84,7 +90,7 @@ export class GlobeRenderer implements RendererAdapter {
   private line(coordinates: Coordinate[], color: string, opacity: number): THREE.Line {
     return new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(coordinates.map((point) => new THREE.Vector3(...toSphere(point, 1.003)))),
-      new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }),
+      new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false }),
     );
   }
   private annotation(text: string, color: string, opacity: number, id: string): THREE.Sprite {
@@ -161,17 +167,21 @@ export class GlobeRenderer implements RendererAdapter {
   setWorld(world: World): void {
     this.radiusKm = world.radiusKm;
     for (const child of [...this.objects.children]) { this.disposeObject(child); this.objects.remove(child); }
-    for (const object of world.objects) {
+    const layerRanks = new Map([...world.layers].sort((a, b) => a.order - b.order).map((layer, index) => [layer.id, index]));
+    const orderedObjects = [...world.objects].sort((a, b) => (layerRanks.get(a.layerId) ?? -1) - (layerRanks.get(b.layerId) ?? -1));
+    let drawOrder = 1;
+    for (const [selectionOrder, object] of orderedObjects.entries()) {
       const layer = world.layers.find((layer) => layer.id === object.layerId);
       if (!layer?.visible) continue;
       const opacity = layer.opacity * object.style.opacity;
       if (opacity === 0) continue;
+      const startIndex = this.objects.children.length;
       if (object.geometry.type === 'Point') {
         if (object.kind === 'label') {
           const label = this.annotation(object.name.slice(0, 80), object.style.color, opacity, object.id);
           label.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(label);
         } else {
-          const marker = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ color: object.style.color, transparent: opacity < 1, opacity }));
+          const marker = new THREE.Mesh(new THREE.SphereGeometry(0.015, 12, 8), new THREE.MeshBasicMaterial({ color: object.style.color, transparent: true, opacity, depthWrite: false }));
           marker.userData['id'] = object.id; marker.userData['pointMarker'] = true;
           marker.position.set(...toSphere(object.geometry.coordinates, 1.008)); this.objects.add(marker);
         }
@@ -184,11 +194,16 @@ export class GlobeRenderer implements RendererAdapter {
           if (positions.length) {
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const material = new THREE.MeshBasicMaterial({ color: object.style.color, side: THREE.DoubleSide, transparent: opacity < 1, opacity, depthWrite: opacity === 1 });
+            const material = new THREE.MeshBasicMaterial({ color: object.style.color, side: THREE.DoubleSide, transparent: true, opacity, depthWrite: false });
             const surface = new THREE.Mesh(geometry, material); surface.userData['id'] = object.id; this.objects.add(surface);
           }
           for (const ring of rings) this.objects.add(this.geographicLine(ring, object.style.color, opacity, object.id));
         }
+      }
+      for (const child of this.objects.children.slice(startIndex)) {
+        child.renderOrder = drawOrder++;
+        child.userData['selectionOrder'] = selectionOrder;
+        child.userData['selectionKind'] = object.geometry.type === 'Point' || object.geometry.type === 'LineString' ? 'foreground' : 'area';
       }
     }
     this.render();

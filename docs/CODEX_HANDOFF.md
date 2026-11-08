@@ -853,3 +853,14 @@ Validation CI 42406646858 réussie : Windows, Linux, PostgreSQL/PostGIS et
 suite navigateur complète. Commit fonctionnel 2ab8096. Les objets ponctuels
 et tracés proches gardent la priorité de sélection sur les surfaces, comme
 avant le réordonnancement. Docker Desktop local n'a pas démarré.
+
+## Placement d’un lieu sur le globe — en cours
+
+La conversion d’un clic sur la sphère mathématique en longitude/latitude est
+intégrée au placement existant ; le formulaire et ses permissions sont communs
+à la carte plane. L’agent local prépare les tests navigateur (clic hors globe,
+glissement, annulation, rôles et sauvegarde). Validation finale en cours.
+
+Validation : lint, typage et 48 tests unitaires réussis ; cinq parcours
+navigateur passent pour propriétaire, éditeur et lecteur, y compris clic hors
+globe, glissement, Échap, coordonnées, enregistrement et placement 2D.

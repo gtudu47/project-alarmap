@@ -28,7 +28,7 @@ export class GlobeRenderer implements RendererAdapter {
   private scaleListener: (denominator: number) => void = () => {};
   private fitDistance = Math.hypot(0.6, 3.3);
 
-  async init(host: HTMLElement, onSelect: (id: string | null) => void): Promise<void> {
+  async init(host: HTMLElement, onSelect: (id: string | null) => void, onCoordinate?: (coordinate: Coordinate) => boolean): Promise<void> {
     this.host = host;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -55,6 +55,11 @@ export class GlobeRenderer implements RendererAdapter {
       const rect = canvas.getBoundingClientRect();
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2), this.camera);
+      // Utiliser la sphère mathématique pour placer exactement sur la surface visible.
+      if (onCoordinate) {
+        const position = ray.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), 1), new THREE.Vector3());
+        if (position && onCoordinate(fromSphere([position.x, position.y, position.z]))) return;
+      }
       // La tolérance suit la taille apparente du trait à l'écran, même au zoom.
       const sphereHit = ray.intersectObject(sphere, false)[0];
       const surface = sphereHit?.point ?? this.controls.target;

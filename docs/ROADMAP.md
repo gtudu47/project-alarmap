@@ -187,7 +187,7 @@ Réordonnancement avec contrôles de droits et révision disponible ; déplaceme
 
 - [x] Choix des coordonnées par clic en vue plane, validation par formulaire,
   sauvegarde et historique des points existant.
-- [ ] Placement des lieux sur globe ; dessin des lignes et territoires simples disponible en vue plane.
+- [x] Placement des lieux par clic sur carte plane et globe ; dessin des lignes et territoires simples disponible en vue plane.
 
 ### Premiers tracés
 

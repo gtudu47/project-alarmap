@@ -206,10 +206,8 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
           }
           <form #pointForm class="point-form" (submit)="addPoint($event)">
             <h2>{{ pointKind() === 'label' ? 'Ajouter un texte' : 'Ajouter un lieu' }}</h2>
-            @if (view() === 'plane') {
-              <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading() || !!lineEdit()" (click)="cancelLine(); cancelArea(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
-              @if (placingPoint()) { <p role="status">Cliquez sur la carte pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
-            }
+            <button class="account-secondary" type="button" [attr.aria-pressed]="placingPoint()" [disabled]="pointBusy() || loading() || !!lineEdit()" (click)="cancelLine(); cancelArea(); placingPoint.set(!placingPoint())">{{ placingPoint() ? 'Annuler le placement' : 'Placer sur la carte' }}</button>
+            @if (placingPoint()) { <p role="status">Cliquez sur {{ view() === 'plane' ? 'la carte' : 'le globe' }} pour choisir les coordonnées, puis enregistrez le lieu. Échap annule.</p> }
             <label>Type de repère<select name="kind" [value]="pointKind()" (change)="pointKind.set($any($event.target).value)"><option value="city">Lieu</option><option value="label">Texte</option></select></label>
             @if (pointKind() === 'label') { <label>Couleur du texte<input name="color" type="color" value="#e6b96c"></label> }
             <label>{{ pointKind() === 'label' ? 'Calque du texte' : 'Calque du lieu' }}<select name="layerId" required>@for (layer of world.layers; track layer.id) { @if (!layer.locked) { <option [value]="layer.id">{{ layer.name }}</option> } }</select></label>
@@ -896,7 +894,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
         if (this.linePoints().length < 2000) { this.linePoints.update(points => [...points, [longitude, latitude] as Coordinate]); this.engine?.setDraftLine(this.linePoints()); }
         return true;
       }
-      if (!this.placingPoint() || !this.personal() || this.role === 'viewer' || this.pointBusy() || this.view() !== 'plane') return false;
+      if (!this.placingPoint() || !this.personal() || this.role === 'viewer' || this.pointBusy()) return false;
       const form = this.pointForm?.nativeElement;
       if (!form) return false;
       (form.elements.namedItem('longitude') as HTMLInputElement).value = longitude.toFixed(6);

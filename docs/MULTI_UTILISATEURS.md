@@ -186,13 +186,14 @@ au clavier avec les flèches et conserve le centre de la vue lors du réglage.
 
 ## Placer un lieu par clic
 
-Dans un monde privé, en vue plane, cliquer sur « Placer sur la carte ». Un clic
-dans les limites de la carte remplit longitude et latitude du formulaire.
-Saisir un nom, choisir un calque déverrouillé et enregistrer. Aucune écriture
-n’est faite avant « Enregistrer le lieu ». Annuler/Rétablir fonctionne ensuite
-comme pour un lieu ajouté par coordonnées. Un glissement déplace la caméra ;
-Échap ou « Annuler le placement » désactive l’outil. Réservé aux propriétaires
-et éditeurs ; placement par clic sur globe à venir.
+Dans un monde privé, en vue plane ou globe, cliquer sur « Placer sur la carte ».
+Un clic dans les limites de la carte ou sur la surface visible du globe remplit
+longitude et latitude du formulaire. Un clic hors du globe ne choisit pas de
+position. Saisir un nom, choisir un calque déverrouillé et enregistrer. Aucune
+écriture n’est faite avant « Enregistrer le lieu ». Annuler/Rétablir fonctionne
+ensuite comme pour un lieu ajouté par coordonnées. Un glissement déplace la
+caméra ; Échap ou « Annuler le placement » désactive l’outil. Réservé aux
+propriétaires et éditeurs.
 
 ## Dessiner routes et rivières
 

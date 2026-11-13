@@ -161,7 +161,7 @@ La sélection des lignes fonctionne dans les deux vues. Les territoires simples 
 
 Création, nom, opacité, verrouillage et suppression de calques vides sauvegardés.
 Choix du calque à l’ajout d’un lieu. Contrôles serveur de droits et de révision.
-Réordonnancement avec contrôles de droits et révision disponible ; déplacement d’objets et Undo/Redo des calques restent à faire. La CI a validé les tests PostgreSQL/PostGIS et les parcours navigateur.
+Réordonnancement et déplacement des objets avec contrôle des droits, des verrous et de la révision ; annulation des déplacements pendant la session. Undo/Redo des opérations sur les calques restent à faire. Validation PostgreSQL du déplacement à confirmer en CI.
 
 ### Grille kilométrique et premiers niveaux de détail
 

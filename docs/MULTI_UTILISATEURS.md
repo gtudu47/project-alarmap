@@ -475,3 +475,13 @@ des précédents, sur la carte et sur le globe. Les lecteurs ne peuvent pas chan
 cet ordre. La modification est sauvegardée avec contrôle de la révision et
 réinitialise l’historique de session, comme les autres opérations de calque.
 La carte publiée conserve son ordre jusqu’à une nouvelle publication.
+
+## Déplacer un objet entre calques
+
+Dans la fiche d’un objet privé, choisir son nouveau calque puis cliquer sur
+**Déplacer vers ce calque**. Les propriétaires et éditeurs peuvent utiliser
+cette commande lorsque les calques de départ et d’arrivée sont déverrouillés.
+La géométrie, les propriétés et l’identité de l’objet sont conservées.
+Annuler ou rétablir le déplacement reste possible pendant la session, tant que
+les droits et les verrous l’autorisent ; les modifications ne changent pas une
+copie publiée avant une nouvelle publication.

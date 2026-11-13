@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, InjectionToken, OnDestroy, ViewChild, effect, inject, signal } from '@angular/core';
-import { MapEngine, scaleDenominator, PointHistory, type PointChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
+import { MapEngine, scaleDenominator, PointHistory, type HistoryChange, DEFAULT_GRID, type GridOptions, type GridStats, type GridView, type ViewMode } from '@alarmap/map-engine';
 import { createDemoWorld, worldSchema, worldBackupSchema, lineObjectSchema, areaObjectSchema, type Coordinate, type MapObject, type World } from '@alarmap/map-model';
 import { WorkspacePages, pageText, type WorkspacePage } from './workspace-pages';
 import { AccountPanel } from './account-panel';
@@ -99,6 +99,15 @@ export const APP_MODE = new InjectionToken<'editor' | 'viewer'>('APP_MODE');
             @if (lineEditError()) { <p role="status">{{ lineEditError() }}</p> }
           }
 
+@if (personal() && role !== 'viewer' && !lineEdit()) {
+  <form class="point-form" (submit)="moveObjectLayer($event, object)">
+    <label>Calque de l’objet<select name="layerId" [value]="object.layerId" [disabled]="pointBusy() || layerLocked(object.layerId)">
+      @for (layer of world.layers; track layer.id) { @if (!layer.locked || layer.id === object.layerId) { <option [value]="layer.id">{{ layer.name }}</option> } }
+    </select></label>
+    <button class="account-secondary" type="submit" [disabled]="pointBusy() || layerLocked(object.layerId)">Déplacer vers ce calque</button>
+    @if (layerLocked(object.layerId)) { <p>Déverrouillez le calque actuel pour déplacer cet objet.</p> }
+  </form>
+}
 <button class="account-link" (click)="closeSelected()">Fermer la fiche</button></section> }
         @if (selectedObject()) { <button class="account-secondary sidebar-tools-toggle" type="button" [attr.aria-expanded]="toolsExpanded()" (click)="toolsExpanded.set(!toolsExpanded())">{{ toolsExpanded() ? 'Masquer les outils de la carte' : 'Afficher les outils de la carte' }}</button> }
         <div class="sidebar-tools" [hidden]="!!selectedObject() && !toolsExpanded()">
@@ -377,6 +386,7 @@ export class MapShell implements AfterViewInit, OnDestroy {
   }
   readonly layerDeleteConfirm = signal<string | null>(null);
   layerHasObjects(id: string): boolean { return this.world.objects.some(object => object.layerId === id); }
+  layerLocked(id: string): boolean { return this.world.layers.find(layer => layer.id === id)?.locked !== false; }
   async createLayer(event: Event): Promise<void> {
     event.preventDefault(); const form = event.target as HTMLFormElement;
     if (await this.changeLayer('POST', '', { name: new FormData(form).get('name') })) form.reset();
@@ -461,21 +471,55 @@ export class MapShell implements AfterViewInit, OnDestroy {
   readonly historyState = signal({ undo: false, redo: false });
   private refreshHistory(): void { this.historyState.set({ undo: this.history.canUndo, redo: this.history.canRedo }); }
   private clearHistory(): void { this.history.clear(); this.refreshHistory(); }
-  private recordHistory(change: PointChange): void { this.history.record(change); this.refreshHistory(); }
+  private recordHistory(change: HistoryChange): void { this.history.record(change); this.refreshHistory(); }
+  private validateMovedObject(access: WorldAccess, worldId: string, objectId: string, layerId: string, revision: number): void {
+    const world = worldSchema.parse(access.world);
+    if (world.id !== worldId || world.revision !== revision + 1 || access.objectsComplete !== false ||
+        world.objects.length !== 1 || world.objects[0]?.id !== objectId || world.objects[0]?.layerId !== layerId) {
+      this.clearHistory(); throw new Error('Réponse inattendue. Rechargez le monde avant de continuer.');
+    }
+  }
+  async moveObjectLayer(event: Event, object: MapObject): Promise<void> {
+    event.preventDefault();
+    if (this.pointBusy() || !this.personal() || this.role === 'viewer' || this.lineEdit() || this.selectedId() !== object.id) return;
+    const target = String(new FormData(event.target as HTMLFormElement).get('layerId') ?? '');
+    if (target === object.layerId) { this.pointMessage.set('Cet objet est déjà dans ce calque.'); return; }
+    if (this.layerLocked(object.layerId) || this.layerLocked(target)) { this.pointMessage.set('Déverrouillez les deux calques avant de déplacer cet objet.'); return; }
+    const worldId = this.world.id; const revision = this.world.revision; this.pointBusy.set(true); this.pointMessage.set('');
+    try {
+      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/objects/' + object.id + '/layer', { method: 'PATCH', body: JSON.stringify({ revision, layerId: target }) });
+      if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
+      if (this.world.revision !== revision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
+      this.validateMovedObject(result, worldId, object.id, target, revision);
+      this.applyObjectResult(result, object.id, revision);
+      this.recordHistory({ type: 'move-layer', objectId: object.id, beforeLayerId: object.layerId, afterLayerId: target });
+      this.pointMessage.set('Objet déplacé vers le calque choisi.');
+    } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Déplacement impossible.'); }
+    finally { this.pointBusy.set(false); }
+  }
   async applyHistory(direction: 'undo' | 'redo'): Promise<void> {
     if (this.pointBusy() || !this.personal() || this.role === 'viewer') return;
     const change = this.history.peek(direction); if (!change) return;
-    const target = direction === 'undo' ? change.before : change.after;
-    const pointId = (change.before ?? change.after)!.id; const worldId = this.world.id; const previousRevision = this.world.revision;
+    const worldId = this.world.id; const previousRevision = this.world.revision;
     this.pointBusy.set(true); this.pointMessage.set('');
     try {
-      const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : (change.before ?? change.after)!.geometry.type === 'Polygon' ? '/areas/' : '/points/') + pointId + '?compact=1', { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: this.world.revision, ...(target ? { point: target } : {}) }) });
-      if (this.personal() && this.world.id === worldId && this.accounts.user()) {
+      if ('type' in change) {
+        const layerId = direction === 'undo' ? change.beforeLayerId : change.afterLayerId;
+        const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + '/objects/' + change.objectId + '/layer', { method: 'PATCH', body: JSON.stringify({ revision: previousRevision, layerId }) });
+        if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
+        if (this.world.revision !== previousRevision) { this.clearHistory(); throw new Error('Le monde a changé. Rechargez-le avant de continuer.'); }
+        this.validateMovedObject(result, worldId, change.objectId, layerId, previousRevision);
+        this.applyObjectResult(result, change.objectId, previousRevision);
+      } else {
+        const target = direction === 'undo' ? change.before : change.after;
+        const pointId = (change.before ?? change.after)!.id;
+        const result = await this.accounts.request<WorldAccess>('/worlds/' + worldId + ((change.before ?? change.after)!.geometry.type === 'LineString' ? '/lines/' : (change.before ?? change.after)!.geometry.type === 'Polygon' ? '/areas/' : '/points/') + pointId + '?compact=1', { method: target ? 'PUT' : 'DELETE', body: JSON.stringify({ revision: previousRevision, ...(target ? { point: target } : {}) }) });
+        if (!this.personal() || this.world.id !== worldId || !this.accounts.user()) return;
         this.applyObjectResult(result, pointId, previousRevision); this.deleteConfirm.set(null);
-        if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
         if (!target && this.selectedId() === pointId) { this.selectedId.set(null); void this.updateAddress(null); }
-        this.pointMessage.set(direction === 'undo' ? 'Action annulée.' : 'Action rétablie.');
       }
+      if (this.world.revision === previousRevision + 1) { this.history.accept(direction); this.refreshHistory(); } else this.clearHistory();
+      this.pointMessage.set(direction === 'undo' ? 'Action annulée.' : 'Action rétablie.');
     } catch (error) { this.pointMessage.set(error instanceof Error ? error.message : 'Action impossible.'); }
     finally { this.pointBusy.set(false); }
   }

@@ -864,3 +864,19 @@ glissement, annulation, rôles et sauvegarde). Validation finale en cours.
 Validation : lint, typage et 48 tests unitaires réussis ; cinq parcours
 navigateur passent pour propriétaire, éditeur et lecteur, y compris clic hors
 globe, glissement, Échap, coordonnées, enregistrement et placement 2D.
+
+## Déplacement d’un objet entre calques — en cours
+
+La CI 42512407149 du placement sur globe est réussie. Prochain lot : déplacer
+un objet sans réécrire sa géométrie, avec contrôle des deux calques, des droits
+et de la révision. L’historique doit mémoriser le changement de calque sans
+sauvegarder une géométrie simplifiée reçue par tuiles. API et historique en
+préparation par les agents locaux ; aucune validation de ce lot à ce stade.
+
+Avancement : API, contrôle des deux verrous et historique sans géométrie
+simplifiée intégrés ; lint, typage, 49 tests unitaires et les parcours
+navigateur ciblés réussis. Un premier essai de fiche a été gêné par une
+reconstruction du serveur de développement ; la relance a réussi. Docker
+local reste indisponible : tests PostGIS à confirmer sur la CI après envoi.
+Le test local de placement sur globe couvre également un clic décentré ; trois
+parcours propriétaire, éditeur et lecteur ont réussi après démarrage du serveur.

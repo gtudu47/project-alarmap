@@ -232,6 +232,29 @@ export class WorldsService {
     return this.get(userId, id);
   }
 
+  async moveObject(userId: string, id: string, objectId: string, revision: number, layerId: string): Promise<{ world: World; role: MemberRole; objectsComplete: boolean; objectCount: number }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const world = await this.lockEditableWorld(client, id, userId);
+      if (world.revision !== revision) throw new ConflictException('Le monde a changé. Rechargez-le avant de réessayer.');
+      const current = await client.query<{ layer_id: string; locked: boolean }>(`SELECT o.layer_id, l.locked FROM map_objects o
+        JOIN layers l ON l.world_id=o.world_id AND l.id=o.layer_id
+        WHERE o.world_id=$1 AND o.id=$2 FOR UPDATE OF o,l`, [id, objectId]);
+      if (!current.rows[0]) throw new NotFoundException('Objet introuvable.');
+      const target = await client.query<{ locked: boolean }>('SELECT locked FROM layers WHERE world_id=$1 AND id=$2 FOR UPDATE', [id, layerId]);
+      if (!target.rows[0]) throw new NotFoundException('Calque introuvable.');
+      if (current.rows[0].locked || target.rows[0].locked) throw new ConflictException('Déverrouillez les deux calques avant de déplacer cet objet.');
+      if (current.rows[0].layer_id !== layerId.toLowerCase()) {
+        await client.query('UPDATE map_objects SET layer_id=$3 WHERE world_id=$1 AND id=$2', [id, objectId, layerId]);
+        await client.query('UPDATE worlds SET revision=revision+1,updated_at=now() WHERE id=$1', [id]);
+      }
+      const result = await this.get(userId, id, false, objectId, client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
   async changePoint(userId: string, id: string, pointId: string, revision: number, update?: { name: string; longitude: number; latitude: number; color?: string }, geometryType = 'ST_Point', compact = false): Promise<{ world: World; role: MemberRole }> {
     const client = await this.pool.connect();
     try {

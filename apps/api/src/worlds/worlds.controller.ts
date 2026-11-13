@@ -67,6 +67,12 @@ export class WorldsController {
   getObject(@Param('id', ParseUUIDPipe) id: string, @Param('objectId', ParseUUIDPipe) objectId: string, @Req() request: AuthRequest) {
     return this.worlds.getObject(request.account.id, id, objectId);
   }
+  @Patch(':id/objects/:objectId/layer')
+  @Header('Cache-Control', 'no-store')
+  moveObject(@Param('id', ParseUUIDPipe) id: string, @Param('objectId', ParseUUIDPipe) objectId: string, @Body() body: unknown, @Req() request: AuthRequest) {
+    const input = parseInput(z.object({ revision: z.number().int().nonnegative(), layerId: z.uuid() }).strict(), body);
+    return this.worlds.moveObject(request.account.id, id, objectId, input.revision, input.layerId);
+  }
   @Post(':id/points')
   @Header('Cache-Control', 'no-store')
   addPoint(@Param('id', ParseUUIDPipe) id: string, @Query() query: unknown, @Body() body: unknown, @Req() request: AuthRequest) {

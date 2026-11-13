@@ -3,6 +3,15 @@ import { createDemoWorld } from '../../packages/map-model/src/index';
 
 type Role = 'owner' | 'editor' | 'viewer';
 
+function expectPlacementLongitude(longitude: number, role: Exclude<Role, 'viewer'>) {
+  if (role === 'owner') {
+    expect(longitude).toBeCloseTo(0, 4);
+  } else {
+    expect(longitude).toBeGreaterThan(15);
+    expect(longitude).toBeLessThan(30);
+  }
+}
+
 async function openPrivateWorld(page: Page, role: Role) {
   const world = createDemoWorld();
   const centreLatitude = Math.atan2(0.6, 3.3) * 180 / Math.PI;
@@ -20,13 +29,13 @@ async function openPrivateWorld(page: Page, role: Role) {
     else if (path === '/api/v1/links/private/worlds/' + world.id) body = { ownerKey: 'a'.repeat(50), worldKey: 'b'.repeat(50) };
     else if (path.startsWith('/api/v1/links/private/worlds/' + world.id + '/objects/')) body = { ownerKey: 'a'.repeat(50), worldKey: 'b'.repeat(50), objectKey: 'c'.repeat(50) };
     else if (path === '/api/v1/worlds/' + world.id + '/points' && route.request().method() === 'POST') {
-      expect(role).not.toBe('viewer');
+      if (role === 'viewer') throw new Error('Un lecteur ne peut pas enregistrer de lieu.');
       expect(url.searchParams.get('compact')).toBe('1');
       const input = route.request().postDataJSON();
       expect(input.revision).toBe(world.revision);
       expect(input.name).toBe('Ville du globe');
-      expect(input.longitude).toBeCloseTo(0, 4);
-      expect(input.latitude).toBeCloseTo(centreLatitude, 4);
+      expectPlacementLongitude(input.longitude, role);
+      expect(input.latitude).toBeCloseTo(centreLatitude, role === 'owner' ? 4 : -1);
       const created = { ...world.objects[0]!, id: '00000000-0000-4000-8000-000000000099', name: input.name, geometry: { type: 'Point' as const, coordinates: [input.longitude, input.latitude] as [number, number] } };
       world.objects.push(created);
       world.revision++;
@@ -73,11 +82,13 @@ for (const role of ['owner', 'editor'] as const) {
     await expect(page.getByRole('button', { name: 'Annuler le placement', exact: true })).toBeVisible();
     expect(writes()).toBe(0);
     await page.getByRole('button', { name: 'Recentrer', exact: true }).click();
-    await page.mouse.click(centre.x, centre.y);
+    // Le clic de l’éditeur est à l’est du méridien central.
+    const placementX = centre.x + (role === 'editor' ? bounds.height * 0.2 : 0);
+    await page.mouse.click(placementX, centre.y);
     await expect(page.getByText('Position choisie. Renseignez le nom et enregistrez le lieu.')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Lieu sélectionné' })).toHaveCount(0);
-    expect(Number(await page.getByLabel('Longitude', { exact: true }).inputValue())).toBeCloseTo(0, 4);
-    expect(Number(await page.getByLabel('Latitude', { exact: true }).inputValue())).toBeCloseTo(centreLatitude, 4);
+    expectPlacementLongitude(Number(await page.getByLabel('Longitude', { exact: true }).inputValue()), role);
+    expect(Number(await page.getByLabel('Latitude', { exact: true }).inputValue())).toBeCloseTo(centreLatitude, role === 'owner' ? 4 : -1);
     expect(writes()).toBe(0);
     await page.getByLabel('Nom du lieu', { exact: true }).fill('Ville du globe');
     await page.getByRole('button', { name: 'Enregistrer le lieu', exact: true }).click();

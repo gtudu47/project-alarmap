@@ -559,6 +559,74 @@ test('HTTP : comptes, isolation des mondes, lecture seule, révisions et révoca
       assert.equal((await request(illustratedPoints + '/' + concurrentWorld.objects[0]!.id, tokens[0], { revision: 3 }, 'DELETE')).status, 200);
       assert.equal((await request(illustratedAssets + '/' + concurrentImage.id, tokens[0], undefined, 'DELETE')).status, 204);
     }
+    // Déplacement entre calques : aucun autre attribut ou géométrie ne change.
+    const moveWorld = (await (await request('/worlds', tokens[0], { name: 'Déplacement entre calques', radiusKm: 100 })).json() as { world: World }).world;
+    const moveBase = '/worlds/' + moveWorld.id;
+    const moveLayerResponse = await request(moveBase + '/layers', tokens[0], { name: 'Destination', revision: 0 });
+    assert.equal(moveLayerResponse.status, 201);
+    const moveWithLayers = (await moveLayerResponse.json() as { world: World }).world;
+    const sourceLayer = moveWithLayers.layers[0]!.id; const targetLayer = moveWithLayers.layers[1]!.id;
+    const moveImageResponse = await request(moveBase + '/assets', tokens[0], { name: 'Image privée', data: png });
+    assert.equal(moveImageResponse.status, 201);
+    const moveImage = await moveImageResponse.json() as { id: string };
+    const fixtures = [
+      { kind: 'city', geometry: { type: 'Point', coordinates: [1, 2] } },
+      { kind: 'image_marker', geometry: { type: 'Point', coordinates: [4, 5] } },
+      { kind: 'road', geometry: { type: 'LineString', coordinates: [[1, 2], [3, 4], [5, 6]] } },
+      { kind: 'territory', geometry: { type: 'Polygon', coordinates: [[[0, 0], [10, 0], [10, 10], [0, 0]], [[2, 1], [3, 1], [3, 2], [2, 1]]] } },
+      { kind: 'islands', geometry: { type: 'MultiPolygon', coordinates: [[[[20, 0], [22, 0], [22, 2], [20, 0]]], [[[30, 0], [32, 0], [32, 2], [30, 0]]]] } },
+    ];
+    const movedIds: string[] = [];
+    for (const item of fixtures) {
+      const objectId = randomUUID(); movedIds.push(objectId);
+      await infra.pool.query(`INSERT INTO map_objects(id,world_id,layer_id,kind,name,geometry,style,properties,start_year,end_year)
+        VALUES($1,$2,$3,$4,'Objet à déplacer',ST_SetSRID(ST_GeomFromGeoJSON($5),4326),$6::jsonb,$7::jsonb,-30,100)`,
+      [objectId,moveWorld.id,sourceLayer,item.kind,JSON.stringify(item.geometry),JSON.stringify({ color: '#6688aa', opacity: 0.7 }),JSON.stringify(item.kind === 'image_marker' ? { assetId: moveImage.id } : { note: 'Conservée' })]);
+    }
+    const beforeMove = (await (await request(moveBase, tokens[0])).json() as { world: World }).world;
+    assert.equal(beforeMove.revision, 1);
+    assert.equal((await request(moveBase + '/publication', tokens[0], { revision: 1, visibility: 'unlisted', layerIds: [sourceLayer] })).status, 201);
+    const movePath = (objectId: string) => moveBase + '/objects/' + objectId + '/layer';
+    const firstMove = { revision: 1, layerId: targetLayer };
+    assert.equal((await request(movePath(movedIds[0]!), undefined, firstMove, 'PATCH')).status, 401);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[1], firstMove, 'PATCH')).status, 404);
+    assert.equal((await request(moveBase + '/members', tokens[0], { email: `${users[1]}@example.test`, role: 'viewer' })).status, 201);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[1], firstMove, 'PATCH')).status, 403);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[0], { revision: 1, layerId: 'invalide' }, 'PATCH')).status, 400);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[0], { revision: 0, layerId: targetLayer }, 'PATCH')).status, 409);
+    assert.equal((await request(movePath(randomUUID()), tokens[0], firstMove, 'PATCH')).status, 404);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[0], { revision: 1, layerId: otherAccess.world.layers[0]!.id }, 'PATCH')).status, 404);
+    await infra.pool.query('UPDATE layers SET locked=true WHERE world_id=$1 AND id=$2', [moveWorld.id, sourceLayer]);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[0], firstMove, 'PATCH')).status, 409);
+    await infra.pool.query('UPDATE layers SET locked=false WHERE world_id=$1 AND id=$2', [moveWorld.id, sourceLayer]);
+    await infra.pool.query('UPDATE layers SET locked=true WHERE world_id=$1 AND id=$2', [moveWorld.id, targetLayer]);
+    assert.equal((await request(movePath(movedIds[0]!), tokens[0], firstMove, 'PATCH')).status, 409);
+    await infra.pool.query('UPDATE layers SET locked=false WHERE world_id=$1 AND id=$2', [moveWorld.id, targetLayer]);
+    const unchanged = await request(movePath(movedIds[0]!), tokens[0], { revision: 1, layerId: sourceLayer.toUpperCase() }, 'PATCH');
+    assert.equal(unchanged.status, 200);
+    const unchangedBody = await unchanged.json() as { world: World; objectsComplete: boolean };
+    assert.equal(unchangedBody.world.revision, 1); assert.equal(unchangedBody.objectsComplete, false);
+    assert.equal(unchangedBody.world.objects[0]!.layerId, sourceLayer);
+    assert.equal((await request(moveBase + '/members', tokens[0], { email: `${users[1]}@example.test`, role: 'editor' })).status, 201);
+    for (const [index, objectId] of movedIds.entries()) {
+      const response = await request(movePath(objectId), index === 0 ? tokens[1] : tokens[0], { revision: 1 + index, layerId: targetLayer }, 'PATCH');
+      assert.equal(response.status, 200);
+      const moved = await response.json() as { world: World; objectsComplete: boolean; objectCount: number };
+      assert.equal(moved.world.revision, 2 + index); assert.equal(moved.objectsComplete, false); assert.equal(moved.objectCount, movedIds.length);
+      assert.deepEqual(moved.world.objects, [{ ...beforeMove.objects.find(item => item.id === objectId)!, layerId: targetLayer }]);
+    }
+    const afterMove = (await (await request(moveBase, tokens[0])).json() as { world: World }).world;
+    for (const objectId of movedIds) assert.deepEqual(afterMove.objects.find(item => item.id === objectId), { ...beforeMove.objects.find(item => item.id === objectId)!, layerId: targetLayer });
+    const oldPublication = await (await request('/public/worlds/' + moveWorld.slug)).json() as World;
+    assert.equal(oldPublication.objects.length, movedIds.length - 1);
+    assert.ok(oldPublication.objects.every(item => item.layerId === sourceLayer));
+    assert.ok(!oldPublication.objects.some(item => item.kind === 'image_marker'));
+    assert.equal((await request(moveBase + '/assets/' + moveImage.id, tokens[0], undefined, 'DELETE')).status, 409);
+    const race = await Promise.all([
+      request(movePath(movedIds[0]!), tokens[0], { revision: 6, layerId: sourceLayer }, 'PATCH'),
+      request(movePath(movedIds[1]!), tokens[0], { revision: 6, layerId: sourceLayer }, 'PATCH'),
+    ]);
+    assert.deepEqual(race.map(response => response.status).sort(), [200, 409]);
     assert.equal((await request('/auth/logout', tokens[0], {}, 'POST')).status, 204);
     assert.equal((await request('/worlds', tokens[0])).status, 401);
   } finally {

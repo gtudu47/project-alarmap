@@ -80,7 +80,7 @@ export class MapEngine {
   destroy(): void { this.disposed = true; ++this.generation; this.renderer?.destroy(); this.renderer = undefined; }
 }
 
-export { PointHistory, type PointChange } from './history.js';
+export { PointHistory, type PointChange, type LayerMove, type HistoryChange } from './history.js';
 
 export * from './grid.js';
 

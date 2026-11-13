@@ -880,3 +880,8 @@ reconstruction du serveur de développement ; la relance a réussi. Docker
 local reste indisponible : tests PostGIS à confirmer sur la CI après envoi.
 Le test local de placement sur globe couvre également un clic décentré ; trois
 parcours propriétaire, éditeur et lecteur ont réussi après démarrage du serveur.
+
+Validation finale : la CI 43479974855 du commit 69cc775 est verte sur Windows,
+Linux, PostgreSQL/PostGIS et les parcours navigateur. La publication reste une
+copie figée et les tests couvrent les verrous, les permissions, la concurrence
+et la conservation des géométries. Le lot déplacement est livré.
